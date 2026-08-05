@@ -237,7 +237,35 @@ p {
   outline: none;
 }
 
+.upload-form label {
+  display: grid;
+  gap: var(--space-2);
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.upload-form input {
+  min-height: 48px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 0 14px;
+  color: var(--ink);
+  background: #fff;
+  outline: none;
+}
+
+.upload-form input[type="file"] {
+  padding: 11px 14px;
+}
+
 .auth-form input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(10, 36, 233, 0.12);
+}
+
+.upload-form input:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 4px rgba(10, 36, 233, 0.12);
 }
@@ -268,6 +296,14 @@ p {
   color: var(--muted);
   font-size: 0.84rem;
   line-height: 1.7;
+}
+
+.auth-hint[data-kind="error"] {
+  color: var(--red);
+}
+
+.auth-hint[data-kind="success"] {
+  color: var(--green-2);
 }
 
 .app-shell {
@@ -439,7 +475,8 @@ h4 {
 .metric-card,
 .panel,
 .summary-band,
-.pilot-panel {
+.pilot-panel,
+.data-panel {
   border: 1px solid rgba(219, 228, 238, 0.95);
   border-radius: var(--radius-lg);
   background: rgba(255, 255, 255, 0.88);
@@ -563,6 +600,32 @@ h4 {
   color: rgba(255, 255, 255, 0.72);
   line-height: 1.75;
   text-wrap: pretty;
+}
+
+.data-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.72fr);
+  gap: var(--space-5);
+  align-items: center;
+  padding: var(--space-5);
+  margin-bottom: var(--space-4);
+}
+
+.data-panel h3 {
+  margin-bottom: var(--space-3);
+  font-size: 1.45rem;
+}
+
+.data-panel p {
+  margin-bottom: 0;
+  color: var(--ink-soft);
+  line-height: 1.85;
+  text-wrap: pretty;
+}
+
+.upload-form {
+  display: grid;
+  gap: var(--space-4);
 }
 
 .hero-card {
@@ -1036,7 +1099,7 @@ h4 {
   }
 
   .side-nav {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 }
 
@@ -1056,7 +1119,8 @@ h4 {
   .analysis-layout,
   .summary-band,
   .pilot-panel,
-  .offer-panel {
+  .offer-panel,
+  .data-panel {
     grid-template-columns: 1fr;
   }
 
@@ -1104,7 +1168,8 @@ h4 {
   .insight-panel,
   .panel,
   .summary-band,
-  .pilot-panel {
+  .pilot-panel,
+  .data-panel {
     border-radius: var(--radius-md);
   }
 

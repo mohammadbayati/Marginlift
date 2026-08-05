@@ -2,127 +2,134 @@ const fa = new Intl.NumberFormat("fa-IR");
 
 const colors = {
   control: "#315b9a",
-  push: "#087f8c",
-  small: "#218653",
-  high: "#c98212",
-  useful: "#218653",
+  push_only: "#087f8c",
+  small_discount: "#218653",
+  high_incentive: "#c98212",
+  useful: "#15af60",
   waste: "#c9463d",
-  neutral: "#6a4c93"
+  neutral: "#6a4c93",
+  high: "#c98212"
 };
 
-const campaign = {
-  audience: 10000,
-  totalSpend: 420000000,
-  reportedRevenue: 1850000000,
-  nonIncrementalSpend: 118000000,
-  nextSavings: 82000000,
-  revenuePreserved: 96,
-  marginLift: 14
+const fallbackAnalysis = {
+  campaign: {
+    name: "بازگشت با کش‌بک",
+    audience: 10000,
+    totalSpend: 420000000,
+    reportedRevenue: 1850000000,
+    nonIncrementalSpend: 118000000,
+    nextSavings: 82000000,
+    revenuePreserved: 96,
+    marginLift: 14,
+    confidence: 84
+  },
+  treatments: [
+    { key: "control", labelFa: "گروه کنترل", conversion: 8.4, costPerUser: 0 },
+    { key: "push_only", labelFa: "فقط پوش", conversion: 9.8, costPerUser: 0 },
+    { key: "small_discount", labelFa: "تخفیف کوچک", conversion: 11.6, costPerUser: 25000 },
+    { key: "high_incentive", labelFa: "مشوق قوی", conversion: 13.1, costPerUser: 75000 }
+  ],
+  segments: [
+    {
+      nameFa: "کاربران وفادار اخیر",
+      users: 3100,
+      actionFa: "بدون پیشنهاد",
+      uplift: 1.1,
+      reasonFa: "احتمال خرید بدون تخفیف بالاست و مشوق پولی حاشیه سود را کم می‌کند."
+    },
+    {
+      nameFa: "کاربران خاموش اما قابل‌فعال‌سازی",
+      users: 2400,
+      actionFa: "فقط پوش",
+      uplift: 2.0,
+      reasonFa: "پیام کم‌هزینه برای ساختن اثر افزایشی کافی است."
+    },
+    {
+      nameFa: "کاربران حساس به تخفیف",
+      users: 3200,
+      actionFa: "تخفیف کوچک",
+      uplift: 5.8,
+      reasonFa: "واکنش افزایشی، پیشنهاد متوسط را توجیه می‌کند."
+    },
+    {
+      nameFa: "کاربران غیرفعال باارزش بالا",
+      users: 1300,
+      actionFa: "مشوق قوی",
+      uplift: 7.4,
+      reasonFa: "اثر افزایشی و ارزش سفارش بالاتر، مشوق قوی‌تر را توجیه می‌کند."
+    }
+  ],
+  actions: [
+    {
+      titleFa: "بدون پیشنهاد",
+      users: 3100,
+      cost: 0,
+      revenue: 580000000,
+      noteFa: "به کاربرانی که احتمالاً بدون تخفیف هم خرید می‌کنند، تخفیف نده."
+    },
+    {
+      titleFa: "فقط پوش",
+      users: 2400,
+      cost: 0,
+      revenue: 310000000,
+      noteFa: "قبل از خرج‌کردن مشوق پولی، از کانال رایگان استفاده کن."
+    },
+    {
+      titleFa: "تخفیف کوچک",
+      users: 3200,
+      cost: 80000000,
+      revenue: 720000000,
+      noteFa: "کاربران قابل‌متقاعدسازی را با هزینه کنترل‌شده هدف بگیر."
+    },
+    {
+      titleFa: "مشوق قوی",
+      users: 1300,
+      cost: 97500000,
+      revenue: 390000000,
+      noteFa: "مشوق قوی را برای کاربران غیرفعال اما باارزش بالا نگه دار."
+    }
+  ],
+  wasteItems: [
+    { label: "مشوق مفید", value: 48, colorKey: "useful" },
+    { label: "کاربران قطعی", value: 28, colorKey: "high" },
+    { label: "هدررفت کم‌واکنش", value: 24, colorKey: "waste" }
+  ],
+  insight: "۲۸٪ از هزینه مشوق برای کاربرانی خرج‌شده که احتمالاً بدون تخفیف هم خرید می‌کردند."
 };
 
-const sessionKey = "marginlift-demo-session";
-
-const treatments = [
-  { name: "Control", labelFa: "گروه کنترل", key: "control", conversion: 8.4, costPerUser: 0 },
-  { name: "Push only", labelFa: "فقط پوش", key: "push", conversion: 9.8, costPerUser: 0 },
-  { name: "Small discount", labelFa: "تخفیف کوچک", key: "small", conversion: 11.6, costPerUser: 25000 },
-  { name: "High incentive", labelFa: "مشوق قوی", key: "high", conversion: 13.1, costPerUser: 75000 }
-];
-
-const segments = [
-  {
-    name: "Recent loyal users",
-    nameFa: "کاربران وفادار اخیر",
-    users: 3100,
-    action: "No offer",
-    actionFa: "بدون پیشنهاد",
-    uplift: 1.1,
-    reason: "High purchase probability even without discount.",
-    reasonFa: "احتمال خرید حتی بدون تخفیف بالاست."
-  },
-  {
-    name: "Sleeping but reachable",
-    nameFa: "کاربران خاموش اما قابل‌فعال‌سازی",
-    users: 2400,
-    action: "Push only",
-    actionFa: "فقط پوش",
-    uplift: 2.0,
-    reason: "Low-cost message creates enough lift.",
-    reasonFa: "پیام کم‌هزینه برای ساختن اثر افزایشی کافی است."
-  },
-  {
-    name: "Discount-sensitive users",
-    nameFa: "کاربران حساس به تخفیف",
-    users: 3200,
-    action: "Small discount",
-    actionFa: "تخفیف کوچک",
-    uplift: 5.8,
-    reason: "Incremental response justifies a moderate offer.",
-    reasonFa: "واکنش افزایشی، پیشنهاد متوسط را توجیه می‌کند."
-  },
-  {
-    name: "High-value dormant users",
-    nameFa: "کاربران غیرفعال باارزش بالا",
-    users: 1300,
-    action: "High incentive",
-    actionFa: "مشوق قوی",
-    uplift: 7.4,
-    reason: "میانگین ارزش سفارش و حاشیه سود بالاتر می‌تواند مشوق قوی‌تر را توجیه کند.",
-    reasonFa: "میانگین ارزش سفارش و حاشیه سود بالاتر می‌تواند مشوق قوی‌تر را توجیه کند."
-  }
-];
-
-const actions = [
-  {
-    title: "No offer",
-    titleFa: "بدون پیشنهاد",
-    users: 3100,
-    cost: 0,
-    revenue: 580000000,
-    color: colors.neutral,
-    note: "Avoid discounting sure things.",
-    noteFa: "به کاربرانی که احتمالاً بدون تخفیف هم خرید می‌کنند، تخفیف نده."
-  },
-  {
-    title: "Push only",
-    titleFa: "فقط پوش",
-    users: 2400,
-    cost: 0,
-    revenue: 310000000,
-    color: colors.push,
-    note: "Use a free channel before paid incentives.",
-    noteFa: "قبل از خرج‌کردن مشوق پولی، از کانال رایگان استفاده کن."
-  },
-  {
-    title: "Small discount",
-    titleFa: "تخفیف کوچک",
-    users: 3200,
-    cost: 80000000,
-    revenue: 720000000,
-    color: colors.small,
-    note: "کاربران قابل‌متقاعدسازی را با هزینه کنترل‌شده هدف بگیر.",
-    noteFa: "کاربران قابل‌متقاعدسازی را با هزینه کنترل‌شده هدف بگیر."
-  },
-  {
-    title: "High incentive",
-    titleFa: "مشوق قوی",
-    users: 1300,
-    cost: 97500000,
-    revenue: 390000000,
-    color: colors.high,
-    note: "Reserve stronger offers for high-value dormant users.",
-    noteFa: "مشوق قوی را برای کاربران غیرفعال اما باارزش بالا نگه دار."
-  }
-];
+let currentAnalysis = fallbackAnalysis;
+let activeSession = null;
 
 function formatMoney(value) {
   if (value >= 1000000000) return `${fa.format(Number((value / 1000000000).toFixed(2)))} میلیارد تومان`;
   return `${fa.format(Math.round(value / 1000000))} میلیون تومان`;
 }
 
+async function apiRequest(path, options = {}) {
+  const response = await fetch(path, {
+    credentials: "same-origin",
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {})
+    },
+    ...options
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error?.message || "درخواست ناموفق بود.");
+  }
+  return payload.data;
+}
+
+function setText(id, value) {
+  const target = document.getElementById(id);
+  if (target) target.textContent = value;
+}
+
 function renderHeroMetrics() {
   const target = document.getElementById("heroMetrics");
   if (!target) return;
+  const campaign = currentAnalysis.campaign;
   target.innerHTML = [
     ["هدررفت تخمینی", formatMoney(campaign.nonIncrementalSpend)],
     ["صرفه‌جویی کمپین بعدی", formatMoney(campaign.nextSavings)],
@@ -136,9 +143,10 @@ function renderHeroMetrics() {
 }
 
 function renderMetricGrid() {
+  const campaign = currentAnalysis.campaign;
   const cards = [
     ["مخاطبان کمپین", fa.format(campaign.audience), "کاربر در کمپین بازگشت تاریخی"],
-    ["هزینه مشوق", formatMoney(campaign.totalSpend), "هزینه کش‌بک و تخفیف"],
+    ["هزینه مشوق", formatMoney(campaign.totalSpend), "هزینه کش‌بک و تخفیف در سیاست فعلی"],
     ["درآمد گزارش‌شده", formatMoney(campaign.reportedRevenue), "فروش ثبت‌شده پس از اجرای کمپین"],
     ["هدررفت تخمینی", formatMoney(campaign.nonIncrementalSpend), "بخشی از مشوق که احتمالاً خرید تازه نساخته است"]
   ];
@@ -153,12 +161,11 @@ function renderMetricGrid() {
 }
 
 function renderTreatmentChart() {
+  const treatments = currentAnalysis.treatments;
   const max = Math.max(...treatments.map(item => item.conversion));
   document.getElementById("treatmentChart").innerHTML = treatments.map(item => {
-    const width = (item.conversion / max) * 100;
-    const color = item.key === "control" ? colors.control :
-      item.key === "push" ? colors.push :
-      item.key === "small" ? colors.small : colors.high;
+    const width = max > 0 ? (item.conversion / max) * 100 : 0;
+    const color = colors[item.key] || colors.neutral;
     return `
       <div class="bar-row">
         <div class="bar-label">${item.labelFa}</div>
@@ -170,15 +177,11 @@ function renderTreatmentChart() {
 }
 
 function renderWaste() {
-  const items = [
-    { label: "مشوق مفید", value: 48, color: colors.useful },
-    { label: "کاربران قطعی", value: 28, color: colors.high },
-    { label: "هدررفت کم‌واکنش", value: 24, color: colors.waste }
-  ];
+  const items = currentAnalysis.wasteItems || fallbackAnalysis.wasteItems;
 
   document.getElementById("wasteLegend").innerHTML = items.map(item => `
     <div class="legend-item">
-      <span class="legend-dot" style="background:${item.color}"></span>
+      <span class="legend-dot" style="background:${colors[item.colorKey] || colors.neutral}"></span>
       <span class="legend-label">${item.label}</span>
       <span class="legend-value number">${fa.format(item.value)}٪</span>
     </div>
@@ -186,7 +189,7 @@ function renderWaste() {
 }
 
 function renderSegments() {
-  document.getElementById("segmentRows").innerHTML = segments.map(segment => `
+  document.getElementById("segmentRows").innerHTML = currentAnalysis.segments.map(segment => `
     <tr>
       <td><strong>${segment.nameFa}</strong></td>
       <td class="number">${fa.format(segment.users)}</td>
@@ -198,8 +201,8 @@ function renderSegments() {
 }
 
 function renderActions() {
-  document.getElementById("actionCards").innerHTML = actions.map(action => `
-    <div class="action-card" style="border-top: 5px solid ${action.color}">
+  document.getElementById("actionCards").innerHTML = currentAnalysis.actions.map(action => `
+    <div class="action-card" style="border-top: 5px solid ${actionColor(action.titleFa)}">
       <h4>${action.titleFa}</h4>
       <strong class="number">${fa.format(action.users)}</strong>
       <span>کاربر</span>
@@ -211,8 +214,9 @@ function renderActions() {
 }
 
 function renderSummary() {
+  const campaign = currentAnalysis.campaign;
   const cards = [
-    ["کاهش هزینه مشوق", "۱۹.۵٪"],
+    ["کاهش هزینه مشوق", `${fa.format(campaign.totalSpend > 0 ? Math.round((campaign.nextSavings / campaign.totalSpend) * 1000) / 10 : 0)}٪`],
     ["درآمد حفظ‌شده", `${fa.format(campaign.revenuePreserved)}٪`],
     ["بهبود حاشیه سود", `${fa.format(campaign.marginLift)}٪`]
   ];
@@ -225,6 +229,31 @@ function renderSummary() {
   `).join("");
 }
 
+function renderDashboard() {
+  const campaign = currentAnalysis.campaign;
+  setText("statusCampaignName", campaign.name || "کمپین تحلیل‌شده");
+  setText("campaignMode", currentAnalysis.isDemo ? "داده نمونه برای دمو" : "تحلیل ذخیره‌شده روی سرور");
+  setText("roiSavings", formatMoney(campaign.nextSavings));
+  setText("roiPreserved", `با حفظ ${fa.format(campaign.revenuePreserved)}٪ درآمد گزارش‌شده`);
+  setText("insightHeadline", currentAnalysis.insight || fallbackAnalysis.insight);
+  setText("confidenceValue", `${fa.format(campaign.confidence || 72)}٪`);
+  setText("analysisPeriod", currentAnalysis.isDemo ? "داده نمونه" : "آخرین فایل واردشده");
+  renderHeroMetrics();
+  renderMetricGrid();
+  renderTreatmentChart();
+  renderWaste();
+  renderSegments();
+  renderActions();
+  renderSummary();
+}
+
+function actionColor(actionFa) {
+  if (actionFa === "فقط پوش") return colors.push_only;
+  if (actionFa === "تخفیف کوچک") return colors.small_discount;
+  if (actionFa === "مشوق قوی") return colors.high_incentive;
+  return colors.neutral;
+}
+
 function setAuthMode(mode) {
   document.querySelectorAll("[data-auth-tab]").forEach(tab => {
     tab.classList.toggle("active", tab.dataset.authTab === mode);
@@ -233,19 +262,32 @@ function setAuthMode(mode) {
   document.getElementById("signupForm").classList.toggle("active", mode === "signup");
 }
 
-function showDashboard() {
+function showDashboard(session) {
+  activeSession = session || activeSession;
+  if (activeSession?.organization?.name) {
+    setText("workspaceName", activeSession.organization.name);
+  }
   document.getElementById("authShell").classList.add("is-hidden");
   document.getElementById("appShell").classList.remove("is-hidden");
 }
 
 function showAuth() {
+  activeSession = null;
   document.getElementById("appShell").classList.add("is-hidden");
   document.getElementById("authShell").classList.remove("is-hidden");
 }
 
-function saveSession(payload) {
-  localStorage.setItem(sessionKey, JSON.stringify(payload));
-  showDashboard();
+async function loadCurrentCampaign() {
+  const analysis = await apiRequest("/api/campaigns/current");
+  currentAnalysis = analysis;
+  renderDashboard();
+}
+
+function setMessage(id, text, kind = "neutral") {
+  const target = document.getElementById(id);
+  if (!target) return;
+  target.textContent = text;
+  target.dataset.kind = kind;
 }
 
 function initAuth() {
@@ -253,37 +295,100 @@ function initAuth() {
     tab.addEventListener("click", () => setAuthMode(tab.dataset.authTab));
   });
 
-  document.getElementById("loginForm").addEventListener("submit", event => {
+  document.getElementById("loginForm").addEventListener("submit", async event => {
     event.preventDefault();
-    const email = document.getElementById("loginEmail").value.trim();
-    saveSession({ email, workspace: "Demo workspace", mode: "login" });
+    setMessage("loginMessage", "در حال ورود…");
+    try {
+      const session = await apiRequest("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({
+          email: document.getElementById("loginEmail").value.trim(),
+          password: document.getElementById("loginPassword").value
+        })
+      });
+      showDashboard(session);
+      await loadCurrentCampaign();
+    } catch (error) {
+      setMessage("loginMessage", error.message, "error");
+    }
   });
 
-  document.getElementById("signupForm").addEventListener("submit", event => {
+  document.getElementById("signupForm").addEventListener("submit", async event => {
     event.preventDefault();
-    const email = document.getElementById("signupEmail").value.trim();
-    const workspace = document.getElementById("companyName").value.trim();
-    saveSession({ email, workspace, mode: "signup" });
+    setMessage("signupMessage", "در حال ساخت فضای کاری…");
+    try {
+      const session = await apiRequest("/api/auth/signup", {
+        method: "POST",
+        body: JSON.stringify({
+          companyName: document.getElementById("companyName").value.trim(),
+          email: document.getElementById("signupEmail").value.trim(),
+          password: document.getElementById("signupPassword").value
+        })
+      });
+      showDashboard(session);
+      await loadCurrentCampaign();
+    } catch (error) {
+      setMessage("signupMessage", error.message, "error");
+    }
   });
 
-  document.getElementById("logoutButton").addEventListener("click", () => {
-    localStorage.removeItem(sessionKey);
+  document.getElementById("logoutButton").addEventListener("click", async () => {
+    try {
+      await apiRequest("/api/auth/logout", { method: "POST", body: "{}" });
+    } finally {
+      showAuth();
+    }
+  });
+}
+
+function initUpload() {
+  document.getElementById("campaignUploadForm").addEventListener("submit", async event => {
+    event.preventDefault();
+    const file = document.getElementById("campaignCsvFile").files[0];
+    if (!file) {
+      setMessage("uploadMessage", "فایل CSV را انتخاب کنید.", "error");
+      return;
+    }
+
+    setMessage("uploadMessage", "در حال تحلیل کمپین…");
+    try {
+      const csvText = await file.text();
+      const analysis = await apiRequest("/api/campaigns/import", {
+        method: "POST",
+        body: JSON.stringify({
+          name: document.getElementById("campaignUploadName").value.trim(),
+          csvText
+        })
+      });
+      currentAnalysis = analysis;
+      renderDashboard();
+      setMessage("uploadMessage", "تحلیل کمپین ذخیره شد و داشبورد به‌روزرسانی شد.", "success");
+    } catch (error) {
+      setMessage("uploadMessage", error.message, "error");
+    }
+  });
+}
+
+async function initSession() {
+  renderDashboard();
+  try {
+    const session = await apiRequest("/api/session");
+    if (session) {
+      showDashboard(session);
+      await loadCurrentCampaign();
+    } else {
+      showAuth();
+    }
+  } catch (error) {
     showAuth();
-  });
-
-  if (localStorage.getItem(sessionKey)) {
-    showDashboard();
+    setMessage("loginMessage", "برای استفاده از محصول واقعی، دمو را با npm start اجرا کنید.", "error");
   }
 }
 
 function init() {
   initAuth();
-  renderMetricGrid();
-  renderTreatmentChart();
-  renderWaste();
-  renderSegments();
-  renderActions();
-  renderSummary();
+  initUpload();
+  initSession();
 }
 
 init();

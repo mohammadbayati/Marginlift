@@ -58,7 +58,7 @@
             <input id="loginPassword" name="password" type="password" value="demo1234" autocomplete="current-password" required minlength="6">
           </label>
           <button class="primary-button" type="submit">ورود به داشبورد</button>
-          <p class="auth-hint">برای دمو، همین مقدارهای پیش‌فرض کافی‌اند.</p>
+          <p class="auth-hint" id="loginMessage">برای دمو، همین مقدارهای پیش‌فرض کافی‌اند.</p>
         </form>
 
         <form class="auth-form" id="signupForm">
@@ -79,7 +79,7 @@
             <input id="signupPassword" name="password" type="password" placeholder="حداقل ۶ کاراکتر" autocomplete="new-password" required minlength="6">
           </label>
           <button class="primary-button" type="submit">ساخت فضای کاری</button>
-          <p class="auth-hint">این نسخه فقط دمو است و اطلاعات را روی همین مرورگر نگه می‌دارد.</p>
+          <p class="auth-hint" id="signupMessage">حساب و فضای کاری روی سرور محلی ذخیره می‌شود.</p>
         </form>
       </div>
     </section>
@@ -96,6 +96,7 @@
         <nav class="side-nav">
           <a class="active" href="#overview">نمای کلی</a>
           <a href="#offer">محصول قابل‌فروش</a>
+          <a href="#data">داده کمپین</a>
           <a href="#uplift">تحلیل uplift</a>
           <a href="#actions">تصمیم‌های پیشنهادی</a>
           <a href="#pilot">پایلوت</a>
@@ -118,8 +119,8 @@
           </div>
           <div class="status-card">
             <span>کمپین تاریخی نمونه</span>
-            <strong>بازگشت با کش‌بک</strong>
-            <small>پنجره سنجش: ۷ روز</small>
+            <strong id="statusCampaignName">بازگشت با کش‌بک</strong>
+            <small id="campaignMode">پنجره سنجش: ۷ روز</small>
             <button class="ghost-button" id="logoutButton" type="button">خروج</button>
           </div>
         </header>
@@ -127,11 +128,11 @@
         <section class="command-strip" aria-label="خلاصه فضای کاری">
           <div>
             <span>فضای کاری</span>
-            <strong>پلتفرم مصرفی نمونه</strong>
+            <strong id="workspaceName">پلتفرم مصرفی نمونه</strong>
           </div>
           <div>
             <span>دوره تحلیل</span>
-            <strong>کمپین‌های ۳۰ روز اخیر</strong>
+            <strong id="analysisPeriod">کمپین‌های ۳۰ روز اخیر</strong>
           </div>
           <div>
             <span>هدف تصمیم</span>
@@ -139,7 +140,7 @@
           </div>
           <div>
             <span>خروجی فروش‌پذیر</span>
-            <strong>سیاست کمپین بعدی</strong>
+            <strong id="decisionOutput">سیاست کمپین بعدی</strong>
           </div>
         </section>
 
@@ -155,18 +156,18 @@
             </div>
             <div class="roi-tile">
               <span>بودجه قابل‌آزادسازی</span>
-              <strong class="number">۸۲ میلیون تومان</strong>
-              <small>با حفظ ۹۶٪ درآمد گزارش‌شده</small>
+              <strong class="number" id="roiSavings">۸۲ میلیون تومان</strong>
+              <small id="roiPreserved">با حفظ ۹۶٪ درآمد گزارش‌شده</small>
             </div>
           </article>
 
           <aside class="insight-panel">
             <p class="section-kicker">بینش تصمیم</p>
-            <h3>۲۸٪ از هزینه مشوق برای کاربرانی خرج‌شده که احتمالاً بدون تخفیف هم خرید می‌کردند.</h3>
+            <h3 id="insightHeadline">۲۸٪ از هزینه مشوق برای کاربرانی خرج‌شده که احتمالاً بدون تخفیف هم خرید می‌کردند.</h3>
             <p>برای این گروه، پیام یادآوری یا حتی عدم ارسال پیشنهاد، حاشیه سود بهتری از تخفیف می‌سازد.</p>
             <div class="confidence">
               <span>اعتماد تحلیل</span>
-              <strong class="number">۸۴٪</strong>
+              <strong class="number" id="confidenceValue">۸۴٪</strong>
             </div>
           </aside>
         </section>
@@ -193,6 +194,29 @@
               <p>طرح آزمایش بعدی را با holdout می‌سازیم تا صرفه‌جویی و درآمد محافظت‌شده قابل دفاع باشند.</p>
             </article>
           </div>
+        </section>
+
+        <section class="data-panel" id="data">
+          <div>
+            <p class="section-kicker">داده واقعی مشتری</p>
+            <h3>CSV کمپین را وارد کنید تا داشبورد با تحلیل سمت سرور بازسازی شود.</h3>
+            <p>
+              فایل باید ستون‌های <bdi class="latin">segment_fa</bdi>، <bdi class="latin">campaign_group</bdi>، <bdi class="latin">users</bdi>،
+              <bdi class="latin">conversion_rate</bdi>، <bdi class="latin">incentive_cost_per_user_toman</bdi> و <bdi class="latin">estimated_revenue_toman</bdi> داشته باشد.
+            </p>
+          </div>
+          <form class="upload-form" id="campaignUploadForm">
+            <label>
+              نام کمپین
+              <input id="campaignUploadName" type="text" value="کمپین بازگشت مشتریان" required>
+            </label>
+            <label>
+              فایل CSV
+              <input id="campaignCsvFile" type="file" accept=".csv,text/csv" required>
+            </label>
+            <button class="primary-button" type="submit">تحلیل کمپین</button>
+            <p class="auth-hint" id="uploadMessage">برای تست می‌توانید از فایل نمونه همین پروژه استفاده کنید.</p>
+          </form>
         </section>
 
         <section class="causal-strip" aria-label="مقایسه گزارش عادی و تحلیل علی">

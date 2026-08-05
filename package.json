@@ -1,0 +1,14 @@
+{
+  "name": "marginlift",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MarginLift MVP: uplift, churn and incentive budget decisioning platform.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node tests/analysis.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
