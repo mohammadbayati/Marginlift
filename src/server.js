@@ -364,13 +364,18 @@ function serveStatic(requestPath, res) {
     "/index.html",
     "/sales.html",
     "/pilot.html",
+    "/deck.html",
     "/styles.css",
     "/app.js",
     "/synthetic-campaign-data.csv",
     "/README.md",
     "/docs/pilot-data-request.md",
     "/docs/pilot-experiment-brief.md",
-    "/docs/pilot-proposal-template.md"
+    "/docs/pilot-proposal-template.md",
+    "/docs/investor-source-of-truth.md",
+    "/docs/investor-memo.md",
+    "/docs/demo-day-talk-track.md",
+    "/docs/investor-q-and-a.md"
   ]);
 
   if (!allowed.has(routePath)) {

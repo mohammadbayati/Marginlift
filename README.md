@@ -26,6 +26,12 @@ http://localhost:3000/sales.html
 http://localhost:3000/pilot.html
 ```
 
+صفحه deck سرمایه‌گذار/مسابقه:
+
+```text
+http://localhost:3000/deck.html
+```
+
 این نسخه با داده مصنوعی و deterministic نشان می‌دهد چطور یک موتور تصمیم‌گیری مشوق می‌تواند با منطق uplift و گروه کنترل، هدررفت تخفیف را کاهش دهد.
 
 ## این دمو چه چیزی را نشان می‌دهد
@@ -43,6 +49,7 @@ http://localhost:3000/pilot.html
 - صفحه فروش، one-pager، اسکریپت دمو، pitch deck outline و برنامه GTM.
 - بنچمارک رقبا از آژانس‌های Digital Marketing و AI Marketing و تبدیل ایده‌های قابل‌استفاده به بخش‌های audit، اتاق شواهد و proof stack.
 - Pilot Kit شامل data request، experiment brief، proposal و صفحه قابل‌ارسال پایلوت.
+- Investor Kit شامل source of truth، memo، talk track، Q&A و deck وب‌محور.
 
 ## جهت طراحی
 
