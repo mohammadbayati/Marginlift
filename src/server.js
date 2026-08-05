@@ -362,6 +362,7 @@ function serveStatic(requestPath, res) {
   const routePath = requestPath === "/" ? "/index.html" : requestPath;
   const allowed = new Set([
     "/index.html",
+    "/sales.html",
     "/styles.css",
     "/app.js",
     "/synthetic-campaign-data.csv",
