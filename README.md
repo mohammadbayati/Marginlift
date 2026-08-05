@@ -35,6 +35,7 @@ http://localhost:3000/sales.html
 - برنامه اقدام پیشنهادی برای کمپین بعدی.
 - خلاصه ROI برای مدیر رشد یا CRM.
 - صفحه فروش، one-pager، اسکریپت دمو، pitch deck outline و برنامه GTM.
+- بنچمارک رقبا از آژانس‌های Digital Marketing و AI Marketing و تبدیل ایده‌های قابل‌استفاده به بخش‌های audit، اتاق شواهد و proof stack.
 
 ## جهت طراحی
 
@@ -54,6 +55,12 @@ http://localhost:3000/sales.html
 
 ```text
 docs/analysis-engine.md
+```
+
+بنچمارک رقبا و ایده‌هایی که از آن وارد محصول شده‌اند:
+
+```text
+docs/competitive-benchmark-digital-marketing.md
 ```
 
 ## نکته مهم

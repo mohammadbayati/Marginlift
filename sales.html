@@ -39,6 +39,33 @@
         </aside>
       </section>
 
+      <section class="sales-audit">
+        <div>
+          <p class="section-kicker">ارزیابی سریع کمپین</p>
+          <h2>مثل audit آژانس‌های بزرگ، اما برای هدررفت تخفیف.</h2>
+          <p>
+            سایت‌های موفق مارکتینگ با یک audit کم‌ریسک شروع می‌کنند. نسخه MarginLift همین است:
+            چند عدد از کمپین قبلی را وارد کنید تا تخمین اولیه صرفه‌جویی، ریسک داده و قدم بعدی پایلوت مشخص شود.
+          </p>
+        </div>
+        <form class="audit-form" id="auditForm">
+          <label>
+            بودجه مشوق ماهانه
+            <input id="auditBudget" inputmode="numeric" placeholder="مثلا ۴۲۰۰۰۰۰۰۰">
+          </label>
+          <label>
+            نرخ هدررفت حدسی
+            <select id="auditWasteRate">
+              <option value="0.18">۱۸٪ محافظه‌کارانه</option>
+              <option value="0.24" selected>۲۴٪ محتمل</option>
+              <option value="0.32">۳۲٪ پرریسک</option>
+            </select>
+          </label>
+          <button class="primary-button" type="submit">ساخت تخمین سریع</button>
+          <output id="auditResult">با واردکردن بودجه، تخمین اولیه اینجا نمایش داده می‌شود.</output>
+        </form>
+      </section>
+
       <section class="sales-grid">
         <article>
           <span>مسئله</span>
@@ -50,6 +77,40 @@
           <h2>MarginLift فروش افزایشی را از فروش اتفاقی جدا می‌کند.</h2>
           <p>خروجی محصول فقط نمودار نیست؛ یک سیاست کمپین بعدی است: بدون پیشنهاد، فقط پیام، تخفیف کوچک یا مشوق قوی.</p>
         </article>
+      </section>
+
+      <section class="sales-benchmark">
+        <div class="benchmark-heading">
+          <p class="section-kicker">چیزی که از بازار یاد گرفتیم</p>
+          <h2>آژانس‌های برتر اعتماد می‌فروشند؛ MarginLift باید تصمیم قابل‌دفاع بفروشد.</h2>
+        </div>
+        <div class="benchmark-grid">
+          <article>
+            <span>Revenue proof</span>
+            <h3>هر عدد باید به پول وصل شود</h3>
+            <p>در صفحه فروش و داشبورد، conversion خام کافی نیست؛ صرفه‌جویی، درآمد حفظ‌شده و اثر افزایشی باید کنار هم دیده شوند.</p>
+          </article>
+          <article>
+            <span>Free audit</span>
+            <h3>شروع باید کم‌ریسک باشد</h3>
+            <p>اولین پیشنهاد فروش، اتصال کامل نیست؛ یک تحلیل aggregate از کمپین قبلی است تا مانع امنیتی و فنی کم شود.</p>
+          </article>
+          <article>
+            <span>Client room</span>
+            <h3>مشتری به اتاق شواهد نیاز دارد</h3>
+            <p>خروجی محصول باید برای مدیر رشد، مالی و داده قابل‌خواندن باشد؛ نه فقط نمودارهای زیبا.</p>
+          </article>
+          <article>
+            <span>AI with control</span>
+            <h3>AI باید با کنترل‌گروه دفاع شود</h3>
+            <p>مزیت ما در ادعای AI نیست؛ در این است که پیشنهاد را با uplift، holdout و گاردریل سود توضیح می‌دهیم.</p>
+          </article>
+          <article>
+            <span>Incentive graph</span>
+            <h3>رفتار، سگمنت و مشوق باید به هم وصل شوند</h3>
+            <p>الهام اصلی از پلتفرم‌های audience intelligence این است: تصمیم خوب از گراف رفتار می‌آید، نه از یک جدول campaign ساده.</p>
+          </article>
+        </div>
       </section>
 
       <section class="sales-process">
@@ -86,5 +147,27 @@
         </div>
       </section>
     </main>
+    <script>
+      const auditFa = new Intl.NumberFormat("fa-IR");
+      const auditForm = document.getElementById("auditForm");
+      auditForm?.addEventListener("submit", event => {
+        event.preventDefault();
+        const raw = document.getElementById("auditBudget").value.replace(/[^\d۰-۹٠-٩]/g, "");
+        const normalized = raw
+          .replace(/[۰-۹]/g, digit => "۰۱۲۳۴۵۶۷۸۹".indexOf(digit))
+          .replace(/[٠-٩]/g, digit => "٠١٢٣٤٥٦٧٨٩".indexOf(digit));
+        const budget = Number(normalized);
+        const rate = Number(document.getElementById("auditWasteRate").value);
+        const output = document.getElementById("auditResult");
+        if (!Number.isFinite(budget) || budget <= 0) {
+          output.textContent = "یک عدد معتبر برای بودجه مشوق وارد کنید.";
+          output.dataset.kind = "error";
+          return;
+        }
+        const waste = Math.round(budget * rate);
+        output.textContent = `تخمین اولیه: حدود ${auditFa.format(waste)} تومان از بودجه ماهانه می‌تواند کاندیدای بررسی/آزادسازی باشد.`;
+        output.dataset.kind = "success";
+      });
+    </script>
   </body>
 </html>
