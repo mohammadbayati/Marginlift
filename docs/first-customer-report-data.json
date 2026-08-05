@@ -1,0 +1,189 @@
+{
+  "title": "گزارش مشتریان پایلوت MarginLift",
+  "product": "MarginLift",
+  "product_url": "https://github.com/mohammadbayati/Marginlift",
+  "target_customer": "کسب‌وکارهای B2C پرتراکنش فارسی‌زبان با کمپین تخفیف، اعتبار یا فعال‌سازی",
+  "search_scope": "منابع عمومی وب، صفحات رسمی/LinkedIn و سیگنال‌های قابل‌مشاهده تا ۱۴ مرداد ۱۴۰۵",
+  "generated_at": "2026-08-05",
+  "verdict": "سیگنال‌های اولیه برای فروش پایلوت وجود دارد؛ بهترین مسیر، شروع از شرکت‌هایی است که هم حجم سفارش بالا دارند و هم تخفیف/کمپین در روایت عمومی‌شان دیده می‌شود. این‌ها مشتری قطعی نیستند، اما برای outreach دستی و discovery کاملا قابل‌دفاع‌اند.",
+  "prospects": [
+    {
+      "name": "خانومی",
+      "type": "Company",
+      "stage": "Problem aware",
+      "score": 88,
+      "pain_signal": "پست عمومی خانومی از کمپین BlackBeauty با رشد فروش ۲٫۲برابری، خرید بیش از ۱٫۵ میلیون کالا و تخفیف سنگین در هر سبد صحبت می‌کند.",
+      "evidence": "سیگنال مستقیم از صفحه عمومی LinkedIn شرکت درباره کمپین تخفیف‌محور و حجم بالای فروش.",
+      "why_fit": "MarginLift دقیقا می‌تواند بعد از چنین کمپینی تشخیص دهد چه مقدار از تخفیف incremental بوده و کدام سگمنت‌ها باید مشوق کمتر بگیرند.",
+      "why_now": "کمپین پرحجم و پرهزینه، زاویه فوری برای مکالمه با Growth، CRM و CFO می‌سازد.",
+      "source_title": "Khanoumi LinkedIn company page and BlackBeauty update",
+      "source_url": "https://www.linkedin.com/company/khanoumi",
+      "source_type": "Public company page",
+      "signal_date": "2026 crawl; update shown as 7mo",
+      "suggested_channel": "LinkedIn به مدیر رشد/CRM یا معرفی گرم",
+      "opener": "پست BlackBeauty خانومی را دیدم؛ سؤال عملی این است که چه سهمی از تخفیف واقعا فروش incremental ساخته و چه سهمی به خریدارانی رسیده که احتمال خریدشان از قبل بالا بوده؟",
+      "caution": "قبل از pitch، تایید شود تیم فعلی هنوز مالک کمپین‌های تخفیفی مشابه است.",
+      "dimensions": {
+        "pain_strength": 5,
+        "product_fit": 5,
+        "timing": 4,
+        "reachability": 4,
+        "evidence_quality": 5
+      }
+    },
+    {
+      "name": "اُکالا",
+      "type": "Company",
+      "stage": "High intent",
+      "score": 86,
+      "pain_signal": "اُکالا در پست عمومی از رکورد ۳۰۰٬۶۵۰ سفارش در یک روز، ۲۶۸ شهر، ۱۹٬۰۰۰ کاربر جدید و بیش از ۱٫۷ میلیون قلم کالا صحبت کرده است.",
+      "evidence": "صفحه عمومی LinkedIn شرکت، حجم سفارش بالا، رشد و سیگنال‌های جذب نقش‌های کسب‌وکاری/محصولی را نشان می‌دهد.",
+      "why_fit": "در حجم سفارش روزانه بالا، حتی کاهش کوچک هدررفت مشوق می‌تواند عدد مالی قابل‌توجهی بسازد.",
+      "why_now": "رشد سفارش، کاربران جدید و جذب نیرو در حوزه محصول/کسب‌وکار نشان می‌دهد تصمیم‌گیری داده‌محور برای کمپین‌ها ارزش دارد.",
+      "source_title": "Okala LinkedIn company page",
+      "source_url": "https://www.linkedin.com/company/okala",
+      "source_type": "Public company page",
+      "signal_date": "2026 crawl; update shown as 4w",
+      "suggested_channel": "LinkedIn، مسیر B2B/Corporate یا معرفی گرم",
+      "opener": "رکورد سفارش اُکالا را دیدم؛ در چنین حجمی، حتی چند درصد هدررفت مشوق عدد بزرگی می‌شود. الان چطور تصمیم می‌گیرید کدام سگمنت تخفیف بگیرد؟",
+      "caution": "ممکن است اولویت تیم فعلی عملیات باشد؛ نقش Growth/CRM باید دقیق پیدا شود.",
+      "dimensions": {
+        "pain_strength": 5,
+        "product_fit": 5,
+        "timing": 5,
+        "reachability": 3,
+        "evidence_quality": 4
+      }
+    },
+    {
+      "name": "دیجی‌کالا",
+      "type": "Company",
+      "stage": "Trigger present",
+      "score": 84,
+      "pain_signal": "منبع عمومی ۲۰۲۱ از بیش از ۵ میلیون تنوع کالا، بیش از ۱۵۰ هزار فروشنده و ۴۰ میلیون کاربر فعال ماهانه برای دیجی‌کالا می‌گوید.",
+      "evidence": "حجم مارکت‌پلیس و کاربر فعال، مسئله تخصیص مشوق را از نظر اقتصادی بزرگ می‌کند.",
+      "why_fit": "MarginLift می‌تواند تصمیم‌های کمپین را از سطح conversion خام به uplift، کنترل‌گروه و سود افزایشی ببرد.",
+      "why_now": "در مارکت‌پلیس بزرگ، هر بهبود کوچک در policy مشوق می‌تواند اثر مالی و روایی قوی برای مسابقه و سرمایه‌گذار داشته باشد.",
+      "source_title": "Digikala is the Largest Online Marketplace in Iran and the Middle East",
+      "source_url": "https://www.prnewswire.com/news-releases/digikala-is-the-largest-online-marketplace-in-iran-and-the-middle-east-301331520.html",
+      "source_type": "Company news release",
+      "signal_date": "2021-07-14",
+      "suggested_channel": "معرفی گرم به مدیر CRM/Growth/Product",
+      "opener": "در scale مارکت‌پلیس دیجی‌کالا، تصمیم تخفیف مستقیم به margin و فروشنده وصل می‌شود. آیا کاهش هدررفت مشوق بدون افت فروش برای تیم شما اولویت دارد؟",
+      "caution": "سازمان بزرگ است؛ بدون معرفی گرم چرخه فروش کند می‌شود.",
+      "dimensions": {
+        "pain_strength": 4,
+        "product_fit": 5,
+        "timing": 3,
+        "reachability": 4,
+        "evidence_quality": 5
+      }
+    },
+    {
+      "name": "اسنپ‌فود",
+      "type": "Company",
+      "stage": "Problem aware",
+      "score": 81,
+      "pain_signal": "صفحه عمومی شرکت از سفارش آنلاین غذا از بیش از ۳۰ هزار رستوران در سراسر ایران صحبت می‌کند.",
+      "evidence": "حجم رستوران و سفارش‌های تکرارشونده، نیاز به تصمیم‌های retention و reactivation را محتمل و اقتصادی می‌کند.",
+      "why_fit": "MarginLift می‌تواند تعیین کند کدام کاربران با پوش یا پیام کافی‌اند و کدام‌ها مشوق مالی می‌خواهند.",
+      "why_now": "وجود نقش‌های Product، Marketing Insight و CRM در اکوسیستم اسنپ‌فود مسیر مکالمه را روشن می‌کند.",
+      "source_title": "Snappfood LinkedIn company page",
+      "source_url": "https://www.linkedin.com/company/snappfood/",
+      "source_type": "Public company page",
+      "signal_date": "2026 crawl",
+      "suggested_channel": "LinkedIn به Product Growth، CRM یا Marketing Insight",
+      "opener": "با این حجم رستوران و سفارش تکرارشونده، سؤال اصلی این است که کدام کاربر برای برگشت واقعا تخفیف لازم دارد و کدام با پیام ساده برمی‌گردد؟",
+      "caution": "باید روشن شود مالک مشوق کاربر کدام تیم است: CRM، Growth یا Category.",
+      "dimensions": {
+        "pain_strength": 4,
+        "product_fit": 5,
+        "timing": 4,
+        "reachability": 4,
+        "evidence_quality": 4
+      }
+    },
+    {
+      "name": "اسنپ",
+      "type": "Company",
+      "stage": "Trigger present",
+      "score": 78,
+      "pain_signal": "صفحه جذب اسنپ از بیش از ۳۰ میلیون مسافر و ۲ میلیون راننده و موقعیت‌های Commercial، Marketing و Product فعال می‌گوید.",
+      "evidence": "حجم بالای کاربر و سرویس‌های پرتکرار، تصمیم‌گیری مشوق را به مسئله بودجه و رشد تبدیل می‌کند.",
+      "why_fit": "MarginLift می‌تواند policy مشوق را بین سرویس‌ها و سگمنت‌ها با زبان uplift و سود افزایشی قابل‌دفاع کند.",
+      "why_now": "موقعیت‌های فعال Product/Commercial/Marketing نشان می‌دهد سازمان همچنان در حال ساخت و توسعه است.",
+      "source_title": "Snapp careers homepage",
+      "source_url": "https://snapp.recruitee.com/",
+      "source_type": "Company careers page",
+      "signal_date": "2026 crawl",
+      "suggested_channel": "معرفی گرم یا LinkedIn به Product/Commercial",
+      "opener": "در سوپراپی با سرویس‌های پرتکرار، تخصیص مشوق فقط مسئله رشد نیست؛ مسئله این است که هر ریال مشوق واقعا سفر/سفارش incremental بسازد.",
+      "caution": "به‌خاطر اندازه سازمان، باید یک واحد مشخص برای پایلوت انتخاب شود.",
+      "dimensions": {
+        "pain_strength": 4,
+        "product_fit": 4,
+        "timing": 4,
+        "reachability": 4,
+        "evidence_quality": 4
+      }
+    },
+    {
+      "name": "باسلام",
+      "type": "Company",
+      "stage": "Trigger present",
+      "score": 76,
+      "pain_signal": "صفحه عمومی باسلام از social marketplace، فروشگاه مستقل تولیدکنندگان و امکان مدیریت فروش، تبلیغات و محتوا توسط فروشندگان صحبت می‌کند.",
+      "evidence": "مارکت‌پلیس با خریدار و فروشنده مستقل معمولا نیاز به تصمیم‌های فعال‌سازی و بازگشت دارد.",
+      "why_fit": "MarginLift می‌تواند مشوق را طوری پیشنهاد کند که هم بازگشت خریدار بالا برود و هم فشار غیرضروری روی margin فروشنده ایجاد نشود.",
+      "why_now": "باسلام سیگنال فنی عمومی مانند OpenAPI/MCP و مستندات توسعه‌دهندگان دارد که همکاری سبک‌تر را ممکن‌تر می‌کند.",
+      "source_title": "Basalam LinkedIn company page",
+      "source_url": "https://www.linkedin.com/company/basalam",
+      "source_type": "Public company page",
+      "signal_date": "2026 crawl; API update shown as 11mo",
+      "suggested_channel": "LinkedIn به Growth/Marketplace یا مسیر developer/community",
+      "opener": "دیدم باسلام روی فروشگاه‌های مستقل و ابزارهای فروشنده کار می‌کند؛ آیا تیم شما برای بازگشت خریدار از مشوق/کمپین سگمنت‌بندی‌شده استفاده می‌کند؟",
+      "caution": "درد تخفیف مستقیم باید در discovery تایید شود.",
+      "dimensions": {
+        "pain_strength": 3,
+        "product_fit": 4,
+        "timing": 4,
+        "reachability": 4,
+        "evidence_quality": 4
+      }
+    }
+  ],
+  "patterns": [
+    {
+      "title": "تخفیف در مقیاس بالا تبدیل به مسئله مالی می‌شود",
+      "count": 4,
+      "insight": "خانومی، اُکالا، دیجی‌کالا و اسنپ‌فود همگی نشانه‌هایی از حجم بالا یا کمپین‌های پررفت‌وآمد دارند؛ در این شرایط حتی کاهش کوچک هدررفت مشوق ارزش اقتصادی دارد."
+    },
+    {
+      "title": "بهترین خریدار فقط مارکتینگ نیست",
+      "count": 5,
+      "insight": "پیام باید هم برای Growth/CRM جذاب باشد و هم برای CFO قابل‌دفاع؛ خروجی محصول باید صرفه‌جویی و سود افزایشی را واضح کند."
+    },
+    {
+      "title": "پایلوت بدون داده خام قابل‌فروش‌تر است",
+      "count": 6,
+      "insight": "تقاضای اولیه باید فقط aggregate CSV بخواهد؛ این اصطکاک امنیتی و حقوقی را کم می‌کند و برای فروش اولیه مناسب‌تر است."
+    },
+    {
+      "title": "کنترل‌گروه مزیت روایی محصول است",
+      "count": 6,
+      "insight": "به‌جای وعده هوش مصنوعی عمومی، باید با زبان کنترل‌گروه، uplift و تصمیم سگمنت‌به‌سگمنت تمایز بسازیم."
+    }
+  ],
+  "outreach_plan": {
+    "angle": "اول درد کاهش هدررفت مشوق را validate کن، بعد دمو بده.",
+    "first_step": "۱۰ پیام دستی برای Tier 1 و Tier 2 ارسال شود؛ هر پیام به یک سیگنال عمومی همان شرکت وصل باشد.",
+    "follow_up": "در پیگیری اول زاویه هزینه پنهان تخفیف، در پیگیری دوم نمونه گزارش ۲صفحه‌ای پیشنهاد شود.",
+    "success": "در ۷ روز: ۵ پاسخ، ۳ جلسه discovery، ۱ موافقت برای تحلیل aggregate CSV."
+  },
+  "limits": [
+    "این‌ها مشتریان احتمالی بر اساس سیگنال عمومی‌اند، نه خریدار تأییدشده.",
+    "هیچ پیام یا تماسی خودکار ارسال نشده است.",
+    "برای حساب‌هایی مثل تکنولایف و مدیسه باید شواهد تازه‌تر پیش از ورود به shortlist اصلی پیدا شود.",
+    "نتیجه تحلیلی بدون کنترل‌گروه causal نیست و باید به‌عنوان تخمین/فرضیه مطرح شود."
+  ]
+}
