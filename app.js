@@ -98,6 +98,7 @@ const fallbackAnalysis = {
 };
 
 let currentAnalysis = fallbackAnalysis;
+let currentEventSummary = { totalEvents: 0, funnel: [], latest: [] };
 let activeSession = null;
 
 function formatMoney(value) {
@@ -145,6 +146,15 @@ function trackEvent(event, properties = {}) {
 function setText(id, value) {
   const target = document.getElementById(id);
   if (target) target.textContent = value;
+}
+
+function formatDateTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "زمان نامشخص";
+  return new Intl.DateTimeFormat("fa-IR", {
+    dateStyle: "short",
+    timeStyle: "short"
+  }).format(date);
 }
 
 function renderHeroMetrics() {
@@ -276,6 +286,57 @@ function renderSummary() {
   `).join("");
 }
 
+function renderEventSummary(error) {
+  const funnelTarget = document.getElementById("eventFunnel");
+  const activityTarget = document.getElementById("activityList");
+  if (!funnelTarget || !activityTarget) return;
+
+  if (error) {
+    funnelTarget.innerHTML = "";
+    activityTarget.innerHTML = `<div class="activity-empty">خلاصه فعالیت فعلاً در دسترس نیست.</div>`;
+    return;
+  }
+
+  const funnel = currentEventSummary.funnel.length ? currentEventSummary.funnel : [
+    { labelFa: "بازدید داشبورد", count: 0 },
+    { labelFa: "ورود موفق", count: 0 },
+    { labelFa: "تحلیل CSV", count: 0 },
+    { labelFa: "خروجی گزارش", count: 0 }
+  ];
+
+  funnelTarget.innerHTML = funnel.map(item => `
+    <article class="funnel-card">
+      <span>${item.labelFa}</span>
+      <strong class="number">${fa.format(item.count || 0)}</strong>
+    </article>
+  `).join("");
+
+  if (!currentEventSummary.latest.length) {
+    activityTarget.innerHTML = `
+      <div class="activity-empty">
+        هنوز فعالیت قابل‌نمایش ثبت نشده است. ورود، آپلود CSV یا دریافت گزارش این بخش را زنده می‌کند.
+      </div>
+    `;
+    return;
+  }
+
+  activityTarget.innerHTML = currentEventSummary.latest.map(item => {
+    const properties = Object.entries(item.properties || {})
+      .slice(0, 2)
+      .map(([key, value]) => `${key}: ${value}`)
+      .join("، ");
+    return `
+      <article class="activity-item">
+        <div>
+          <strong>${item.labelFa || item.event}</strong>
+          <span>${properties || "بدون جزئیات اضافی"}</span>
+        </div>
+        <time class="number" datetime="${item.createdAt}">${formatDateTime(item.createdAt)}</time>
+      </article>
+    `;
+  }).join("");
+}
+
 function renderDashboard() {
   const campaign = currentAnalysis.campaign;
   setText("statusCampaignName", campaign.name || "کمپین تحلیل‌شده");
@@ -293,6 +354,7 @@ function renderDashboard() {
   renderSegments();
   renderActions();
   renderSummary();
+  renderEventSummary();
 }
 
 function actionColor(actionFa) {
@@ -329,6 +391,16 @@ async function loadCurrentCampaign() {
   const analysis = await apiRequest("/api/campaigns/current");
   currentAnalysis = analysis;
   renderDashboard();
+  await loadEventSummary();
+}
+
+async function loadEventSummary() {
+  try {
+    currentEventSummary = await apiRequest("/api/events/summary");
+    renderEventSummary();
+  } catch (error) {
+    renderEventSummary(error);
+  }
 }
 
 function setMessage(id, text, kind = "neutral") {
@@ -418,6 +490,7 @@ function initUpload() {
         campaign_name: document.getElementById("campaignUploadName").value.trim(),
         has_file: true
       });
+      await loadEventSummary();
       setMessage("uploadMessage", "تحلیل کمپین ذخیره شد و داشبورد به‌روزرسانی شد.", "success");
     } catch (error) {
       setMessage("uploadMessage", error.message, "error");
@@ -443,6 +516,7 @@ async function exportReport() {
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
+    await loadEventSummary();
   } catch (error) {
     window.alert(error.message);
   }

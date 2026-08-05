@@ -26,7 +26,7 @@ status: in-progress
 | [x] CSV upload و تحلیل سمت سرور کار می‌کند | Engineering | Done | تست واحد پاس شده |
 | [x] routeهای demo/sales/pilot/deck/submission سرو می‌شوند | Engineering | Done | روی پورت تست تأیید شد |
 | [ ] data store production-ready | Engineering | Blocker برای فروش جدی | فعلا JSON DB است |
-| [ ] role-based access و audit log | Engineering | Blocker برای مشتری enterprise | در roadmap مرحله production |
+| [ ] role-based access و audit log | Engineering | Blocker برای مشتری enterprise | activity log محصولی اضافه شد؛ audit log امنیتی هنوز production لازم دارد |
 
 ## QA & Testing
 
@@ -85,9 +85,9 @@ status: in-progress
 
 | آیتم | مالک | وضعیت | یادداشت |
 | --- | --- | --- | --- |
-| [ ] event tracking برای دمو | Engineering | To Do | view_page، upload_csv، audit_submit |
+| [x] event tracking برای دمو | Engineering | Done | app_loaded، login، signup، import و report export ثبت می‌شوند |
 | [ ] error logging production | Engineering | To Do | فعلا local logs |
-| [ ] pilot KPI dashboard | Founder / Data | To Do | بعد از اولین پایلوت |
+| [x] pilot KPI dashboard | Founder / Data | Done | فانل و فعالیت‌های اخیر داخل داشبورد نمایش داده می‌شود |
 
 ## Go/No-Go Criteria
 
@@ -135,4 +135,4 @@ Rollback Time Estimate: کمتر از ۱۰ دقیقه برای تغییر مسی
 | دیتابیس فعلا JSON است | مانع فروش enterprise | در production باید Postgres/Supabase/managed DB شود |
 | market sizing دقیق ندارد | ضعف در investor deck | بعد از انتخاب بازار هدف با bottom-up تکمیل شود |
 | هنوز traction واقعی ندارد | ریسک سرمایه‌گذار | مرحله بعد باید outreach واقعی و LOI باشد |
-
+| activity log هنوز امنیتی نیست | ریسک enterprise | فعلا برای adoption پایلوت است؛ audit trail رسمی بعدا اضافه شود |

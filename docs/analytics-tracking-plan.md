@@ -36,5 +36,13 @@
 - اتصال به PostHog یا GA4 فقط بعد از تصمیم consent.
 - ثبت `pilot_requested` در صفحه فروش.
 - ثبت `data_request_downloaded` در صفحه پایلوت.
-- ساخت dashboard ساده برای funnel: view → signup → import → export.
+- گسترش dashboard داخلی funnel به cohort و retention در سطح workspace.
 
+## In-Product Summary
+
+در مرحله hardening دوم، خلاصه eventها داخل داشبورد اضافه شد:
+
+- endpoint داخلی `GET /api/events/summary` برای workspace لاگین‌شده.
+- فانل فارسی: بازدید داشبورد، ورود موفق، تحلیل CSV و خروجی گزارش.
+- لیست فعالیت‌های اخیر برای نشان‌دادن adoption در پایلوت.
+- محدودیت ذخیره‌سازی محلی روی ۱۰۰۰ event آخر برای سبک‌ماندن دمو.

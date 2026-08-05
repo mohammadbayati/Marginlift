@@ -126,6 +126,11 @@ async function handleApi(req, res, url) {
     return;
   }
 
+  if (url.pathname === "/api/events/summary" && req.method === "GET") {
+    sendJson(res, 200, { data: getEventSummary(auth.organization.id) });
+    return;
+  }
+
   if (url.pathname === "/api/campaigns/import" && req.method === "POST") {
     const body = await readJson(req);
     const campaign = importCampaign(auth.organization.id, body);
@@ -362,6 +367,50 @@ function cleanProperties(value) {
   return properties;
 }
 
+function getEventSummary(organizationId) {
+  const db = readDb();
+  const organizationEvents = db.events
+    .filter(event => event.organizationId === organizationId)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  const counts = organizationEvents.reduce((acc, event) => {
+    acc[event.event] = (acc[event.event] || 0) + 1;
+    return acc;
+  }, {});
+
+  const funnel = [
+    { event: "app_loaded", labelFa: "بازدید داشبورد", count: counts.app_loaded || 0 },
+    { event: "login_completed", labelFa: "ورود موفق", count: counts.login_completed || 0 },
+    { event: "campaign_imported", labelFa: "تحلیل CSV", count: counts.campaign_imported || 0 },
+    { event: "report_exported", labelFa: "خروجی گزارش", count: counts.report_exported || 0 }
+  ];
+
+  return {
+    totalEvents: organizationEvents.length,
+    funnel,
+    latest: organizationEvents.slice(0, 8).map(event => ({
+      id: event.id,
+      event: event.event,
+      labelFa: eventLabelFa(event.event),
+      path: event.path,
+      properties: event.properties,
+      createdAt: event.createdAt
+    }))
+  };
+}
+
+function eventLabelFa(eventName) {
+  const labels = {
+    app_loaded: "بازدید داشبورد",
+    signup_completed: "ثبت‌نام موفق",
+    login_completed: "ورود موفق",
+    campaign_imported: "تحلیل CSV",
+    report_export_started: "شروع خروجی گزارش",
+    report_exported: "خروجی گزارش"
+  };
+  return labels[eventName] || eventName;
+}
+
 function buildMarkdownReport(analysis, organization) {
   const campaign = analysis.campaign;
   const lines = [
@@ -514,7 +563,8 @@ function serveStatic(requestPath, res) {
     "/docs/pmf-metrics.md",
     "/docs/competitive-benchmark-digital-marketing.md",
     "/docs/analytics-tracking-plan.md",
-    "/docs/product-hardening-1.md"
+    "/docs/product-hardening-1.md",
+    "/docs/product-hardening-2.md"
   ]);
 
   if (!allowed.has(routePath)) {

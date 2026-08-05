@@ -57,7 +57,7 @@ http://localhost:3000/submission.html
 - Pilot Kit شامل data request، experiment brief، proposal و صفحه قابل‌ارسال پایلوت.
 - Investor Kit شامل source of truth، memo، talk track، Q&A و deck وب‌محور.
 - Submission Kit شامل hub ارائه، چک‌لیست آمادگی، نقشه راه ۳۰روزه و متریک‌های PMF.
-- Product hardening اولیه شامل event tracking محلی و export گزارش کمپین.
+- Product hardening شامل event tracking محلی، export گزارش کمپین و پنل سلامت پایلوت.
 
 ## جهت طراحی
 
@@ -90,6 +90,11 @@ docs/competitive-benchmark-digital-marketing.md
 همه اعداد فرضی و مصنوعی‌اند. هدف آن‌ها storytelling مسابقه و مکالمه با اولین مشتری‌هاست، نه ادعای نتیجه واقعی مشتری.
 
 ذخیره‌سازی فعلی با JSON DB انجام می‌شود تا پایلوت سریع اجرا شود. نسخه تجاری باید به PostgreSQL یا یک دیتابیس مدیریت‌شده، backup، audit log و مدیریت دسترسی کامل وصل شود.
+
+## Hardening
+
+- `docs/product-hardening-1.md`: event tracking محلی و خروجی گزارش.
+- `docs/product-hardening-2.md`: فانل استفاده، فعالیت‌های اخیر و تست integration سرور.
 
 ## تست
 

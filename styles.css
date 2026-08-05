@@ -830,6 +830,99 @@ h4 {
   margin-bottom: var(--space-4);
 }
 
+.activity-panel {
+  margin-bottom: var(--space-4);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(244, 248, 255, 0.94)),
+    var(--surface);
+}
+
+.activity-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.86fr) minmax(320px, 1.14fr);
+  gap: var(--space-4);
+  align-items: stretch;
+}
+
+.funnel-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.funnel-card {
+  min-height: 118px;
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: #fff;
+}
+
+.funnel-card span {
+  display: block;
+  margin-bottom: var(--space-3);
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.funnel-card strong {
+  display: block;
+  font-size: 1.9rem;
+  line-height: 1.15;
+}
+
+.activity-list {
+  display: grid;
+  gap: var(--space-3);
+  min-height: 118px;
+}
+
+.activity-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: #fff;
+}
+
+.activity-item strong,
+.activity-item span {
+  display: block;
+}
+
+.activity-item strong {
+  margin-bottom: 4px;
+  font-size: 0.98rem;
+}
+
+.activity-item span,
+.activity-item time,
+.activity-empty {
+  color: var(--ink-soft);
+  font-size: 0.86rem;
+  line-height: 1.65;
+}
+
+.activity-item time {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.activity-empty {
+  display: grid;
+  place-items: center;
+  min-height: 118px;
+  padding: var(--space-4);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.72);
+  text-align: center;
+}
+
 .guardrail-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1231,6 +1324,7 @@ h4 {
   .causal-strip,
   .hero-card,
   .analysis-layout,
+  .activity-layout,
   .summary-band,
   .pilot-panel,
   .offer-panel,
@@ -1247,6 +1341,7 @@ h4 {
 
   .metric-grid,
   .guardrail-grid,
+  .funnel-grid,
   .action-grid,
   .summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1297,6 +1392,7 @@ h4 {
   .evidence-stack,
   .metric-grid,
   .guardrail-grid,
+  .funnel-grid,
   .action-grid,
   .summary-grid,
   .donut-row {
@@ -1322,6 +1418,14 @@ h4 {
 
   .bar-value {
     text-align: right;
+  }
+
+  .activity-item {
+    grid-template-columns: 1fr;
+  }
+
+  .activity-item time {
+    white-space: normal;
   }
 }
 
