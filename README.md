@@ -20,6 +20,12 @@ http://localhost:3000
 http://localhost:3000/sales.html
 ```
 
+صفحه پیشنهاد پایلوت:
+
+```text
+http://localhost:3000/pilot.html
+```
+
 این نسخه با داده مصنوعی و deterministic نشان می‌دهد چطور یک موتور تصمیم‌گیری مشوق می‌تواند با منطق uplift و گروه کنترل، هدررفت تخفیف را کاهش دهد.
 
 ## این دمو چه چیزی را نشان می‌دهد
@@ -36,6 +42,7 @@ http://localhost:3000/sales.html
 - خلاصه ROI برای مدیر رشد یا CRM.
 - صفحه فروش، one-pager، اسکریپت دمو، pitch deck outline و برنامه GTM.
 - بنچمارک رقبا از آژانس‌های Digital Marketing و AI Marketing و تبدیل ایده‌های قابل‌استفاده به بخش‌های audit، اتاق شواهد و proof stack.
+- Pilot Kit شامل data request، experiment brief، proposal و صفحه قابل‌ارسال پایلوت.
 
 ## جهت طراحی
 

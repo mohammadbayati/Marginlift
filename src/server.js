@@ -363,10 +363,14 @@ function serveStatic(requestPath, res) {
   const allowed = new Set([
     "/index.html",
     "/sales.html",
+    "/pilot.html",
     "/styles.css",
     "/app.js",
     "/synthetic-campaign-data.csv",
-    "/README.md"
+    "/README.md",
+    "/docs/pilot-data-request.md",
+    "/docs/pilot-experiment-brief.md",
+    "/docs/pilot-proposal-template.md"
   ]);
 
   if (!allowed.has(routePath)) {

@@ -1371,6 +1371,12 @@ h4 {
   padding: var(--space-4);
 }
 
+.sales-nav-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
 .sales-nav .brand-lockup {
   margin-bottom: 0;
 }
@@ -1450,6 +1456,182 @@ h4 {
   display: block;
   font-size: 2.25rem;
   line-height: 1.25;
+}
+
+.pilot-hero,
+.pilot-metrics,
+.pilot-docs {
+  border: 1px solid rgba(219, 228, 238, 0.95);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow-sm);
+}
+
+.pilot-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--space-5);
+  align-items: stretch;
+  padding: clamp(28px, 6vw, 64px);
+  color: #fff;
+  background:
+    linear-gradient(135deg, rgba(11, 13, 23, 0.98), rgba(15, 143, 113, 0.88)),
+    var(--surface-dark);
+}
+
+.pilot-hero .section-kicker {
+  color: #9de8c2;
+}
+
+.pilot-hero h1 {
+  max-width: 800px;
+  font-size: 3.35rem;
+}
+
+.pilot-hero p {
+  max-width: 730px;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 1.08rem;
+  line-height: 1.95;
+  text-wrap: pretty;
+}
+
+.pilot-decision-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 250px;
+  padding: var(--space-5);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.pilot-decision-card span,
+.pilot-decision-card p {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.pilot-decision-card strong {
+  display: block;
+  font-size: 4rem;
+  line-height: 1;
+}
+
+.pilot-scope-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.pilot-scope-grid article {
+  min-height: 220px;
+  padding: var(--space-5);
+  border: 1px solid rgba(219, 228, 238, 0.95);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow-sm);
+}
+
+.pilot-scope-grid span,
+.pilot-doc-grid span {
+  display: block;
+  margin-bottom: var(--space-2);
+  color: var(--primary-2);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.pilot-scope-grid h2 {
+  font-size: 1.55rem;
+}
+
+.pilot-scope-grid p,
+.pilot-metrics p {
+  margin-bottom: 0;
+  color: var(--ink-soft);
+  line-height: 1.8;
+  text-wrap: pretty;
+}
+
+.pilot-metrics {
+  display: grid;
+  grid-template-columns: minmax(0, 0.86fr) minmax(320px, 0.74fr);
+  gap: var(--space-5);
+  align-items: center;
+  padding: var(--space-5);
+}
+
+.pilot-metrics h2,
+.pilot-docs h2 {
+  margin-bottom: var(--space-3);
+  font-size: 1.75rem;
+}
+
+.sample-size-table {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: #fff;
+}
+
+.sample-size-table [role="row"] {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.sample-size-table [role="row"] + [role="row"] {
+  border-top: 1px solid var(--line);
+}
+
+.sample-size-table span,
+.sample-size-table strong {
+  padding: var(--space-3);
+  text-align: right;
+}
+
+.sample-size-table [role="columnheader"] {
+  color: var(--muted);
+  background: var(--surface-soft);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.pilot-docs {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.5fr) minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: center;
+  padding: var(--space-5);
+}
+
+.pilot-doc-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.pilot-doc-grid a {
+  min-height: 132px;
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
+  transition-property: transform, box-shadow, background;
+  transition-duration: 180ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+.pilot-doc-grid a:hover,
+.pilot-doc-grid a:focus-visible {
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+  outline: none;
+}
+
+.pilot-doc-grid a:active {
+  transform: scale(0.96);
 }
 
 .sales-audit {
@@ -1639,14 +1821,19 @@ h4 {
 
 @media (max-width: 920px) {
   .sales-hero,
+  .pilot-hero,
   .sales-grid,
   .sales-audit,
+  .pilot-metrics,
+  .pilot-docs,
   .sales-process,
   .sales-pricing {
     grid-template-columns: 1fr;
   }
 
-  .benchmark-grid {
+  .benchmark-grid,
+  .pilot-scope-grid,
+  .pilot-doc-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1663,12 +1850,16 @@ h4 {
   }
 
   .sales-nav-link,
+  .sales-nav-actions,
   .sales-actions .primary-button,
   .sales-actions .secondary-button {
     width: 100%;
   }
 
-  .benchmark-grid {
+  .benchmark-grid,
+  .pilot-scope-grid,
+  .pilot-doc-grid,
+  .sample-size-table [role="row"] {
     grid-template-columns: 1fr;
   }
 }
