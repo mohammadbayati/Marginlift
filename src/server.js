@@ -365,6 +365,7 @@ function serveStatic(requestPath, res) {
     "/sales.html",
     "/pilot.html",
     "/deck.html",
+    "/submission.html",
     "/styles.css",
     "/app.js",
     "/synthetic-campaign-data.csv",
@@ -375,7 +376,11 @@ function serveStatic(requestPath, res) {
     "/docs/investor-source-of-truth.md",
     "/docs/investor-memo.md",
     "/docs/demo-day-talk-track.md",
-    "/docs/investor-q-and-a.md"
+    "/docs/investor-q-and-a.md",
+    "/docs/submission-readiness-checklist.md",
+    "/docs/30-day-validation-roadmap.md",
+    "/docs/pmf-metrics.md",
+    "/docs/competitive-benchmark-digital-marketing.md"
   ]);
 
   if (!allowed.has(routePath)) {

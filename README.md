@@ -32,6 +32,12 @@ http://localhost:3000/pilot.html
 http://localhost:3000/deck.html
 ```
 
+هاب ارسال و ارائه:
+
+```text
+http://localhost:3000/submission.html
+```
+
 این نسخه با داده مصنوعی و deterministic نشان می‌دهد چطور یک موتور تصمیم‌گیری مشوق می‌تواند با منطق uplift و گروه کنترل، هدررفت تخفیف را کاهش دهد.
 
 ## این دمو چه چیزی را نشان می‌دهد
@@ -50,6 +56,7 @@ http://localhost:3000/deck.html
 - بنچمارک رقبا از آژانس‌های Digital Marketing و AI Marketing و تبدیل ایده‌های قابل‌استفاده به بخش‌های audit، اتاق شواهد و proof stack.
 - Pilot Kit شامل data request، experiment brief، proposal و صفحه قابل‌ارسال پایلوت.
 - Investor Kit شامل source of truth، memo، talk track، Q&A و deck وب‌محور.
+- Submission Kit شامل hub ارائه، چک‌لیست آمادگی، نقشه راه ۳۰روزه و متریک‌های PMF.
 
 ## جهت طراحی
 
