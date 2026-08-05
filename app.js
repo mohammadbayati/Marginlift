@@ -188,6 +188,25 @@ function renderWaste() {
   `).join("");
 }
 
+function renderGuardrails() {
+  const guardrails = currentAnalysis.guardrails || [
+    {
+      labelFa: "کیفیت داده",
+      valueFa: "نمونه",
+      status: "pass",
+      noteFa: "داده نمونه با گروه کنترل آماده است."
+    }
+  ];
+
+  document.getElementById("guardrailCards").innerHTML = guardrails.map(item => `
+    <div class="guardrail-card ${item.status || "pass"}">
+      <span>${item.labelFa}</span>
+      <strong class="number">${item.valueFa}</strong>
+      <p>${item.noteFa}</p>
+    </div>
+  `).join("");
+}
+
 function renderSegments() {
   document.getElementById("segmentRows").innerHTML = currentAnalysis.segments.map(segment => `
     <tr>
@@ -195,9 +214,16 @@ function renderSegments() {
       <td class="number">${fa.format(segment.users)}</td>
       <td>${segment.actionFa}</td>
       <td class="number">${fa.format(segment.uplift)} واحد</td>
+      <td class="number">${formatInterval(segment.ciLow, segment.ciHigh)}</td>
+      <td>${segment.confidenceLevel || "متوسط"}</td>
       <td>${segment.reasonFa}</td>
     </tr>
   `).join("");
+}
+
+function formatInterval(low, high) {
+  if (!Number.isFinite(low) || !Number.isFinite(high)) return "—";
+  return `${fa.format(low)} تا ${fa.format(high)}`;
 }
 
 function renderActions() {
@@ -240,6 +266,7 @@ function renderDashboard() {
   setText("analysisPeriod", currentAnalysis.isDemo ? "داده نمونه" : "آخرین فایل واردشده");
   renderHeroMetrics();
   renderMetricGrid();
+  renderGuardrails();
   renderTreatmentChart();
   renderWaste();
   renderSegments();

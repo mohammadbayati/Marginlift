@@ -74,12 +74,17 @@ function normalizeCampaignRows(rows) {
     segmentFa: required(row.segment_fa || row.segment || row.segment_name, "segment_fa", index),
     group: required(row.campaign_group || row.group || row.treatment, "campaign_group", index),
     users: toNumber(required(row.users, "users", index)),
-    conversionRate: toNumber(required(row.conversion_rate || row.conversion, "conversion_rate", index)),
+    conversionRate: normalizeRate(toNumber(required(row.conversion_rate || row.conversion, "conversion_rate", index))),
     costPerUser: toNumber(row.incentive_cost_per_user_toman || row.cost_per_user || row.cost_per_user_toman),
     estimatedRevenue: toNumber(row.estimated_revenue_toman || row.revenue || row.revenue_toman),
     incrementalLiftPoints: toNumber(row.incremental_lift_points || row.uplift || row.lift),
     recommendedActionFa: row.recommended_action_fa || row.recommended_action || ""
   }));
+}
+
+function normalizeRate(value) {
+  if (value > 1 && value <= 100) return value / 100;
+  return value;
 }
 
 function required(value, field, index) {
