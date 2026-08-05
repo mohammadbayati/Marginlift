@@ -27,6 +27,7 @@ const contentTypes = {
   ".css": "text/css; charset=utf-8",
   ".js": "application/javascript; charset=utf-8",
   ".csv": "text/csv; charset=utf-8",
+  ".md": "text/markdown; charset=utf-8",
   ".json": "application/json; charset=utf-8",
   ".svg": "image/svg+xml"
 };
@@ -111,6 +112,13 @@ async function handleApi(req, res, url) {
     return;
   }
 
+  if (url.pathname === "/api/events" && req.method === "POST") {
+    const body = await readJson(req);
+    const event = trackEvent(req, body);
+    sendJson(res, 201, { data: { id: event.id, accepted: true } });
+    return;
+  }
+
   const auth = requireSession(req);
 
   if (url.pathname === "/api/campaigns/current" && req.method === "GET") {
@@ -122,6 +130,25 @@ async function handleApi(req, res, url) {
     const body = await readJson(req);
     const campaign = importCampaign(auth.organization.id, body);
     sendJson(res, 201, { data: campaign });
+    return;
+  }
+
+  if (url.pathname === "/api/campaigns/current/report" && req.method === "GET") {
+    const analysis = getCurrentCampaign(auth.organization.id);
+    const report = buildMarkdownReport(analysis, auth.organization);
+    trackEvent(req, {
+      event: "report_exported",
+      properties: {
+        campaign_id: analysis.id,
+        campaign_name: analysis.campaign.name
+      }
+    });
+    res.writeHead(200, {
+      "Content-Type": "text/markdown; charset=utf-8",
+      "Cache-Control": "no-store",
+      "Content-Disposition": 'attachment; filename="marginlift-campaign-report.md"'
+    });
+    res.end(report);
     return;
   }
 
@@ -285,6 +312,111 @@ function importCampaign(organizationId, body) {
   };
 }
 
+function trackEvent(req, body) {
+  const eventName = cleanEventName(body.event || body.name);
+  const properties = cleanProperties(body.properties || {});
+  const session = getRequestSession(req);
+  const event = {
+    id: createId("evt"),
+    event: eventName,
+    userId: session?.user.id || null,
+    organizationId: session?.organization.id || null,
+    path: cleanText(body.path || req.headers.referer || "").slice(0, 240),
+    properties,
+    createdAt: new Date().toISOString()
+  };
+
+  transact(db => {
+    db.events.push(event);
+    if (db.events.length > 1000) {
+      db.events = db.events.slice(-1000);
+    }
+  });
+
+  return event;
+}
+
+function cleanEventName(value) {
+  const eventName = cleanText(value);
+  if (!/^[a-z][a-z0-9_]{2,48}$/.test(eventName)) {
+    throw httpError(400, "INVALID_EVENT", "نام رویداد معتبر نیست.");
+  }
+  return eventName;
+}
+
+function cleanProperties(value) {
+  const properties = {};
+  if (!value || typeof value !== "object" || Array.isArray(value)) return properties;
+
+  for (const [key, rawValue] of Object.entries(value).slice(0, 20)) {
+    if (!/^[a-z][a-z0-9_]{1,48}$/.test(key)) continue;
+    if (typeof rawValue === "string") {
+      properties[key] = rawValue.slice(0, 160);
+    } else if (typeof rawValue === "number" && Number.isFinite(rawValue)) {
+      properties[key] = rawValue;
+    } else if (typeof rawValue === "boolean") {
+      properties[key] = rawValue;
+    }
+  }
+
+  return properties;
+}
+
+function buildMarkdownReport(analysis, organization) {
+  const campaign = analysis.campaign;
+  const lines = [
+    `# گزارش MarginLift برای ${organization.name}`,
+    "",
+    `کمپین: ${campaign.name}`,
+    `تاریخ خروجی: ${new Date().toLocaleDateString("fa-IR")}`,
+    "",
+    "## خلاصه مدیریتی",
+    "",
+    `- بودجه قابل‌آزادسازی پیشنهادی: ${formatMoney(campaign.nextSavings)}`,
+    `- درآمد حفظ‌شده: ${formatPercent(campaign.revenuePreserved)}`,
+    `- اعتماد تحلیل: ${formatPercent(campaign.confidence || 0)}`,
+    `- بینش اصلی: ${analysis.insight || "داده برای تولید بینش کافی نیست."}`,
+    "",
+    "## تصمیم پیشنهادی برای سگمنت‌ها",
+    "",
+    "| سگمنت | کاربران | تصمیم | uplift | اعتبار | دلیل |",
+    "| --- | ---: | --- | ---: | --- | --- |",
+    ...analysis.segments.map(segment => `| ${segment.nameFa} | ${formatNumber(segment.users)} | ${segment.actionFa} | ${formatNumber(segment.uplift)} واحد | ${segment.confidenceLevel || "متوسط"} | ${segment.reasonFa} |`),
+    "",
+    "## گاردریل‌ها",
+    "",
+    "| گاردریل | وضعیت | توضیح |",
+    "| --- | --- | --- |",
+    ...(analysis.guardrails || []).map(item => `| ${item.labelFa} | ${item.valueFa} | ${item.noteFa} |`),
+    "",
+    "## اقدام بعدی",
+    "",
+    "۱. این گزارش را با مدیر رشد، مالی و داده مرور کنید.",
+    "۲. سگمنت‌هایی را که مشوق کمتر می‌گیرند تایید کنید.",
+    "۳. برای کمپین بعدی یک holdout کوچک طراحی کنید.",
+    "۴. موفقیت را با هزینه مشوق به‌ازای هر سفارش افزایشی بسنجید.",
+    "",
+    "## محدودیت",
+    "",
+    "بدون کنترل‌گروه معتبر، نتیجه causal قطعی نیست و باید به‌عنوان تخمین تصمیم‌یار استفاده شود."
+  ];
+  return `${lines.join("\n")}\n`;
+}
+
+function formatMoney(value) {
+  const number = Number(value || 0);
+  if (number >= 1000000000) return `${formatNumber(Math.round(number / 10000000) / 100)} میلیارد تومان`;
+  return `${formatNumber(Math.round(number / 1000000))} میلیون تومان`;
+}
+
+function formatPercent(value) {
+  return `${formatNumber(value)}٪`;
+}
+
+function formatNumber(value) {
+  return new Intl.NumberFormat("fa-IR").format(Number(value || 0));
+}
+
 function loadSampleAnalysis() {
   const rows = normalizeCampaignRows(parseCSV(fs.readFileSync(sampleCsvPath, "utf8")));
   return analyzeCampaign(rows, { name: "بازگشت با کش‌بک" });
@@ -380,7 +512,9 @@ function serveStatic(requestPath, res) {
     "/docs/submission-readiness-checklist.md",
     "/docs/30-day-validation-roadmap.md",
     "/docs/pmf-metrics.md",
-    "/docs/competitive-benchmark-digital-marketing.md"
+    "/docs/competitive-benchmark-digital-marketing.md",
+    "/docs/analytics-tracking-plan.md",
+    "/docs/product-hardening-1.md"
   ]);
 
   if (!allowed.has(routePath)) {

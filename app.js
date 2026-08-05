@@ -121,6 +121,27 @@ async function apiRequest(path, options = {}) {
   return payload.data;
 }
 
+function trackEvent(event, properties = {}) {
+  const payload = JSON.stringify({
+    event,
+    path: window.location.pathname,
+    properties
+  });
+
+  if (navigator.sendBeacon) {
+    const blob = new Blob([payload], { type: "application/json" });
+    navigator.sendBeacon("/api/events", blob);
+    return;
+  }
+
+  fetch("/api/events", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: payload
+  }).catch(() => {});
+}
+
 function setText(id, value) {
   const target = document.getElementById(id);
   if (target) target.textContent = value;
@@ -333,6 +354,7 @@ function initAuth() {
           password: document.getElementById("loginPassword").value
         })
       });
+      trackEvent("login_completed", { method: "email" });
       showDashboard(session);
       await loadCurrentCampaign();
     } catch (error) {
@@ -352,6 +374,7 @@ function initAuth() {
           password: document.getElementById("signupPassword").value
         })
       });
+      trackEvent("signup_completed", { method: "email" });
       showDashboard(session);
       await loadCurrentCampaign();
     } catch (error) {
@@ -366,6 +389,8 @@ function initAuth() {
       showAuth();
     }
   });
+
+  document.getElementById("exportReportButton").addEventListener("click", exportReport);
 }
 
 function initUpload() {
@@ -389,6 +414,10 @@ function initUpload() {
       });
       currentAnalysis = analysis;
       renderDashboard();
+      trackEvent("campaign_imported", {
+        campaign_name: document.getElementById("campaignUploadName").value.trim(),
+        has_file: true
+      });
       setMessage("uploadMessage", "تحلیل کمپین ذخیره شد و داشبورد به‌روزرسانی شد.", "success");
     } catch (error) {
       setMessage("uploadMessage", error.message, "error");
@@ -396,8 +425,32 @@ function initUpload() {
   });
 }
 
+async function exportReport() {
+  trackEvent("report_export_started", {
+    campaign_name: currentAnalysis.campaign?.name || "unknown"
+  });
+  try {
+    const response = await fetch("/api/campaigns/current/report", {
+      credentials: "same-origin"
+    });
+    if (!response.ok) throw new Error("گزارش آماده نشد.");
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "marginlift-campaign-report.md";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    window.alert(error.message);
+  }
+}
+
 async function initSession() {
   renderDashboard();
+  trackEvent("app_loaded", { surface: "dashboard" });
   try {
     const session = await apiRequest("/api/session");
     if (session) {

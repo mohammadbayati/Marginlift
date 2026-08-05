@@ -14,7 +14,8 @@ const initialDb = {
   organizations: [],
   memberships: [],
   sessions: [],
-  campaigns: []
+  campaigns: [],
+  events: []
 };
 
 function ensureDb() {
@@ -26,7 +27,23 @@ function ensureDb() {
 
 function readDb() {
   ensureDb();
-  return JSON.parse(fs.readFileSync(dbPath, "utf8"));
+  const db = JSON.parse(fs.readFileSync(dbPath, "utf8"));
+  return normalizeDb(db);
+}
+
+function normalizeDb(db) {
+  db.meta = db.meta || {
+    version: 1,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  db.users = Array.isArray(db.users) ? db.users : [];
+  db.organizations = Array.isArray(db.organizations) ? db.organizations : [];
+  db.memberships = Array.isArray(db.memberships) ? db.memberships : [];
+  db.sessions = Array.isArray(db.sessions) ? db.sessions : [];
+  db.campaigns = Array.isArray(db.campaigns) ? db.campaigns : [];
+  db.events = Array.isArray(db.events) ? db.events : [];
+  return db;
 }
 
 function writeDb(db) {

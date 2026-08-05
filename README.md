@@ -57,6 +57,7 @@ http://localhost:3000/submission.html
 - Pilot Kit شامل data request، experiment brief، proposal و صفحه قابل‌ارسال پایلوت.
 - Investor Kit شامل source of truth، memo، talk track، Q&A و deck وب‌محور.
 - Submission Kit شامل hub ارائه، چک‌لیست آمادگی، نقشه راه ۳۰روزه و متریک‌های PMF.
+- Product hardening اولیه شامل event tracking محلی و export گزارش کمپین.
 
 ## جهت طراحی
 
