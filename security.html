@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MarginLift | امنیت</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body class="trust-page">
+    <main class="trust-shell">
+      <nav class="trust-nav"><a class="brand-lockup" href="/"><span class="brand-mark">ML</span><span><strong>MarginLift</strong><small>تصمیم‌سازی سودآور برای بازاریابی</small></span></a><a href="/sales.html">بازگشت به صفحه فروش</a></nav>
+      <article class="trust-document">
+        <p class="section-kicker">امنیت محصول</p>
+        <h1>اعتماد باید در معماری و خروجی دیده شود.</h1>
+        <p class="trust-lead">این صفحه وضعیت امنیتی نسخه pilot-ready را شفاف می‌کند؛ برای فروش enterprise، کنترل‌های تکمیلی و قرارداد امنیتی لازم است.</p>
+        <h2>کنترل‌های فعلی</h2>
+        <ul>
+          <li>اجرای Node.js با cookie نشست HttpOnly، SameSite و در production با Secure.</li>
+          <li>امضای HMAC برای cookie نشست و الزام secret محیط production.</li>
+          <li>محدودیت اندازه درخواست‌های JSON و rate limit برای ورود و ثبت‌نام.</li>
+          <li>هدرهای امنیتی پایه، جلوگیری از framing و عدم نمایش جزئیات خطا در production.</li>
+          <li>مسیر static محدود به فایل‌های allowlist شده و عدم سرو فایل‌های داخلی سرور.</li>
+        </ul>
+        <h2>معماری استقرار پیشنهادی</h2>
+        <p>Cloudflare در لایه DNS، SSL/TLS و WAF قرار می‌گیرد و اپ Node روی یک میزبان دارای دیسک پایدار و فقط یک instance اجرا می‌شود. دسترسی مستقیم به origin باید بسته یا محدود شود تا ترافیک از مسیر Cloudflare عبور کند.</p>
+        <h2>محدودیت‌های نسخه فعلی</h2>
+        <p>JSON DB برای یک pilot service-led و یک instance مناسب است، اما برای چند instance، هم‌زمانی بالا و قرارداد enterprise کافی نیست. مرحله بعدی شامل PostgreSQL، object storage، role-based access، audit trail، مدیریت حذف و مانیتورینگ خطا است.</p>
+        <h2>گزارش آسیب‌پذیری</h2>
+        <p>پیش از انتشار عمومی، کانال رسمی گزارش مشکل امنیتی و مسئول پاسخ‌گویی را در این صفحه تکمیل کنید. اطلاعات حساس مشتری را در گزارش ارسال نکنید.</p>
+      </article>
+      <footer class="trust-footer"><a href="/privacy.html">حریم خصوصی</a><a href="/terms.html">شرایط استفاده</a><a href="/pilot-data-request.html">قرارداد داده پایلوت</a></footer>
+    </main>
+  </body>
+</html>

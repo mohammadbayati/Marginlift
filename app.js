@@ -1,548 +1,410 @@
 const fa = new Intl.NumberFormat("fa-IR");
+const moneyFa = new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 0 });
 
-const colors = {
-  control: "#315b9a",
-  push_only: "#087f8c",
-  small_discount: "#218653",
-  high_incentive: "#c98212",
-  useful: "#15af60",
-  waste: "#c9463d",
-  neutral: "#6a4c93",
-  high: "#c98212"
-};
+let currentAnalysis = null;
+let currentOverview = null;
+let currentCustomerAnalysis = null;
+let currentHistory = [];
+let currentPilotState = null;
 
-const fallbackAnalysis = {
-  campaign: {
-    name: "بازگشت با کش‌بک",
-    audience: 10000,
-    totalSpend: 420000000,
-    reportedRevenue: 1850000000,
-    nonIncrementalSpend: 118000000,
-    nextSavings: 82000000,
-    revenuePreserved: 96,
-    marginLift: 14,
-    confidence: 84
-  },
-  treatments: [
-    { key: "control", labelFa: "گروه کنترل", conversion: 8.4, costPerUser: 0 },
-    { key: "push_only", labelFa: "فقط پوش", conversion: 9.8, costPerUser: 0 },
-    { key: "small_discount", labelFa: "تخفیف کوچک", conversion: 11.6, costPerUser: 25000 },
-    { key: "high_incentive", labelFa: "مشوق قوی", conversion: 13.1, costPerUser: 75000 }
-  ],
-  segments: [
-    {
-      nameFa: "کاربران وفادار اخیر",
-      users: 3100,
-      actionFa: "بدون پیشنهاد",
-      uplift: 1.1,
-      reasonFa: "احتمال خرید بدون تخفیف بالاست و مشوق پولی حاشیه سود را کم می‌کند."
-    },
-    {
-      nameFa: "کاربران خاموش اما قابل‌فعال‌سازی",
-      users: 2400,
-      actionFa: "فقط پوش",
-      uplift: 2.0,
-      reasonFa: "پیام کم‌هزینه برای ساختن اثر افزایشی کافی است."
-    },
-    {
-      nameFa: "کاربران حساس به تخفیف",
-      users: 3200,
-      actionFa: "تخفیف کوچک",
-      uplift: 5.8,
-      reasonFa: "واکنش افزایشی، پیشنهاد متوسط را توجیه می‌کند."
-    },
-    {
-      nameFa: "کاربران غیرفعال باارزش بالا",
-      users: 1300,
-      actionFa: "مشوق قوی",
-      uplift: 7.4,
-      reasonFa: "اثر افزایشی و ارزش سفارش بالاتر، مشوق قوی‌تر را توجیه می‌کند."
-    }
-  ],
-  actions: [
-    {
-      titleFa: "بدون پیشنهاد",
-      users: 3100,
-      cost: 0,
-      revenue: 580000000,
-      noteFa: "به کاربرانی که احتمالاً بدون تخفیف هم خرید می‌کنند، تخفیف نده."
-    },
-    {
-      titleFa: "فقط پوش",
-      users: 2400,
-      cost: 0,
-      revenue: 310000000,
-      noteFa: "قبل از خرج‌کردن مشوق پولی، از کانال رایگان استفاده کن."
-    },
-    {
-      titleFa: "تخفیف کوچک",
-      users: 3200,
-      cost: 80000000,
-      revenue: 720000000,
-      noteFa: "کاربران قابل‌متقاعدسازی را با هزینه کنترل‌شده هدف بگیر."
-    },
-    {
-      titleFa: "مشوق قوی",
-      users: 1300,
-      cost: 97500000,
-      revenue: 390000000,
-      noteFa: "مشوق قوی را برای کاربران غیرفعال اما باارزش بالا نگه دار."
-    }
-  ],
-  wasteItems: [
-    { label: "مشوق مفید", value: 48, colorKey: "useful" },
-    { label: "کاربران قطعی", value: 28, colorKey: "high" },
-    { label: "هدررفت کم‌واکنش", value: 24, colorKey: "waste" }
-  ],
-  insight: "۲۸٪ از هزینه مشوق برای کاربرانی خرج‌شده که احتمالاً بدون تخفیف هم خرید می‌کردند."
-};
-
-let currentAnalysis = fallbackAnalysis;
-let currentEventSummary = { totalEvents: 0, funnel: [], latest: [] };
-let activeSession = null;
+function formatNumber(value) {
+  return fa.format(Number(value || 0));
+}
 
 function formatMoney(value) {
-  if (value >= 1000000000) return `${fa.format(Number((value / 1000000000).toFixed(2)))} میلیارد تومان`;
-  return `${fa.format(Math.round(value / 1000000))} میلیون تومان`;
+  const number = Number(value || 0);
+  if (Math.abs(number) >= 1000000000) {
+    return `${moneyFa.format(Math.round(number / 10000000) / 100)} میلیارد تومان`;
+  }
+  if (Math.abs(number) >= 1000000) {
+    return `${moneyFa.format(Math.round(number / 1000000))} میلیون تومان`;
+  }
+  return `${moneyFa.format(Math.round(number))} تومان`;
+}
+
+function formatPercent(value) {
+  return `${formatNumber(value)}٪`;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>'"]/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "'": "&#39;",
+    "\"": "&quot;"
+  }[char]));
 }
 
 async function apiRequest(path, options = {}) {
   const response = await fetch(path, {
     credentials: "same-origin",
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {})
-    },
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     ...options
   });
-  const payload = await response.json();
-  if (!response.ok) {
-    throw new Error(payload.error?.message || "درخواست ناموفق بود.");
-  }
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error?.message || "درخواست انجام نشد.");
   return payload.data;
 }
 
-function trackEvent(event, properties = {}) {
-  const payload = JSON.stringify({
-    event,
-    path: window.location.pathname,
-    properties
-  });
-
-  if (navigator.sendBeacon) {
-    const blob = new Blob([payload], { type: "application/json" });
-    navigator.sendBeacon("/api/events", blob);
-    return;
-  }
-
-  fetch("/api/events", {
-    method: "POST",
-    credentials: "same-origin",
-    headers: { "Content-Type": "application/json" },
-    body: payload
-  }).catch(() => {});
-}
-
-function setText(id, value) {
+function setMessage(id, message, kind = "") {
   const target = document.getElementById(id);
-  if (target) target.textContent = value;
-}
-
-function formatDateTime(value) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "زمان نامشخص";
-  return new Intl.DateTimeFormat("fa-IR", {
-    dateStyle: "short",
-    timeStyle: "short"
-  }).format(date);
-}
-
-function renderHeroMetrics() {
-  const target = document.getElementById("heroMetrics");
   if (!target) return;
-  const campaign = currentAnalysis.campaign;
-  target.innerHTML = [
-    ["هدررفت تخمینی", formatMoney(campaign.nonIncrementalSpend)],
-    ["صرفه‌جویی کمپین بعدی", formatMoney(campaign.nextSavings)],
-    ["درآمد حفظ‌شده", `${fa.format(campaign.revenuePreserved)}٪`]
-  ].map(([label, value]) => `
-    <div class="hero-metric">
-      <strong class="number">${value}</strong>
-      <span>${label}</span>
-    </div>
-  `).join("");
+  target.textContent = message;
+  target.dataset.kind = kind;
 }
 
-function renderMetricGrid() {
-  const campaign = currentAnalysis.campaign;
-  const cards = [
-    ["مخاطبان کمپین", fa.format(campaign.audience), "کاربر در کمپین بازگشت تاریخی"],
-    ["هزینه مشوق", formatMoney(campaign.totalSpend), "هزینه کش‌بک و تخفیف در سیاست فعلی"],
-    ["درآمد گزارش‌شده", formatMoney(campaign.reportedRevenue), "فروش ثبت‌شده پس از اجرای کمپین"],
-    ["هدررفت تخمینی", formatMoney(campaign.nonIncrementalSpend), "بخشی از مشوق که احتمالاً خرید تازه نساخته است"]
-  ];
-
-  document.getElementById("metricGrid").innerHTML = cards.map(([label, value, note]) => `
-    <div class="metric-card">
-      <span>${label}</span>
-      <strong class="number">${value}</strong>
-      <small>${note}</small>
-    </div>
-  `).join("");
-}
-
-function renderTreatmentChart() {
-  const treatments = currentAnalysis.treatments;
-  const max = Math.max(...treatments.map(item => item.conversion));
-  document.getElementById("treatmentChart").innerHTML = treatments.map(item => {
-    const width = max > 0 ? (item.conversion / max) * 100 : 0;
-    const color = colors[item.key] || colors.neutral;
-    return `
-      <div class="bar-row">
-        <div class="bar-label">${item.labelFa}</div>
-        <div class="bar-track"><div class="bar-fill" style="width:${width}%; background:${color}"></div></div>
-        <div class="bar-value number">${fa.format(item.conversion)}٪</div>
-      </div>
-    `;
-  }).join("");
-}
-
-function renderWaste() {
-  const items = currentAnalysis.wasteItems || fallbackAnalysis.wasteItems;
-
-  document.getElementById("wasteLegend").innerHTML = items.map(item => `
-    <div class="legend-item">
-      <span class="legend-dot" style="background:${colors[item.colorKey] || colors.neutral}"></span>
-      <span class="legend-label">${item.label}</span>
-      <span class="legend-value number">${fa.format(item.value)}٪</span>
-    </div>
-  `).join("");
-}
-
-function renderGuardrails() {
-  const guardrails = currentAnalysis.guardrails || [
-    {
-      labelFa: "کیفیت داده",
-      valueFa: "نمونه",
-      status: "pass",
-      noteFa: "داده نمونه با گروه کنترل آماده است."
-    }
-  ];
-
-  document.getElementById("guardrailCards").innerHTML = guardrails.map(item => `
-    <div class="guardrail-card ${item.status || "pass"}">
-      <span>${item.labelFa}</span>
-      <strong class="number">${item.valueFa}</strong>
-      <p>${item.noteFa}</p>
-    </div>
-  `).join("");
-}
-
-function renderSegments() {
-  document.getElementById("segmentRows").innerHTML = currentAnalysis.segments.map(segment => `
-    <tr>
-      <td><strong>${segment.nameFa}</strong></td>
-      <td class="number">${fa.format(segment.users)}</td>
-      <td>${segment.actionFa}</td>
-      <td class="number">${fa.format(segment.uplift)} واحد</td>
-      <td class="number">${formatInterval(segment.ciLow, segment.ciHigh)}</td>
-      <td>${segment.confidenceLevel || "متوسط"}</td>
-      <td>${segment.reasonFa}</td>
-    </tr>
-  `).join("");
-}
-
-function formatInterval(low, high) {
-  if (!Number.isFinite(low) || !Number.isFinite(high)) return "—";
-  return `${fa.format(low)} تا ${fa.format(high)}`;
-}
-
-function renderActions() {
-  document.getElementById("actionCards").innerHTML = currentAnalysis.actions.map(action => `
-    <div class="action-card" style="border-top: 5px solid ${actionColor(action.titleFa)}">
-      <h4>${action.titleFa}</h4>
-      <strong class="number">${fa.format(action.users)}</strong>
-      <span>کاربر</span>
-      <p><b>هزینه:</b> ${formatMoney(action.cost)}</p>
-      <p><b>درآمد محافظت‌شده:</b> ${formatMoney(action.revenue)}</p>
-      <p>${action.noteFa}</p>
-    </div>
-  `).join("");
-}
-
-function renderSummary() {
-  const campaign = currentAnalysis.campaign;
-  const cards = [
-    ["کاهش هزینه مشوق", `${fa.format(campaign.totalSpend > 0 ? Math.round((campaign.nextSavings / campaign.totalSpend) * 1000) / 10 : 0)}٪`],
-    ["درآمد حفظ‌شده", `${fa.format(campaign.revenuePreserved)}٪`],
-    ["بهبود حاشیه سود", `${fa.format(campaign.marginLift)}٪`]
-  ];
-
-  document.getElementById("summaryGrid").innerHTML = cards.map(([label, value]) => `
-    <div class="summary-card">
-      <span>${label}</span>
-      <strong class="number">${value}</strong>
-    </div>
-  `).join("");
-}
-
-function renderEventSummary(error) {
-  const funnelTarget = document.getElementById("eventFunnel");
-  const activityTarget = document.getElementById("activityList");
-  if (!funnelTarget || !activityTarget) return;
-
-  if (error) {
-    funnelTarget.innerHTML = "";
-    activityTarget.innerHTML = `<div class="activity-empty">خلاصه فعالیت فعلاً در دسترس نیست.</div>`;
-    return;
-  }
-
-  const funnel = currentEventSummary.funnel.length ? currentEventSummary.funnel : [
-    { labelFa: "بازدید داشبورد", count: 0 },
-    { labelFa: "ورود موفق", count: 0 },
-    { labelFa: "تحلیل CSV", count: 0 },
-    { labelFa: "خروجی گزارش", count: 0 }
-  ];
-
-  funnelTarget.innerHTML = funnel.map(item => `
-    <article class="funnel-card">
-      <span>${item.labelFa}</span>
-      <strong class="number">${fa.format(item.count || 0)}</strong>
-    </article>
-  `).join("");
-
-  if (!currentEventSummary.latest.length) {
-    activityTarget.innerHTML = `
-      <div class="activity-empty">
-        هنوز فعالیت قابل‌نمایش ثبت نشده است. ورود، آپلود CSV یا دریافت گزارش این بخش را زنده می‌کند.
-      </div>
-    `;
-    return;
-  }
-
-  activityTarget.innerHTML = currentEventSummary.latest.map(item => {
-    const properties = Object.entries(item.properties || {})
-      .slice(0, 2)
-      .map(([key, value]) => `${key}: ${value}`)
-      .join("، ");
-    return `
-      <article class="activity-item">
-        <div>
-          <strong>${item.labelFa || item.event}</strong>
-          <span>${properties || "بدون جزئیات اضافی"}</span>
-        </div>
-        <time class="number" datetime="${item.createdAt}">${formatDateTime(item.createdAt)}</time>
-      </article>
-    `;
-  }).join("");
-}
-
-function renderDashboard() {
-  const campaign = currentAnalysis.campaign;
-  setText("statusCampaignName", campaign.name || "کمپین تحلیل‌شده");
-  setText("campaignMode", currentAnalysis.isDemo ? "داده نمونه برای دمو" : "تحلیل ذخیره‌شده روی سرور");
-  setText("roiSavings", formatMoney(campaign.nextSavings));
-  setText("roiPreserved", `با حفظ ${fa.format(campaign.revenuePreserved)}٪ درآمد گزارش‌شده`);
-  setText("insightHeadline", currentAnalysis.insight || fallbackAnalysis.insight);
-  setText("confidenceValue", `${fa.format(campaign.confidence || 72)}٪`);
-  setText("analysisPeriod", currentAnalysis.isDemo ? "داده نمونه" : "آخرین فایل واردشده");
-  renderHeroMetrics();
-  renderMetricGrid();
-  renderGuardrails();
-  renderTreatmentChart();
-  renderWaste();
-  renderSegments();
-  renderActions();
-  renderSummary();
-  renderEventSummary();
-}
-
-function actionColor(actionFa) {
-  if (actionFa === "فقط پوش") return colors.push_only;
-  if (actionFa === "تخفیف کوچک") return colors.small_discount;
-  if (actionFa === "مشوق قوی") return colors.high_incentive;
-  return colors.neutral;
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function setAuthMode(mode) {
   document.querySelectorAll("[data-auth-tab]").forEach(tab => {
     tab.classList.toggle("active", tab.dataset.authTab === mode);
   });
-  document.getElementById("loginForm").classList.toggle("active", mode === "login");
-  document.getElementById("signupForm").classList.toggle("active", mode === "signup");
-}
-
-function showDashboard(session) {
-  activeSession = session || activeSession;
-  if (activeSession?.organization?.name) {
-    setText("workspaceName", activeSession.organization.name);
-  }
-  document.getElementById("authShell").classList.add("is-hidden");
-  document.getElementById("appShell").classList.remove("is-hidden");
-}
-
-function showAuth() {
-  activeSession = null;
-  document.getElementById("appShell").classList.add("is-hidden");
-  document.getElementById("authShell").classList.remove("is-hidden");
-}
-
-async function loadCurrentCampaign() {
-  const analysis = await apiRequest("/api/campaigns/current");
-  currentAnalysis = analysis;
-  renderDashboard();
-  await loadEventSummary();
-}
-
-async function loadEventSummary() {
-  try {
-    currentEventSummary = await apiRequest("/api/events/summary");
-    renderEventSummary();
-  } catch (error) {
-    renderEventSummary(error);
-  }
-}
-
-function setMessage(id, text, kind = "neutral") {
-  const target = document.getElementById(id);
-  if (!target) return;
-  target.textContent = text;
-  target.dataset.kind = kind;
-}
-
-function initAuth() {
-  document.querySelectorAll("[data-auth-tab]").forEach(tab => {
-    tab.addEventListener("click", () => setAuthMode(tab.dataset.authTab));
+  document.querySelectorAll(".auth-form").forEach(form => {
+    form.classList.toggle("active", form.id === `${mode}Form`);
   });
+}
 
+function renderMetrics() {
+  const summary = currentOverview.summary;
+  const campaign = currentAnalysis.campaign;
+  const cards = [
+    ["مشتریان در معرض ریزش", formatNumber(summary.atRiskAudience), "برآورد سطح سگمنت؛ نه امتیاز فردی"],
+    ["ارزش پرریسک", formatMoney(summary.protectedProfit), "سود مشارکتی قابل حفاظت"],
+    ["صرفه‌جویی پیشنهادی", formatMoney(campaign.nextSavings), "نسبت به baseline تعریف‌شده"],
+    ["درآمد حفظ‌شده", formatPercent(campaign.revenuePreserved), "در مقایسه با خط مبنای تصمیم"]
+  ];
+  document.getElementById("metricGrid").innerHTML = cards
+    .map((card, index) => `<article class="metric-card metric-${index + 1}"><span>${card[0]}</span><strong class="number">${card[1]}</strong><small>${card[2]}</small></article>`)
+    .join("");
+}
+
+function renderDecisionQueue() {
+  document.getElementById("decisionRows").innerHTML = currentOverview.decisionQueue.map(row => {
+    const riskClass = row.riskBandFa === "زیاد" ? "high" : row.riskBandFa === "متوسط" ? "medium" : "low";
+    const statusClass = row.decisionStatusFa === "اجرا" ? "pass" : row.decisionStatusFa === "آزمایش بیشتر" ? "warn" : "neutral";
+    return `<tr>
+      <td><strong>${escapeHtml(row.nameFa)}</strong><small>${formatNumber(row.users)} کاربر / ${escapeHtml(row.sourceFa)}</small></td>
+      <td><span class="risk risk-${riskClass}">${row.riskScore ? `${escapeHtml(row.riskBandFa)} · ${formatPercent(row.riskScore)}` : escapeHtml(row.riskBandFa)}</span></td>
+      <td><span class="tier">${escapeHtml(row.economicTierFa)}</span><small>${formatMoney(row.projectedContributionProfit)}</small></td>
+      <td><strong class="action-name">${escapeHtml(row.nextBestActionFa)}</strong><small>اثر: ${formatNumber(row.uplift)} واحد</small></td>
+      <td><span class="decision-status status-${statusClass}">${escapeHtml(row.decisionStatusFa)}</span></td>
+      <td class="reason-cell">${escapeHtml(row.rationaleFa)}</td>
+    </tr>`;
+  }).join("");
+}
+
+function renderActions() {
+  const actions = [
+    { key: "بدون پیشنهاد", title: "بدون اقدام", kicker: "No Action", tone: "neutral", copy: "برای مشتریانی که ارزش افزوده اقدام پولی برایشان اثبات نشده است.", rule: "هزینه صفر / کنترل معتبر" },
+    { key: "فقط پوش", title: "بازگشت کم‌هزینه", kicker: "Low touch", tone: "teal", copy: "ابتدا کانال ارزان را امتحان کن و قبل از تخفیف، اثر آن را ثبت کن.", rule: "اول پیام، بعد مشوق" },
+    { key: "تخفیف کوچک", title: "مداخله کنترل‌شده", kicker: "Test more", tone: "amber", copy: "برای مشتریان پاسخ‌پذیر با شواهد مثبت اما نیازمند holdout بیشتر.", rule: "holdout کوچک لازم است" },
+    { key: "مشوق قوی", title: "نجات پرارزش", kicker: "High touch", tone: "coral", copy: "برای ارزش بالا و ریسک بالا؛ فقط با سقف هزینه و ظرفیت مشخص.", rule: "ظرفیت و حاشیه سود را چک کن" }
+  ];
+  document.getElementById("actionCards").innerHTML = actions.map(item => {
+    const segment = currentOverview.decisionQueue.find(row => row.nextBestActionFa === item.key);
+    return `<article class="action-card tone-${item.tone}"><span class="mini-label">${item.kicker}</span><h3>${item.title}</h3><p>${item.copy}</p><div class="action-bottom"><strong class="number">${segment ? formatNumber(segment.users) : "۰"}</strong><span>کاربر در نمونه</span></div><small>${item.rule}</small></article>`;
+  }).join("");
+}
+
+function renderUpliftLab() {
+  const lab = currentOverview.upliftLab;
+  if (!lab) return;
+  document.getElementById("upliftModelStatus").textContent = lab.summary.modelStatusFa;
+  document.getElementById("upliftSummary").innerHTML = [
+    ["سود افزایشی مثبت", formatMoney(lab.summary.incrementalProfit), "فقط سگمنت‌هایی که اثر اقتصادی مثبت دارند"],
+    ["بهترین سهم هدف‌گیری", formatPercent(lab.summary.bestTargetShare), `${formatNumber(lab.summary.bestTargetUsers)} کاربر در نقطه بهینه`],
+    ["بهترین اقدام مشاهده‌شده", lab.summary.bestTreatmentFa, `تبدیل کنترل: ${formatPercent(lab.summary.controlConversion)}`]
+  ].map(item => `<div class="uplift-stat"><span>${item[0]}</span><strong class="number">${item[1]}</strong><small>${item[2]}</small></div>`).join("");
+
+  const maxProfit = Math.max(1, ...lab.qiniCurve.map(point => Math.max(0, point.cumulativeProfit)));
+  document.getElementById("qiniBars").innerHTML = lab.qiniCurve.map(point => {
+    const width = Math.max(8, Math.round((Math.max(0, point.cumulativeProfit) / maxProfit) * 100));
+    return `<div class="qini-row"><div class="qini-copy"><strong>${escapeHtml(point.segmentFa)}</strong><span>${formatPercent(point.targetShare)} از جامعه / ${escapeHtml(point.actionFa)}</span></div><div class="qini-track"><span style="width:${width}%"></span></div><bdi class="number">${formatMoney(point.cumulativeProfit)}</bdi></div>`;
+  }).join("");
+
+  document.getElementById("reactionCards").innerHTML = lab.reactionMix.map(item =>
+    `<article class="reaction-card"><span>${item.label}</span><strong>${escapeHtml(item.titleFa)}</strong><bdi class="number">${formatNumber(item.users)}</bdi><small>${escapeHtml(item.noteFa)}</small></article>`
+  ).join("");
+
+  document.getElementById("treatmentRows").innerHTML = lab.treatmentComparison.map(row => {
+    const statusClass = row.verdictFa.includes("رد") ? "neutral" : row.verdictFa.includes("نیازمند") ? "warn" : "pass";
+    return `<tr>
+      <td><strong>${escapeHtml(row.labelFa)}</strong><small>${escapeHtml(row.key)}</small></td>
+      <td class="number">${formatNumber(row.users)}</td>
+      <td class="number">${formatPercent(row.conversion)}</td>
+      <td class="number">${formatNumber(row.lift)}</td>
+      <td><small>${formatNumber(row.ciLow)} تا ${formatNumber(row.ciHigh)}</small></td>
+      <td><span class="decision-status status-${statusClass}">${escapeHtml(row.verdictFa)}</span></td>
+    </tr>`;
+  }).join("");
+
+  document.getElementById("upliftModelCards").innerHTML = lab.modelCards.map(card =>
+    `<article class="model-card"><span>${escapeHtml(card.statusFa)}</span><strong>${escapeHtml(card.name)}</strong><p>${escapeHtml(card.methodFa)}</p><small>${escapeHtml(card.bestForFa)}</small></article>`
+  ).join("");
+}
+
+function renderCustomerProduct() {
+  if (!currentCustomerAnalysis) return;
+  const summary = currentCustomerAnalysis.summary;
+  const finance = currentCustomerAnalysis.finance;
+  const experiment = currentCustomerAnalysis.experimentPlan;
+
+  document.getElementById("customerModelStatus").textContent = currentCustomerAnalysis.model.statusFa;
+  document.getElementById("customerCards").innerHTML = currentCustomerAnalysis.customer360.map(customer => `<article class="customer-card">
+    <div><strong>${escapeHtml(customer.customerId)}</strong><span>${escapeHtml(customer.segmentFa)}</span></div>
+    <div class="customer-score"><bdi class="number">${formatNumber(customer.riskScore)}</bdi><span>ریسک ${escapeHtml(customer.riskBandFa)}</span></div>
+    <dl>
+      <div><dt>ارزش</dt><dd>${formatMoney(customer.clv)}</dd></div>
+      <div><dt>اقدام</dt><dd>${escapeHtml(customer.recommendedActionFa)}</dd></div>
+      <div><dt>سود افزایشی</dt><dd>${formatMoney(customer.expectedIncrementalProfit)}</dd></div>
+    </dl>
+    <p>${escapeHtml(customer.reasonFa)}</p>
+  </article>`).join("");
+
+  document.getElementById("financeSummary").innerHTML = [
+    ["مشتریان قابل اقدام", formatNumber(summary.targetableCustomers), "بر اساس سود افزایشی مثبت"],
+    ["سود افزایشی مورد انتظار", formatMoney(finance.expectedIncrementalProfit), "پس از کسر هزینه اقدام"],
+    ["هزینه قابل جلوگیری", formatMoney(finance.avoidableIncentiveCost), "عدم تخفیف به مشتریان کم‌اثر"],
+    ["ROI پایلوت", `${formatNumber(finance.projectedRoi)}×`, finance.paybackFa]
+  ].map(item => `<div class="finance-stat"><span>${item[0]}</span><strong class="number">${item[1]}</strong><small>${item[2]}</small></div>`).join("");
+
+  document.getElementById("experimentHypothesis").textContent = experiment.hypothesisFa;
+  document.getElementById("experimentPlan").innerHTML = [
+    ["مخاطب", experiment.audienceFa],
+    ["KPI اصلی", experiment.primaryMetricFa],
+    ["Holdout", experiment.recommendedHoldoutFa],
+    ["مدت سنجش", experiment.durationFa],
+    ["نمونه هر گروه", `${formatNumber(experiment.sampleSize.perGroup)} مشتری`],
+    ["MDE", `${formatPercent(experiment.sampleSize.minimumDetectableEffect)} واحد`]
+  ].map(item => `<div><span>${item[0]}</span><strong>${escapeHtml(item[1])}</strong></div>`).join("");
+}
+
+function renderPilotState() {
+  if (!currentPilotState) return;
+  const { readiness, savingsSnapshot: snapshot, workspace, outcome } = currentPilotState;
+
+  document.getElementById("snapshotEvidence").textContent = snapshot.evidenceTagFa;
+  document.getElementById("savingsSnapshot").innerHTML = [
+    ["هزینه مشوق قابل حذف", formatMoney(snapshot.avoidableIncentiveCost), snapshot.claimLevelFa],
+    ["سود افزایشی", formatMoney(snapshot.expectedIncrementalProfit), snapshot.decisionFa],
+    ["درآمد در معرض ریسک", formatMoney(snapshot.revenueAtRisk), "برای گفت‌وگوی CMO/CFO"],
+    ["ROI پایلوت", `${formatNumber(snapshot.pilotRoi)}×`, `اعتماد: ${snapshot.confidenceFa}`]
+  ].map(item => `<div class="snapshot-stat"><span>${item[0]}</span><strong class="number">${item[1]}</strong><small>${escapeHtml(item[2])}</small></div>`).join("");
+
+  document.getElementById("readinessAuditStatus").textContent = readiness.statusFa;
+  document.getElementById("readinessAuditScore").textContent = formatPercent(readiness.score);
+  document.getElementById("readinessAuditNext").textContent = readiness.nextStepFa;
+  document.getElementById("readinessChecks").innerHTML = readiness.checks.map(item =>
+    `<div class="readiness-check ${item.passed ? "passed" : "missing"}"><span>${item.passed ? "✓" : "!"}</span><strong>${escapeHtml(item.labelFa)}</strong><small>${escapeHtml(item.statusFa)}</small></div>`
+  ).join("");
+
+  document.getElementById("workspaceStatus").textContent = workspace.overallStatusFa;
+  document.getElementById("workspaceSteps").innerHTML = workspace.steps.map((step, index) =>
+    `<div class="workspace-step ${step.complete ? "complete" : "pending"}"><bdi class="number">${formatNumber(index + 1)}</bdi><div><strong>${escapeHtml(step.labelFa)}</strong><span>${escapeHtml(step.statusFa)}</span></div></div>`
+  ).join("");
+
+  document.getElementById("outcomeReadout").innerHTML = outcome ? [
+    ["تصمیم", outcome.summary.recommendationFa],
+    ["سود افزایشی مشاهده‌شده", formatMoney(outcome.summary.observedIncrementalProfit)],
+    ["شکاف پیش‌بینی/واقعیت", formatMoney(outcome.summary.predictionGap)],
+    ["ROI مشاهده‌شده", `${formatNumber(outcome.summary.observedRoi)}×`]
+  ].map(item => `<div><span>${item[0]}</span><strong>${escapeHtml(item[1])}</strong></div>`).join("") : `<div class="empty-history"><strong>هنوز outcome وارد نشده است.</strong><span>بعد از بسته‌شدن پنجره ۳۰ روزه، فایل synthetic-outcome-data.csv یا خروجی واقعی کمپین را وارد کنید.</span></div>`;
+}
+
+function renderHistory() {
+  const target = document.getElementById("analysisHistory");
+  if (!target) return;
+  if (!currentHistory.length) {
+    target.innerHTML = `<div class="empty-history"><strong>هنوز تحلیل ذخیره‌شده‌ای ندارید.</strong><span>اولین CSV که وارد شود، اینجا ثبت می‌شود.</span></div>`;
+    return;
+  }
+  target.innerHTML = currentHistory.map(item => `<article class="history-item">
+    <div><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.typeFa)} / ${formatNumber(item.rowCount)} ردیف</span></div>
+    <div><bdi>${escapeHtml(item.headlineFa)}</bdi><time>${new Date(item.createdAt).toLocaleDateString("fa-IR")}</time></div>
+  </article>`).join("");
+}
+
+function renderStages() {
+  document.getElementById("stageGrid").innerHTML = currentOverview.stages.map((stage, index) =>
+    `<article class="stage-card ${stage.passed ? "passed" : "pending"}"><div class="stage-index number">${formatNumber(index + 1)}</div><div><strong>${escapeHtml(stage.labelFa)}</strong><span>${escapeHtml(stage.statusFa)}</span><small>${escapeHtml(stage.detailFa)}</small></div></article>`
+  ).join("");
+}
+
+function renderEvidence() {
+  document.getElementById("evidenceList").innerHTML = currentOverview.evidence.map(item =>
+    `<div class="evidence-row"><span class="evidence-state ${item.status}">${item.status === "pass" ? "✓" : "!"}</span><div><strong>${escapeHtml(item.labelFa)}</strong><span>${escapeHtml(item.valueFa)}</span></div></div>`
+  ).join("");
+  const contract = currentOverview.contract;
+  document.getElementById("contractDetails").innerHTML = [
+    ["واحد تحلیل", contract.unitFa],
+    ["تعریف ریزش", contract.churnDefinitionFa],
+    ["پنجره مشاهده", contract.observationWindowFa],
+    ["پنجره پیش‌بینی", contract.predictionWindowFa],
+    ["KPI اصلی", contract.primaryKpiFa]
+  ].map(item => `<div><dt>${item[0]}</dt><dd>${escapeHtml(item[1])}</dd></div>`).join("");
+  document.getElementById("limitationsList").innerHTML = currentOverview.limitationsFa.map(item => `<li>${escapeHtml(item)}</li>`).join("");
+}
+
+function renderDashboard() {
+  renderMetrics();
+  renderDecisionQueue();
+  renderActions();
+  renderUpliftLab();
+  renderStages();
+  renderEvidence();
+  const readiness = currentOverview.readiness;
+  document.getElementById("readinessValue").textContent = formatPercent(readiness.score);
+  document.getElementById("readinessLabel").textContent = readiness.labelFa;
+  document.getElementById("readinessMeter").style.width = `${readiness.score}%`;
+  document.getElementById("pulseHeadline").textContent = `${formatNumber(currentOverview.summary.atRiskAudience)} کاربر نیازمند بررسی هستند`;
+  document.getElementById("pulseNote").textContent = readiness.noteFa;
+  document.getElementById("queueCount").textContent = formatNumber(currentOverview.decisionQueue.length);
+  document.getElementById("atRiskAudience").textContent = formatNumber(currentOverview.summary.atRiskAudience);
+  document.getElementById("highValueAtRisk").textContent = formatNumber(currentOverview.summary.highValueAtRisk);
+  document.getElementById("protectedProfit").textContent = formatMoney(currentOverview.summary.protectedProfit);
+  document.getElementById("queueSource").textContent = currentOverview.summary.sourceFa;
+  document.getElementById("contractStatus").textContent = `${currentOverview.contract.churnDefinitionFa} / ${currentOverview.contract.primaryKpiFa}`;
+}
+
+async function loadDashboard() {
+  const [analysis, overview, customerAnalysis, history, pilotState] = await Promise.all([
+    apiRequest("/api/campaigns/current"),
+    apiRequest("/api/decision-engine/overview"),
+    apiRequest("/api/customers/current"),
+    apiRequest("/api/analyses/history"),
+    apiRequest("/api/pilot/workspace")
+  ]);
+  currentAnalysis = analysis;
+  currentOverview = overview;
+  currentCustomerAnalysis = customerAnalysis;
+  currentHistory = history;
+  currentPilotState = pilotState;
+  renderDashboard();
+  renderCustomerProduct();
+  renderPilotState();
+  renderHistory();
+}
+
+function setupAuth() {
+  document.querySelectorAll("[data-auth-tab]").forEach(tab => tab.addEventListener("click", () => setAuthMode(tab.dataset.authTab)));
   document.getElementById("loginForm").addEventListener("submit", async event => {
     event.preventDefault();
-    setMessage("loginMessage", "در حال ورود…");
     try {
-      const session = await apiRequest("/api/auth/login", {
-        method: "POST",
-        body: JSON.stringify({
-          email: document.getElementById("loginEmail").value.trim(),
-          password: document.getElementById("loginPassword").value
-        })
-      });
-      trackEvent("login_completed", { method: "email" });
-      showDashboard(session);
-      await loadCurrentCampaign();
+      await apiRequest("/api/auth/login", { method: "POST", body: JSON.stringify({ email: loginEmail.value, password: loginPassword.value }) });
+      await enterApp();
     } catch (error) {
       setMessage("loginMessage", error.message, "error");
     }
   });
-
   document.getElementById("signupForm").addEventListener("submit", async event => {
     event.preventDefault();
-    setMessage("signupMessage", "در حال ساخت فضای کاری…");
     try {
-      const session = await apiRequest("/api/auth/signup", {
-        method: "POST",
-        body: JSON.stringify({
-          companyName: document.getElementById("companyName").value.trim(),
-          email: document.getElementById("signupEmail").value.trim(),
-          password: document.getElementById("signupPassword").value
-        })
-      });
-      trackEvent("signup_completed", { method: "email" });
-      showDashboard(session);
-      await loadCurrentCampaign();
+      await apiRequest("/api/auth/signup", { method: "POST", body: JSON.stringify({ companyName: companyName.value, email: signupEmail.value, password: signupPassword.value }) });
+      await enterApp();
     } catch (error) {
       setMessage("signupMessage", error.message, "error");
     }
   });
+}
 
-  document.getElementById("logoutButton").addEventListener("click", async () => {
+async function enterApp() {
+  document.getElementById("authShell").classList.add("is-hidden");
+  document.getElementById("appShell").classList.remove("is-hidden");
+  try {
+    const session = await apiRequest("/api/session");
+    document.getElementById("workspaceName").textContent = session.organization.name;
+    document.getElementById("sidebarWorkspace").textContent = session.organization.name;
+    await loadDashboard();
+  } catch (error) {
+    setMessage("loginMessage", error.message, "error");
+  }
+}
+
+function setupUpload() {
+  document.getElementById("campaignCsvFile").addEventListener("change", async event => {
+    const file = event.target.files[0];
+    if (!file) return;
     try {
-      await apiRequest("/api/auth/logout", { method: "POST", body: "{}" });
-    } finally {
-      showAuth();
+      const preview = await apiRequest("/api/imports/preview", { method: "POST", body: JSON.stringify({ csvText: await file.text() }) });
+      const missingText = preview.missing.length ? `ستون‌های ناقص: ${preview.missing.join("، ")}` : "قرارداد داده آماده تحلیل است.";
+      document.getElementById("uploadPreview").innerHTML = `<strong>${escapeHtml(preview.detectedTypeFa)} / ${formatNumber(preview.rowCount)} ردیف</strong><span>${escapeHtml(missingText)}</span>`;
+      setMessage("uploadMessage", preview.nextActionFa, preview.ready ? "success" : "error");
+    } catch (error) {
+      document.getElementById("uploadPreview").innerHTML = `<strong>فایل قابل خواندن نیست</strong><span>${escapeHtml(error.message)}</span>`;
+      setMessage("uploadMessage", error.message, "error");
     }
   });
 
-  document.getElementById("exportReportButton").addEventListener("click", exportReport);
-}
-
-function initUpload() {
   document.getElementById("campaignUploadForm").addEventListener("submit", async event => {
     event.preventDefault();
     const file = document.getElementById("campaignCsvFile").files[0];
-    if (!file) {
-      setMessage("uploadMessage", "فایل CSV را انتخاب کنید.", "error");
-      return;
-    }
-
-    setMessage("uploadMessage", "در حال تحلیل کمپین…");
+    if (!file) return setMessage("uploadMessage", "یک فایل CSV انتخاب کنید.", "error");
+    setMessage("uploadMessage", "در حال تحلیل فایل...", "");
     try {
-      const csvText = await file.text();
-      const analysis = await apiRequest("/api/campaigns/import", {
-        method: "POST",
-        body: JSON.stringify({
-          name: document.getElementById("campaignUploadName").value.trim(),
-          csvText
-        })
-      });
-      currentAnalysis = analysis;
-      renderDashboard();
-      trackEvent("campaign_imported", {
-        campaign_name: document.getElementById("campaignUploadName").value.trim(),
-        has_file: true
-      });
-      await loadEventSummary();
-      setMessage("uploadMessage", "تحلیل کمپین ذخیره شد و داشبورد به‌روزرسانی شد.", "success");
+      const result = await apiRequest("/api/imports/csv", { method: "POST", body: JSON.stringify({ name: document.getElementById("campaignUploadName").value, csvText: await file.text() }) });
+      await loadDashboard();
+      setMessage("uploadMessage", result.type === "customer" ? "Customer 360 و برنامه پایلوت ساخته شد." : "صف تصمیم سگمنتی ساخته شد.", "success");
     } catch (error) {
       setMessage("uploadMessage", error.message, "error");
     }
   });
-}
 
-async function exportReport() {
-  trackEvent("report_export_started", {
-    campaign_name: currentAnalysis.campaign?.name || "unknown"
+  document.getElementById("outcomeUploadForm").addEventListener("submit", async event => {
+    event.preventDefault();
+    const file = document.getElementById("outcomeCsvFile").files[0];
+    if (!file) return setMessage("outcomeMessage", "یک فایل outcome CSV انتخاب کنید.", "error");
+    setMessage("outcomeMessage", "در حال مقایسه outcome با پیش‌بینی...", "");
+    try {
+      const result = await apiRequest("/api/outcomes/import", { method: "POST", body: JSON.stringify({ name: document.getElementById("outcomeUploadName").value, csvText: await file.text() }) });
+      await loadDashboard();
+      setMessage("outcomeMessage", result.summary.recommendationFa, result.summary.decisionStatus === "needs_review" ? "error" : "success");
+    } catch (error) {
+      setMessage("outcomeMessage", error.message, "error");
+    }
   });
-  try {
-    const response = await fetch("/api/campaigns/current/report", {
-      credentials: "same-origin"
-    });
-    if (!response.ok) throw new Error("گزارش آماده نشد.");
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "marginlift-campaign-report.md";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-    await loadEventSummary();
-  } catch (error) {
-    window.alert(error.message);
-  }
 }
 
-async function initSession() {
-  renderDashboard();
-  trackEvent("app_loaded", { surface: "dashboard" });
+function setupActions() {
+  document.getElementById("logoutButton").addEventListener("click", async () => {
+    await apiRequest("/api/auth/logout", { method: "POST", body: "{}" });
+    window.location.reload();
+  });
+  document.getElementById("exportReportButton").addEventListener("click", async () => {
+    const response = await fetch("/api/campaigns/current/report", { credentials: "same-origin" });
+    downloadBlob(await response.blob(), "marginlift-retention-report.md");
+  });
+  document.getElementById("exportAudienceButton").addEventListener("click", async () => {
+    const response = await fetch("/api/exports/audience.csv", { credentials: "same-origin" });
+    downloadBlob(await response.blob(), "marginlift-audience-export.csv");
+  });
+  document.getElementById("downloadPilotButton").addEventListener("click", async () => {
+    const response = await fetch("/api/pilot/package.md", { credentials: "same-origin" });
+    downloadBlob(await response.blob(), "marginlift-pilot-package.md");
+  });
+  document.getElementById("downloadReadoutButton").addEventListener("click", async () => {
+    const response = await fetch("/api/pilot/readout.md", { credentials: "same-origin" });
+    downloadBlob(await response.blob(), "marginlift-pilot-readout.md");
+  });
+}
+
+async function init() {
+  setupAuth();
+  setupUpload();
+  setupActions();
   try {
     const session = await apiRequest("/api/session");
-    if (session) {
-      showDashboard(session);
-      await loadCurrentCampaign();
-    } else {
-      showAuth();
-    }
+    if (session) await enterApp();
   } catch (error) {
-    showAuth();
-    setMessage("loginMessage", "برای استفاده از محصول واقعی، دمو را با npm start اجرا کنید.", "error");
+    /* ورود از فرم انجام می‌شود. */
   }
-}
-
-function init() {
-  initAuth();
-  initUpload();
-  initSession();
 }
 
 init();

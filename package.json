@@ -6,7 +6,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node tests/analysis.test.js && node tests/server.test.js"
+    "test": "node tests/analysis.test.js && node tests/server.test.js",
+    "backup": "node scripts/backup-db.js"
   },
   "engines": {
     "node": ">=18"

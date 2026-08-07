@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MarginLift | راهنمای استقرار روی VM</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body class="trust-page">
+    <main class="trust-shell">
+      <nav class="trust-nav"><a class="brand-lockup" href="/"><span class="brand-mark">ML</span><span><strong>MarginLift</strong><small>راهنمای استقرار production</small></span></a><a href="/submission.html">بازگشت به هاب پروژه</a></nav>
+      <article class="trust-document deploy-document">
+        <p class="section-kicker">VM Deployment</p>
+        <h1>استقرار MarginLift روی VM</h1>
+        <p class="trust-lead">این راهنما برای یک VM لینوکسی با Docker، دیسک پایدار و یک instance از اپ نوشته شده است.</p>
+        <h2>معماری</h2>
+        <pre><code>Cloudflare (DNS / SSL / WAF)
+        |
+        v
+VM: Caddy روی ۸۰ و ۴۴۳
+        |
+        v
+Docker app روی ۳۰۰۰، فقط شبکه داخلی
+        |
+        v
+Volume: /opt/marginlift/data/db.json</code></pre>
+        <p>پورت ۳۰۰۰ نباید عمومی باشد؛ Caddy ورودی عمومی را می‌گیرد و درخواست را به اپ داخل شبکه Docker می‌فرستد.</p>
+        <h2>پیش‌نیازها</h2>
+        <ul><li>VM لینوکسی به‌روز با Docker Engine و Docker Compose plugin</li><li>volume پایدار برای <code>/opt/marginlift/data</code></li><li>firewall با پورت‌های ۲۲، ۸۰ و ۴۴۳؛ پورت ۳۰۰۰ بسته</li><li>ورود SSH با کلید</li></ul>
+        <h2>دریافت پروژه</h2>
+        <pre><code>sudo mkdir -p /opt/marginlift
+sudo chown "$USER":"$USER" /opt/marginlift
+cd /opt/marginlift
+git clone https://github.com/mohammadbayati/Marginlift.git .
+cp .env.example .env</code></pre>
+        <p>اگر repository خصوصی است، از SSH deploy key استفاده کن: <code>git clone git@github.com:mohammadbayati/Marginlift.git .</code>. بعد از clone باید فایل‌های <code>package.json</code>، <code>Dockerfile</code> و <code>docker-compose.production.yml</code> در همین مسیر باشند.</p>
+        <h2>تنظیم `.env`</h2>
+        <pre><code>NODE_ENV=production
+APP_ORIGIN=https://marginlift.ir
+SESSION_SECRET=&lt;secret تصادفی حداقل ۳۲ کاراکتری&gt;
+MARGINLIFT_DB_PATH=/app/data/db.json
+CADDY_EMAIL=&lt;ایمیل عملیاتی&gt;
+TRUST_PROXY=true</code></pre>
+        <h2>اجرا</h2>
+        <pre><code>chmod +x ops/vm/deploy.sh ops/vm/backup.sh
+./ops/vm/deploy.sh</code></pre>
+        <h2>اتصال Cloudflare</h2>
+        <p>رکورد <code>A</code> برای <code>@</code> را به IP عمومی VM وصل و proxy را روشن کن. سپس <code>www</code> را به دامنه اصلی هدایت کن. SSL/TLS روی <code>Full (strict)</code>، Always Use HTTPS و WAF فعال شود.</p>
+        <h2>backup روزانه</h2>
+        <pre><code>0 3 * * * /opt/marginlift/ops/vm/backup.sh &gt;&gt; /var/log/marginlift-backup.log 2&gt;&amp;1</code></pre>
+        <h2>بررسی نهایی</h2>
+        <pre><code>docker compose -f docker-compose.production.yml ps
+curl -I https://marginlift.ir/api/health
+curl -I https://marginlift.ir/sales.html</code></pre>
+        <p><a class="primary-button button-link" href="/docs/vm-deployment.md">باز کردن نسخه Markdown</a></p>
+      </article>
+    </main>
+  </body>
+</html>

@@ -1,8 +1,9 @@
 const fs = require("fs");
 const path = require("path");
+const { resolveDbPath } = require("./config");
 
-const dataDir = path.join(__dirname, "..", "data");
-const dbPath = process.env.MARGINLIFT_DB || path.join(dataDir, "db.json");
+const dbPath = resolveDbPath();
+const dataDir = path.dirname(dbPath);
 
 const initialDb = {
   meta: {
@@ -15,6 +16,8 @@ const initialDb = {
   memberships: [],
   sessions: [],
   campaigns: [],
+  customerAnalyses: [],
+  outcomes: [],
   events: []
 };
 
@@ -42,6 +45,8 @@ function normalizeDb(db) {
   db.memberships = Array.isArray(db.memberships) ? db.memberships : [];
   db.sessions = Array.isArray(db.sessions) ? db.sessions : [];
   db.campaigns = Array.isArray(db.campaigns) ? db.campaigns : [];
+  db.customerAnalyses = Array.isArray(db.customerAnalyses) ? db.customerAnalyses : [];
+  db.outcomes = Array.isArray(db.outcomes) ? db.outcomes : [];
   db.events = Array.isArray(db.events) ? db.events : [];
   return db;
 }

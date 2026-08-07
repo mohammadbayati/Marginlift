@@ -1,0 +1,10 @@
+customer_id,assigned_group,exposed_at,converted,outcome_revenue_toman,actual_incentive_cost_toman,actual_channel_cost_toman,gross_margin_rate
+C-1004,control,,false,0,0,0,0.36
+C-1005,push_only,2026-08-01,true,780000,0,1800,0.36
+C-1006,small_discount,2026-08-01,true,860000,25000,1800,0.36
+C-1007,control,,false,0,0,0,0.31
+C-1008,small_discount,2026-08-01,false,0,25000,2200,0.31
+C-1009,high_incentive,2026-08-01,true,970000,75000,2200,0.31
+C-1010,control,,false,0,0,0,0.39
+C-1011,high_incentive,2026-08-01,false,0,75000,2500,0.39
+C-1012,small_discount,2026-08-01,false,0,25000,2500,0.39

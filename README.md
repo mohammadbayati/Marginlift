@@ -96,8 +96,30 @@ docs/competitive-benchmark-digital-marketing.md
 - `docs/product-hardening-1.md`: event tracking محلی و خروجی گزارش.
 - `docs/product-hardening-2.md`: فانل استفاده، فعالیت‌های اخیر و تست integration سرور.
 
+## بازبینی راهبردی نسخه ۲
+
+- `docs/product-reassessment-2026.md`: جمع‌بندی کتاب‌ها، ممیزی محصول و محاسبات، معماری هدف و برنامه اجرایی ۱۲ هفته‌ای.
+
 ## تست
 
 ```bash
 npm test
 ```
+
+## انتشار روی marginlift.ir
+
+معماری انتشار فعلی این است: Cloudflare برای DNS، SSL/TLS و WAF؛ Node.js/Docker روی یک origin با volume پایدار. جزئیات در این اسناد است:
+
+- `docs/production-readiness-audit.md`
+- `docs/deployment-architecture.md`
+- `docs/production-launch-checklist.md`
+- `docs/cloudflare-cutover-runbook.md`
+- `docs/vm-deployment.md`
+
+فایل `.env.example` متغیرهای محیط را نشان می‌دهد. در production حتماً `NODE_ENV=production`، `APP_ORIGIN`، `SESSION_SECRET` و `MARGINLIFT_DB_PATH` را تنظیم کنید. برای backup دستی:
+
+```bash
+npm run backup
+```
+
+این نسخه برای یک pilot service-led و یک instance طراحی شده است؛ قبل از چندمشتری یا scale افقی، JSON DB باید به PostgreSQL منتقل شود.

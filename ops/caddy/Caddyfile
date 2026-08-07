@@ -1,0 +1,12 @@
+{
+  email {$CADDY_EMAIL}
+}
+
+www.marginlift.ir {
+  redir https://marginlift.ir{uri} permanent
+}
+
+marginlift.ir {
+  encode gzip
+  reverse_proxy app:3000
+}

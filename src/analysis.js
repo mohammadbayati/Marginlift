@@ -31,6 +31,7 @@ const actionOrder = ["بدون پیشنهاد", "فقط پوش", "تخفیف ک�
 const revenueGuardrail = 90;
 const minSegmentUsers = 100;
 const minCampaignUsers = 1000;
+const defaultBaselineGroup = "high_incentive";
 
 function analyzeCampaign(rows, options = {}) {
   if (!rows.length) {
@@ -45,25 +46,27 @@ function analyzeCampaign(rows, options = {}) {
   );
 
   const treatmentResults = analyzeTreatments(normalizedRows);
-  const current = aggregatePolicy(segmentResults, "current");
+  const baseline = aggregatePolicy(segmentResults, "baseline");
   const recommended = aggregatePolicy(segmentResults, "recommended");
   const observed = aggregateObserved(normalizedRows);
-  const nextSavings = Math.max(0, current.spend - recommended.spend);
-  const revenuePreserved = current.revenue > 0
-    ? Math.round((recommended.revenue / current.revenue) * 100)
+  const nextSavings = Math.max(0, baseline.spend - recommended.spend);
+  const observedSavings = Math.max(0, observed.spend - recommended.spend);
+  const revenuePreserved = baseline.revenue > 0
+    ? Math.round((recommended.revenue / baseline.revenue) * 100)
     : 100;
-  const currentMargin = current.revenue - current.spend;
-  const recommendedMargin = recommended.revenue - recommended.spend;
-  const marginLift = currentMargin > 0
-    ? Math.round(((recommendedMargin - currentMargin) / currentMargin) * 100)
+  const baselineProfit = baseline.profit;
+  const recommendedProfit = recommended.profit;
+  const contributionProfitLift = baselineProfit > 0
+    ? Math.round(((recommendedProfit - baselineProfit) / baselineProfit) * 100)
     : 0;
 
   const actionResults = aggregateActions(segmentResults);
-  const wasteItems = buildWasteItems(current.spend, recommended.spend, segmentResults);
+  const wasteItems = buildWasteItems(baseline.spend, recommended.spend, segmentResults);
   const guardrails = buildGuardrails({
     quality,
     segmentResults,
-    current,
+    baseline,
+    observed,
     recommended,
     revenuePreserved
   });
@@ -71,14 +74,24 @@ function analyzeCampaign(rows, options = {}) {
   const campaign = {
     name: options.name || "کمپین تحلیل‌شده",
     audience: segmentResults.reduce((sum, segment) => sum + segment.users, 0),
-    totalSpend: Math.round(current.spend),
-    reportedRevenue: Math.round(current.revenue),
+    totalSpend: Math.round(baseline.spend),
+    reportedRevenue: Math.round(baseline.revenue),
     observedSpend: Math.round(observed.spend),
     observedRevenue: Math.round(observed.revenue),
     nonIncrementalSpend: Math.round(nextSavings),
     nextSavings: Math.round(nextSavings),
+    observedSavings: Math.round(observedSavings),
+    baselineSpend: Math.round(baseline.spend),
+    baselineRevenue: Math.round(baseline.revenue),
+    baselineContributionProfit: Math.round(baselineProfit),
+    recommendedSpend: Math.round(recommended.spend),
+    recommendedRevenue: Math.round(recommended.revenue),
+    recommendedContributionProfit: Math.round(recommendedProfit),
+    contributionProfitLift,
+    baselineLabelFa: baseline.labelFa,
+    baselineSourceFa: baseline.sourceFa,
     revenuePreserved,
-    marginLift,
+    marginLift: contributionProfitLift,
     confidence: quality.confidence,
     createdAt: new Date().toISOString()
   };
@@ -86,13 +99,16 @@ function analyzeCampaign(rows, options = {}) {
   return {
     campaign,
     policy: {
-      current: summarizePolicy(current),
+      observed: summarizePolicy(observed),
+      baseline: summarizePolicy(baseline),
+      current: summarizePolicy(baseline),
       recommended: summarizePolicy(recommended),
       delta: {
-        spend: Math.round(recommended.spend - current.spend),
-        revenue: Math.round(recommended.revenue - current.revenue),
-        margin: Math.round(recommendedMargin - currentMargin),
+        spend: Math.round(recommended.spend - baseline.spend),
+        revenue: Math.round(recommended.revenue - baseline.revenue),
+        margin: Math.round(recommendedProfit - baselineProfit),
         savings: Math.round(nextSavings),
+        observedSavings: Math.round(observedSavings),
         revenuePreserved
       }
     },
@@ -113,14 +129,19 @@ function normalizeRow(row) {
     users: Number(row.users),
     conversionRate: Number(row.conversionRate),
     costPerUser: Number(row.costPerUser || 0),
-    estimatedRevenue: Number(row.estimatedRevenue || 0)
+    estimatedRevenue: Number(row.estimatedRevenue || 0),
+    grossMarginRate: clampRate(Number.isFinite(Number(row.grossMarginRate)) ? Number(row.grossMarginRate) : 1),
+    channelCostPerUser: Number(row.channelCostPerUser || 0),
+    fulfillmentSubsidyPerUser: Number(row.fulfillmentSubsidyPerUser || 0),
+    baselinePolicy: normalizeGroup(row.baselinePolicy),
+    isBaseline: Boolean(row.isBaseline)
   };
 }
 
 function analyzeSegment(nameFa, rows, quality) {
   const rowsByGroup = new Map(rows.map(row => [row.group, withDerivedRowMetrics(row)]));
   const control = rowsByGroup.get("control") || findLowestCostRow(rowsByGroup);
-  const current = rowsByGroup.get("high_incentive") || findHighestCostRow(rowsByGroup);
+  const baseline = selectBaselineRow(rowsByGroup) || rowsByGroup.get(defaultBaselineGroup) || findHighestCostRow(rowsByGroup);
   const users = rows.reduce((sum, row) => sum + row.users, 0);
   const candidates = [...rowsByGroup.values()].map(row => evaluateCandidate(row, control, users));
   const recommended = chooseRecommendedCandidate(candidates);
@@ -132,9 +153,11 @@ function analyzeSegment(nameFa, rows, quality) {
     actionFa,
     uplift: recommended.liftPoints,
     reasonFa: buildReason(actionFa, recommended, quality),
-    current: projectedPolicy(current, users),
+    baseline: projectedPolicy(baseline, users),
+    current: projectedPolicy(baseline, users),
     recommended: projectedPolicy(recommended, users),
-    currentGroupFa: groupLabels[current.group] || current.group,
+    currentGroupFa: groupLabels[baseline.group] || baseline.group,
+    baselineGroupFa: groupLabels[baseline.group] || baseline.group,
     recommendedGroupFa: groupLabels[recommended.group] || recommended.group,
     evidence: {
       liftPoints: recommended.liftPoints,
@@ -143,19 +166,28 @@ function analyzeSegment(nameFa, rows, quality) {
       incrementalConversions: recommended.incrementalConversions,
       incrementalRevenue: recommended.incrementalRevenue,
       incrementalProfit: recommended.incrementalProfit,
+      lowerBoundProfit: recommended.lowerBoundProfit,
       roi: recommended.roi,
       confidenceLevel: evidenceLevel(recommended, quality),
-      decisionScore: recommended.decisionScore
+      decisionScore: recommended.decisionScore,
+      decisionStatus: recommended.decisionStatus
     }
   };
 }
 
 function withDerivedRowMetrics(row) {
   const convertedUsers = row.users * row.conversionRate;
+  const contributionRevenue = row.estimatedRevenue * row.grossMarginRate;
+  const variableCostPerUser = row.costPerUser + row.channelCostPerUser + row.fulfillmentSubsidyPerUser;
   return {
     ...row,
     revenuePerUser: row.users > 0 ? row.estimatedRevenue / row.users : 0,
-    revenuePerConversion: convertedUsers > 0 ? row.estimatedRevenue / convertedUsers : 0
+    contributionRevenue,
+    contributionRevenuePerUser: row.users > 0 ? contributionRevenue / row.users : 0,
+    revenuePerConversion: convertedUsers > 0 ? row.estimatedRevenue / convertedUsers : 0,
+    contributionPerConversion: convertedUsers > 0 ? contributionRevenue / convertedUsers : 0,
+    variableCostPerUser,
+    totalCost: variableCostPerUser * row.users
   };
 }
 
@@ -170,15 +202,27 @@ function evaluateCandidate(row, control, segmentUsers) {
   const ciHigh = (liftRate + 1.96 * standardError) * 100;
   const incrementalConversions = liftRate * segmentUsers;
   const incrementalRevenue = incrementalConversions * row.revenuePerConversion;
+  const incrementalContribution = incrementalConversions * row.contributionPerConversion;
   const spend = row.costPerUser * segmentUsers;
+  const totalCost = row.variableCostPerUser * segmentUsers;
   const projectedRevenue = row.revenuePerUser * segmentUsers;
-  const projectedMargin = projectedRevenue - spend;
-  const incrementalProfit = incrementalRevenue - spend;
-  const roi = spend > 0 ? incrementalProfit / spend : (incrementalProfit > 0 ? Infinity : 0);
+  const projectedContribution = row.contributionRevenuePerUser * segmentUsers;
+  const projectedProfit = projectedContribution - totalCost;
+  const lowerBoundContribution = (ciLow / 100) * segmentUsers * row.contributionPerConversion;
+  const incrementalProfit = incrementalContribution - totalCost;
+  const lowerBoundProfit = lowerBoundContribution - totalCost;
+  const roi = totalCost > 0 ? incrementalProfit / totalCost : (incrementalProfit > 0 ? Infinity : 0);
   const riskPenaltyFactor = row.costPerUser === 0 ? 0.35 : 1;
-  const decisionScore = projectedMargin -
-    spend * 0.05 +
+  const decisionScore = projectedProfit -
+    totalCost * 0.05 +
     Math.min(0, ciLow / 100) * segmentUsers * row.revenuePerConversion * riskPenaltyFactor;
+  const decisionStatus = classifyDecision(row, {
+    comparedToSelf,
+    liftPoints,
+    incrementalProfit,
+    lowerBoundProfit,
+    ciHigh
+  });
 
   return {
     ...row,
@@ -188,24 +232,35 @@ function evaluateCandidate(row, control, segmentUsers) {
     incrementalConversions: Math.round(incrementalConversions),
     incrementalRevenue: Math.round(incrementalRevenue),
     incrementalProfit: Math.round(incrementalProfit),
+    lowerBoundProfit: Math.round(lowerBoundProfit),
     projectedRevenue,
-    projectedMargin,
+    projectedContribution,
+    projectedProfit,
     projectedSpend: spend,
+    projectedTotalCost: totalCost,
     roi,
-    decisionScore
+    decisionScore,
+    decisionStatus
   };
 }
 
-function chooseRecommendedCandidate(candidates) {
-  const viable = candidates.filter(candidate => {
-    if (candidate.group === "control") return true;
-    if (candidate.costPerUser === 0) return candidate.liftPoints >= 1 && candidate.incrementalProfit > 0;
-    return candidate.incrementalProfit > 0 && candidate.liftPoints >= 1 && candidate.ciHigh > 0;
-  });
+function classifyDecision(row, evidence) {
+  if (row.group === "control") return "execute";
+  if (evidence.liftPoints < 1 || evidence.ciHigh <= 0) return "no_action";
+  if (row.costPerUser === 0 && evidence.incrementalProfit > 0) {
+    return "execute";
+  }
+  if (evidence.lowerBoundProfit > 0 && evidence.incrementalProfit > 0) return "execute";
+  if (evidence.incrementalProfit > 0) return "test_more";
+  return "no_action";
+}
 
-  return (viable.length ? viable : candidates)
+function chooseRecommendedCandidate(candidates) {
+  const candidatesWithSignal = candidates.filter(candidate => candidate.decisionStatus !== "no_action");
+
+  return (candidatesWithSignal.length ? candidatesWithSignal : candidates)
     .slice()
-    .sort((a, b) => b.decisionScore - a.decisionScore || a.projectedSpend - b.projectedSpend)[0];
+    .sort((a, b) => b.decisionScore - a.decisionScore || a.projectedTotalCost - b.projectedTotalCost)[0];
 }
 
 function analyzeTreatments(rows) {
@@ -219,6 +274,7 @@ function analyzeTreatments(rows) {
       const users = groupRows.reduce((sum, row) => sum + row.users, 0);
       const weightedConversion = weightedAverage(groupRows, row => row.conversionRate, row => row.users);
       const avgCost = weightedAverage(groupRows, row => row.costPerUser, row => row.users);
+      const avgGrossMargin = weightedAverage(groupRows, row => row.grossMarginRate, row => row.users);
       const se = Math.sqrt(
         safeVariance(weightedConversion, Math.max(1, users)) +
         safeVariance(controlConversion, Math.max(1, controlUsers))
@@ -233,6 +289,7 @@ function analyzeTreatments(rows) {
         ciLow: roundOne((weightedConversion - controlConversion - 1.96 * se) * 100),
         ciHigh: roundOne((weightedConversion - controlConversion + 1.96 * se) * 100),
         costPerUser: Math.round(avgCost),
+        grossMarginRate: roundOne(avgGrossMargin * 100),
         users
       };
     })
@@ -255,8 +312,16 @@ function evaluateDataQuality(rows) {
     if (!Number.isFinite(row.conversionRate) || row.conversionRate < 0 || row.conversionRate > 1) {
       issues.push(`ردیف ${index + 2}: نرخ تبدیل باید بین صفر و یک باشد.`);
     }
-    if (row.costPerUser < 0 || row.estimatedRevenue < 0) {
+    if (
+      row.costPerUser < 0 ||
+      row.channelCostPerUser < 0 ||
+      row.fulfillmentSubsidyPerUser < 0 ||
+      row.estimatedRevenue < 0
+    ) {
       issues.push(`ردیف ${index + 2}: هزینه و درآمد نمی‌توانند منفی باشند.`);
+    }
+    if (!Number.isFinite(row.grossMarginRate) || row.grossMarginRate <= 0 || row.grossMarginRate > 1) {
+      issues.push(`ردیف ${index + 2}: نرخ حاشیه سود باید بین صفر و یک باشد.`);
     }
   });
 
@@ -273,11 +338,17 @@ function evaluateDataQuality(rows) {
     if (segmentUsers < minSegmentUsers) {
       warnings.push(`سگمنت «${segment}» حجم نمونه کمی دارد.`);
     }
+    if (!selectBaselineRow(new Map(segmentRows.map(row => [row.group, row])))) {
+      warnings.push(`سگمنت «${segment}» baseline صریح ندارد و فعلاً «مشوق قوی» به‌عنوان خط مبنا فرض شده است.`);
+    }
   });
 
   const totalUsers = rows.reduce((sum, row) => sum + row.users, 0);
   if (totalUsers < minCampaignUsers) {
     warnings.push("حجم کل کمپین برای تصمیم مالی قطعی کم است.");
+  }
+  if (rows.some(row => row.grossMarginRate === 1)) {
+    warnings.push("برای بخشی از داده‌ها حاشیه سود ناخالص ارسال نشده و محاسبه سود محافظه‌کارانه نیست.");
   }
 
   const score = Math.max(0, 100 - issues.length * 30 - warnings.length * 10);
@@ -291,16 +362,23 @@ function evaluateDataQuality(rows) {
       { labelFa: "وجود گروه کنترل", passed: Object.values(segmentsByName).every(segmentRows => segmentRows.some(row => row.group === "control")) },
       { labelFa: "نرخ تبدیل معتبر", passed: rows.every(row => row.conversionRate >= 0 && row.conversionRate <= 1) },
       { labelFa: "حجم داده کافی", passed: totalUsers >= minCampaignUsers },
-      { labelFa: "هزینه و درآمد غیرمنفی", passed: rows.every(row => row.costPerUser >= 0 && row.estimatedRevenue >= 0) }
+      { labelFa: "مدل هزینه کامل", passed: rows.every(row => row.grossMarginRate < 1) },
+      { labelFa: "هزینه و درآمد غیرمنفی", passed: rows.every(row =>
+        row.costPerUser >= 0 &&
+        row.channelCostPerUser >= 0 &&
+        row.fulfillmentSubsidyPerUser >= 0 &&
+        row.estimatedRevenue >= 0
+      ) }
     ]
   };
 }
 
-function buildGuardrails({ quality, segmentResults, current, recommended, revenuePreserved }) {
+function buildGuardrails({ quality, segmentResults, baseline, observed, recommended, revenuePreserved }) {
   const paidSegments = segmentResults.filter(segment => segment.recommended.spend > 0);
-  const positivePaid = paidSegments.filter(segment => segment.evidence.incrementalProfit > 0);
-  const currentMargin = current.revenue - current.spend;
-  const recommendedMargin = recommended.revenue - recommended.spend;
+  const executablePaid = paidSegments.filter(segment => segment.evidence.decisionStatus === "execute");
+  const baselineProfit = baseline.profit;
+  const recommendedProfit = recommended.profit;
+  const observedSpendDelta = observed.spend - recommended.spend;
 
   return [
     {
@@ -316,16 +394,22 @@ function buildGuardrails({ quality, segmentResults, current, recommended, revenu
       noteFa: `حداقل قابل‌قبول برای پایلوت ${revenueGuardrail}٪ است.`
     },
     {
-      labelFa: "سود افزایشی مشوق پولی",
-      valueFa: `${positivePaid.length}/${paidSegments.length || 0}`,
-      status: positivePaid.length === paidSegments.length ? "pass" : "warn",
-      noteFa: "مشوق پولی فقط وقتی پیشنهاد می‌شود که سود افزایشی مثبت باشد."
+      labelFa: "ریسک تصمیم پولی",
+      valueFa: `${executablePaid.length}/${paidSegments.length || 0}`,
+      status: executablePaid.length === paidSegments.length ? "pass" : "warn",
+      noteFa: "مشوق پولی فقط وقتی «اجرا» می‌شود که سود افزایشی و کران پایین ریسک قابل‌قبول باشد."
     },
     {
-      labelFa: "حاشیه سود",
-      valueFa: recommendedMargin >= currentMargin ? "بهبود" : "افت",
-      status: recommendedMargin >= currentMargin ? "pass" : "warn",
-      noteFa: `تغییر حاشیه سود: ${formatSignedMoney(recommendedMargin - currentMargin)}.`
+      labelFa: "سود مشارکتی",
+      valueFa: recommendedProfit >= baselineProfit ? "بهبود" : "افت",
+      status: recommendedProfit >= baselineProfit ? "pass" : "warn",
+      noteFa: `تغییر سود مشارکتی نسبت به baseline: ${formatSignedMoney(recommendedProfit - baselineProfit)}.`
+    },
+    {
+      labelFa: "اثر روی هزینه مشاهده‌شده",
+      valueFa: formatSignedMoney(observedSpendDelta),
+      status: observedSpendDelta >= 0 ? "pass" : "warn",
+      noteFa: "این عدد نسبت به هزینه‌ای است که واقعاً در فایل دیده شده، نه سناریوی شبیه‌سازی‌شده."
     }
   ];
 }
@@ -333,15 +417,41 @@ function buildGuardrails({ quality, segmentResults, current, recommended, revenu
 function aggregatePolicy(segments, key) {
   return segments.reduce((totals, segment) => ({
     spend: totals.spend + segment[key].spend,
-    revenue: totals.revenue + segment[key].revenue
-  }), { spend: 0, revenue: 0 });
+    totalCost: totals.totalCost + segment[key].totalCost,
+    revenue: totals.revenue + segment[key].revenue,
+    contributionRevenue: totals.contributionRevenue + segment[key].contributionRevenue,
+    profit: totals.profit + segment[key].profit,
+    labelFa: segment[key].labelFa || totals.labelFa,
+    sourceFa: segment[key].sourceFa || totals.sourceFa
+  }), emptyPolicy());
 }
 
 function aggregateObserved(rows) {
-  return rows.reduce((totals, row) => ({
-    spend: totals.spend + row.costPerUser * row.users,
-    revenue: totals.revenue + row.estimatedRevenue
-  }), { spend: 0, revenue: 0 });
+  return rows.reduce((totals, row) => {
+    const contributionRevenue = row.estimatedRevenue * row.grossMarginRate;
+    const totalCost = (row.costPerUser + row.channelCostPerUser + row.fulfillmentSubsidyPerUser) * row.users;
+    return {
+      spend: totals.spend + row.costPerUser * row.users,
+      totalCost: totals.totalCost + totalCost,
+      revenue: totals.revenue + row.estimatedRevenue,
+      contributionRevenue: totals.contributionRevenue + contributionRevenue,
+      profit: totals.profit + contributionRevenue - totalCost,
+      labelFa: "تخصیص مشاهده‌شده",
+      sourceFa: "واقعی"
+    };
+  }, emptyPolicy());
+}
+
+function emptyPolicy() {
+  return {
+    spend: 0,
+    totalCost: 0,
+    revenue: 0,
+    contributionRevenue: 0,
+    profit: 0,
+    labelFa: "",
+    sourceFa: ""
+  };
 }
 
 function aggregateActions(segments) {
@@ -401,34 +511,52 @@ function toPublicSegment(segment) {
     uplift: roundOne(segment.uplift),
     reasonFa: segment.reasonFa,
     currentGroupFa: segment.currentGroupFa,
+    baselineGroupFa: segment.baselineGroupFa,
     recommendedGroupFa: segment.recommendedGroupFa,
     currentSpend: Math.round(segment.current.spend),
+    baselineSpend: Math.round(segment.baseline.spend),
     recommendedSpend: Math.round(segment.recommended.spend),
     projectedRevenue: Math.round(segment.recommended.revenue),
+    projectedContributionProfit: Math.round(segment.recommended.profit),
     incrementalProfit: segment.evidence.incrementalProfit,
+    lowerBoundProfit: segment.evidence.lowerBoundProfit,
     ciLow: segment.evidence.ciLow,
     ciHigh: segment.evidence.ciHigh,
-    confidenceLevel: segment.evidence.confidenceLevel
+    confidenceLevel: segment.evidence.confidenceLevel,
+    decisionStatus: segment.evidence.decisionStatus,
+    decisionStatusFa: decisionStatusFa(segment.evidence.decisionStatus)
   };
 }
 
 function summarizePolicy(policy) {
   return {
     spend: Math.round(policy.spend),
+    totalCost: Math.round(policy.totalCost || policy.spend),
     revenue: Math.round(policy.revenue),
-    margin: Math.round(policy.revenue - policy.spend)
+    contributionRevenue: Math.round(policy.contributionRevenue || policy.revenue),
+    margin: Math.round(policy.profit ?? (policy.revenue - policy.spend)),
+    profit: Math.round(policy.profit ?? (policy.revenue - policy.spend)),
+    labelFa: policy.labelFa || "",
+    sourceFa: policy.sourceFa || ""
   };
 }
 
 function projectedPolicy(row, users) {
   return {
     spend: row.costPerUser * users,
-    revenue: row.revenuePerUser * users
+    totalCost: row.variableCostPerUser * users,
+    revenue: row.revenuePerUser * users,
+    contributionRevenue: row.contributionRevenuePerUser * users,
+    profit: row.contributionRevenuePerUser * users - row.variableCostPerUser * users,
+    labelFa: groupLabels[row.group] || row.group,
+    sourceFa: row.isBaseline || row.baselinePolicy === row.group ? "baseline صریح" : "baseline پیش‌فرض"
   };
 }
 
 function buildReason(action, candidate, quality) {
   if (quality.issues.length) return "این پیشنهاد با احتیاط ارائه شده؛ قبل از اجرای کمپین، مشکل داده باید رفع شود.";
+  if (candidate.decisionStatus === "test_more") return "اثر اقتصادی مثبت دیده می‌شود، اما بازه اطمینان هنوز برای اجرای کامل کافی نیست؛ این سگمنت باید با holdout کوچک‌تر تست شود.";
+  if (candidate.decisionStatus === "no_action") return "اثر افزایشی یا سود مشارکتی هنوز برای خرج‌کردن بودجه کافی نیست.";
   if (action === "بدون پیشنهاد") return "احتمال خرید بدون تخفیف بالاست و مشوق پولی حاشیه سود را کم می‌کند.";
   if (action === "فقط پوش") return "پیام کم‌هزینه برای ساختن اثر افزایشی کافی است.";
   if (action === "تخفیف کوچک") {
@@ -443,9 +571,26 @@ function buildReason(action, candidate, quality) {
 function evidenceLevel(candidate, quality) {
   if (quality.issues.length) return "نیازمند اصلاح داده";
   if (candidate.group === "control") return "محافظه‌کار";
-  if (candidate.ciLow > 0 && candidate.incrementalProfit > 0) return "قوی";
+  if (candidate.decisionStatus === "execute" && candidate.ciLow > 0 && candidate.incrementalProfit > 0) return "قوی";
+  if (candidate.decisionStatus === "test_more") return "نیازمند آزمایش";
   if (candidate.ciHigh > 0 && candidate.incrementalProfit > 0) return "متوسط";
   return "ضعیف";
+}
+
+function decisionStatusFa(status) {
+  if (status === "execute") return "اجرا";
+  if (status === "test_more") return "آزمایش بیشتر";
+  return "عدم اقدام";
+}
+
+function selectBaselineRow(rowsByGroup) {
+  const explicit = [...rowsByGroup.values()].find(row => row.isBaseline);
+  if (explicit) return explicit;
+
+  const baselinePolicy = [...rowsByGroup.values()].find(row => row.baselinePolicy && rowsByGroup.has(row.baselinePolicy));
+  if (baselinePolicy) return rowsByGroup.get(baselinePolicy.baselinePolicy);
+
+  return null;
 }
 
 function findLowestCostRow(rowsByGroup) {
@@ -466,6 +611,11 @@ function normalizeGroup(group) {
     .toLowerCase()
     .replace(/\s+/g, "_")
     .replace(/-/g, "_");
+}
+
+function clampRate(value) {
+  if (!Number.isFinite(value)) return 1;
+  return Math.max(0, Math.min(1, value));
 }
 
 function treatmentRank(key) {

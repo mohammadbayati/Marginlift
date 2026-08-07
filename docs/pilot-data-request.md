@@ -15,8 +15,11 @@
 | conversions | بله | تعداد خرید/فعال‌سازی در پنجره سنجش |
 | revenue | بله | GMV یا درآمد گزارش‌شده |
 | incentive_cost | بله | هزینه کل مشوق برای همان گروه |
-| gross_margin | بهتر است | حاشیه سود تخمینی یا دسته‌ای |
+| gross_margin_rate | بله | حاشیه سود ناخالص به‌صورت ۰.۳۲ یا ۳۲ |
+| baseline_policy | بهتر است | سیاست پایه‌ای که قرار است پیشنهاد جدید با آن مقایسه شود؛ مثل `high_incentive` |
 | channel | بهتر است | پوش، پیامک، ایمیل، in-app |
+| channel_cost_per_user_toman | بهتر است | هزینه ارسال پیام/کانال به‌ازای هر کاربر |
+| fulfillment_subsidy_per_user_toman | بهتر است | هزینه ارسال رایگان یا سابسیدی غیر از تخفیف مستقیم |
 | measurement_window_days | بهتر است | مثلا ۷ روز |
 | control_group_flag | بهتر است | اگر treatment خودش کنترل نیست |
 
@@ -43,8 +46,7 @@
 نمونه:
 
 ```csv
-campaign_id,segment,treatment,users,conversions,revenue,incentive_cost,gross_margin,channel,measurement_window_days
-RET-001,کاربران وفادار اخیر,control,3100,260,580000000,0,0.22,push,7
-RET-001,کاربران وفادار اخیر,small_discount,3100,272,602000000,77500000,0.22,push,7
+campaign_id,segment,treatment,users,conversions,revenue,incentive_cost,gross_margin_rate,baseline_policy,channel,channel_cost_per_user_toman,measurement_window_days
+RET-001,کاربران وفادار اخیر,control,3100,260,580000000,0,0.32,high_incentive,push,1800,7
+RET-001,کاربران وفادار اخیر,small_discount,3100,272,602000000,77500000,0.32,high_incentive,push,1800,7
 ```
-

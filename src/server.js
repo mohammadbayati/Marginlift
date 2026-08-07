@@ -4,6 +4,7 @@ const path = require("path");
 const { URL } = require("url");
 
 const { analyzeCampaign } = require("./analysis");
+const { analyzeCustomers } = require("./customer-analysis");
 const {
   SESSION_COOKIE,
   buildSessionCookie,
@@ -11,15 +12,26 @@ const {
   createId,
   hashPassword,
   parseCookies,
-  verifyPassword
+  verifyPassword,
+  verifySessionCookie
 } = require("./auth");
-const { normalizeCampaignRows, parseCSV } = require("./csv");
+const { looksLikeCustomerRows, normalizeCampaignRows, normalizeCustomerRows, normalizeOutcomeRows, parseCSV } = require("./csv");
 const { readDb, transact } = require("./storage");
+const { buildDecisionOverview } = require("./decision-engine");
+const {
+  analyzeOutcomeRows,
+  buildPilotReadout,
+  buildPilotWorkspace,
+  buildReadinessAudit,
+  buildSavingsSnapshot
+} = require("./pilot");
+const { appOrigin, assertProductionConfig, isProduction, maxBodyBytes, port: defaultPort, trustProxy } = require("./config");
 
 const publicRoot = path.join(__dirname, "..");
 const sampleCsvPath = path.join(publicRoot, "synthetic-campaign-data.csv");
+const sampleCustomerCsvPath = path.join(publicRoot, "synthetic-customer-events.csv");
+const sampleOutcomeCsvPath = path.join(publicRoot, "synthetic-outcome-data.csv");
 const sessionTtlMs = 1000 * 60 * 60 * 24 * 7;
-const maxBodyBytes = 2 * 1024 * 1024;
 const authAttempts = new Map();
 
 const contentTypes = {
@@ -32,7 +44,8 @@ const contentTypes = {
   ".svg": "image/svg+xml"
 };
 
-function start(port = Number(process.env.PORT || 3000)) {
+function start(port = defaultPort) {
+  assertProductionConfig();
   seedDemoAccount();
   const server = http.createServer(handleRequest);
   server.listen(port, () => {
@@ -46,6 +59,10 @@ async function handleRequest(req, res) {
 
   try {
     const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      enforceSameOrigin(req);
+    }
 
     if (url.pathname.startsWith("/api/")) {
       await handleApi(req, res, url);
@@ -126,6 +143,73 @@ async function handleApi(req, res, url) {
     return;
   }
 
+  if (url.pathname === "/api/decision-engine/overview" && req.method === "GET") {
+    const campaign = getCurrentCampaign(auth.organization.id);
+    sendJson(res, 200, { data: buildDecisionOverview(campaign) });
+    return;
+  }
+
+  if (url.pathname === "/api/customers/current" && req.method === "GET") {
+    sendJson(res, 200, { data: getCurrentCustomerAnalysis(auth.organization.id) });
+    return;
+  }
+
+  if (url.pathname === "/api/customers/import" && req.method === "POST") {
+    const body = await readJson(req);
+    const analysis = importCustomerAnalysis(auth.organization.id, body);
+    sendJson(res, 201, { data: analysis });
+    return;
+  }
+
+  if (url.pathname === "/api/experiments/plan" && req.method === "GET") {
+    sendJson(res, 200, { data: getCurrentCustomerAnalysis(auth.organization.id).experimentPlan });
+    return;
+  }
+
+  if (url.pathname === "/api/finance/summary" && req.method === "GET") {
+    sendJson(res, 200, { data: getCurrentCustomerAnalysis(auth.organization.id).finance });
+    return;
+  }
+
+  if (url.pathname === "/api/readiness/current" && req.method === "GET") {
+    sendJson(res, 200, { data: getCurrentPilotState(auth.organization.id).readiness });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/workspace" && req.method === "GET") {
+    sendJson(res, 200, { data: getCurrentPilotState(auth.organization.id) });
+    return;
+  }
+
+  if (url.pathname === "/api/outcomes/import" && req.method === "POST") {
+    const body = await readJson(req);
+    sendJson(res, 201, { data: importOutcomeAnalysis(auth.organization.id, body) });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/readout.md" && req.method === "GET") {
+    const state = getCurrentPilotState(auth.organization.id);
+    const readout = buildPilotReadout(auth.organization, state.readiness, state.savingsSnapshot, state.workspace, state.outcome);
+    res.writeHead(200, {
+      "Content-Type": "text/markdown; charset=utf-8",
+      "Cache-Control": "no-store",
+      "Content-Disposition": 'attachment; filename="marginlift-pilot-readout.md"'
+    });
+    res.end(readout);
+    return;
+  }
+
+  if (url.pathname === "/api/exports/audience.csv" && req.method === "GET") {
+    const analysis = getCurrentCustomerAnalysis(auth.organization.id);
+    res.writeHead(200, {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Cache-Control": "no-store",
+      "Content-Disposition": 'attachment; filename="marginlift-audience-export.csv"'
+    });
+    res.end(buildAudienceCsv(analysis.channelExport || []));
+    return;
+  }
+
   if (url.pathname === "/api/events/summary" && req.method === "GET") {
     sendJson(res, 200, { data: getEventSummary(auth.organization.id) });
     return;
@@ -135,6 +219,35 @@ async function handleApi(req, res, url) {
     const body = await readJson(req);
     const campaign = importCampaign(auth.organization.id, body);
     sendJson(res, 201, { data: campaign });
+    return;
+  }
+
+  if (url.pathname === "/api/imports/preview" && req.method === "POST") {
+    const body = await readJson(req);
+    sendJson(res, 200, { data: previewCsvImport(body) });
+    return;
+  }
+
+  if (url.pathname === "/api/imports/csv" && req.method === "POST") {
+    const body = await readJson(req);
+    sendJson(res, 201, { data: importCsvAnalysis(auth.organization.id, body) });
+    return;
+  }
+
+  if (url.pathname === "/api/analyses/history" && req.method === "GET") {
+    sendJson(res, 200, { data: getAnalysisHistory(auth.organization.id) });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/package.md" && req.method === "GET") {
+    const state = getCurrentPilotState(auth.organization.id);
+    const packageMarkdown = buildPilotPackage(auth.organization, state.campaign, state.customerAnalysis, state);
+    res.writeHead(200, {
+      "Content-Type": "text/markdown; charset=utf-8",
+      "Cache-Control": "no-store",
+      "Content-Disposition": 'attachment; filename="marginlift-pilot-package.md"'
+    });
+    res.end(packageMarkdown);
     return;
   }
 
@@ -238,7 +351,7 @@ function login(body) {
 
 function getRequestSession(req) {
   const cookies = parseCookies(req.headers.cookie || "");
-  const sessionId = cookies[SESSION_COOKIE];
+  const sessionId = verifySessionCookie(cookies[SESSION_COOKIE]);
   if (!sessionId) return null;
 
   const db = readDb();
@@ -315,6 +428,207 @@ function importCampaign(organizationId, body) {
     isDemo: false,
     ...analysis
   };
+}
+
+function previewCsvImport(body) {
+  const csvText = extractCsvText(body);
+  if (csvText.length < 20) {
+    throw httpError(400, "CSV_REQUIRED", "فایل CSV معتبر ارسال نشده است.");
+  }
+  const parsedRows = parseCSV(csvText);
+  const columns = Object.keys(parsedRows[0] || {});
+  const isCustomerLevel = looksLikeCustomerRows(parsedRows);
+  const requiredColumns = isCustomerLevel
+    ? ["customer_id", "treatment", "converted", "outcome_revenue_toman", "gross_margin_rate"]
+    : ["segment_fa", "campaign_group", "users", "conversion_rate", "estimated_revenue_toman"];
+  const missing = requiredColumns.filter(column => !columns.includes(column));
+
+  return {
+    detectedType: isCustomerLevel ? "customer" : "campaign",
+    detectedTypeFa: isCustomerLevel ? "داده مشتری‌محور" : "داده سگمنتی کمپین",
+    rowCount: parsedRows.length,
+    columns,
+    missing,
+    ready: missing.length === 0,
+    nextActionFa: isCustomerLevel ? "ساخت Customer 360 و برنامه پایلوت" : "ساخت صف تصمیم سگمنتی"
+  };
+}
+
+function importCsvAnalysis(organizationId, body) {
+  const csvText = extractCsvText(body);
+  const parsedRows = parseCSV(csvText);
+  if (looksLikeCustomerRows(parsedRows)) {
+    return {
+      type: "customer",
+      analysis: importCustomerAnalysis(organizationId, body)
+    };
+  }
+
+  return {
+    type: "campaign",
+    analysis: importCampaign(organizationId, body)
+  };
+}
+
+function getCurrentCustomerAnalysis(organizationId) {
+  const db = readDb();
+  const stored = db.customerAnalyses
+    .filter(item => item.organizationId === organizationId)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+
+  if (stored) {
+    return {
+      id: stored.id,
+      isDemo: false,
+      ...stored.analysis
+    };
+  }
+
+  return {
+    id: "demo_customer_analysis",
+    isDemo: true,
+    ...loadSampleCustomerAnalysis()
+  };
+}
+
+function getCurrentOutcomeAnalysis(organizationId) {
+  const db = readDb();
+  const stored = db.outcomes
+    .filter(item => item.organizationId === organizationId)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+
+  if (stored) {
+    return {
+      id: stored.id,
+      isDemo: false,
+      ...stored.analysis
+    };
+  }
+
+  return null;
+}
+
+function getCurrentPilotState(organizationId) {
+  const campaign = getCurrentCampaign(organizationId);
+  const customerAnalysis = getCurrentCustomerAnalysis(organizationId);
+  const outcome = getCurrentOutcomeAnalysis(organizationId);
+  const readiness = buildReadinessAudit(customerAnalysis, campaign, outcome);
+  const savingsSnapshot = buildSavingsSnapshot(customerAnalysis, campaign, readiness, outcome);
+  const workspace = buildPilotWorkspace(readiness, customerAnalysis, outcome);
+  return {
+    campaign,
+    customerAnalysis,
+    outcome,
+    readiness,
+    savingsSnapshot,
+    workspace,
+    pricing: buildPricingPlans()
+  };
+}
+
+function importCustomerAnalysis(organizationId, body) {
+  const name = cleanText(body.name) || "تحلیل مشتری‌محور واردشده";
+  const csvText = extractCsvText(body);
+  if (csvText.length < 20) {
+    throw httpError(400, "CSV_REQUIRED", "فایل CSV معتبر ارسال نشده است.");
+  }
+
+  const parsedRows = parseCSV(csvText);
+  if (!looksLikeCustomerRows(parsedRows)) {
+    throw httpError(400, "CUSTOMER_CSV_REQUIRED", "برای این بخش، ستون customer_id لازم است.");
+  }
+
+  const rows = normalizeCustomerRows(parsedRows);
+  const analysis = analyzeCustomers(rows, { name });
+  const record = {
+    id: createId("cus"),
+    organizationId,
+    name,
+    rowCount: rows.length,
+    analysis,
+    createdAt: new Date().toISOString()
+  };
+
+  transact(db => {
+    db.customerAnalyses.push(record);
+  });
+
+  return {
+    id: record.id,
+    isDemo: false,
+    ...analysis
+  };
+}
+
+function importOutcomeAnalysis(organizationId, body) {
+  const name = cleanText(body.name) || "نتیجه پایلوت واردشده";
+  const csvText = extractCsvText(body);
+  if (csvText.length < 20) {
+    throw httpError(400, "CSV_REQUIRED", "فایل outcome معتبر ارسال نشده است.");
+  }
+
+  const rows = normalizeOutcomeRows(parseCSV(csvText));
+  const customerAnalysis = getCurrentCustomerAnalysis(organizationId);
+  const analysis = analyzeOutcomeRows(rows, customerAnalysis);
+  const record = {
+    id: createId("out"),
+    organizationId,
+    name,
+    rowCount: rows.length,
+    analysis,
+    createdAt: new Date().toISOString()
+  };
+
+  transact(db => {
+    db.outcomes.push(record);
+  });
+
+  return {
+    id: record.id,
+    isDemo: false,
+    ...analysis
+  };
+}
+
+function getAnalysisHistory(organizationId) {
+  const db = readDb();
+  const campaigns = db.campaigns
+    .filter(item => item.organizationId === organizationId)
+    .map(item => ({
+      id: item.id,
+      type: "campaign",
+      typeFa: "کمپین سگمنتی",
+      name: item.name,
+      rowCount: item.rowCount,
+      createdAt: item.createdAt,
+      headlineFa: `${formatMoney(item.analysis?.campaign?.nextSavings || 0)} صرفه‌جویی پیشنهادی`
+    }));
+  const customerAnalyses = db.customerAnalyses
+    .filter(item => item.organizationId === organizationId)
+    .map(item => ({
+      id: item.id,
+      type: "customer",
+      typeFa: "تحلیل مشتری‌محور",
+      name: item.name,
+      rowCount: item.rowCount,
+      createdAt: item.createdAt,
+      headlineFa: `${formatMoney(item.analysis?.summary?.expectedIncrementalProfit || 0)} سود افزایشی`
+    }));
+  const outcomes = db.outcomes
+    .filter(item => item.organizationId === organizationId)
+    .map(item => ({
+      id: item.id,
+      type: "outcome",
+      typeFa: "Outcome پایلوت",
+      name: item.name,
+      rowCount: item.rowCount,
+      createdAt: item.createdAt,
+      headlineFa: item.analysis?.summary?.recommendationFa || "readout آماده"
+    }));
+
+  return [...campaigns, ...customerAnalyses, ...outcomes]
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 12);
 }
 
 function trackEvent(req, body) {
@@ -421,16 +735,18 @@ function buildMarkdownReport(analysis, organization) {
     "",
     "## خلاصه مدیریتی",
     "",
-    `- بودجه قابل‌آزادسازی پیشنهادی: ${formatMoney(campaign.nextSavings)}`,
-    `- درآمد حفظ‌شده: ${formatPercent(campaign.revenuePreserved)}`,
+    `- بودجه قابل‌آزادسازی نسبت به baseline: ${formatMoney(campaign.nextSavings)}`,
+    `- صرفه‌جویی نسبت به هزینه مشاهده‌شده: ${formatMoney(campaign.observedSavings || 0)}`,
+    `- درآمد حفظ‌شده نسبت به baseline: ${formatPercent(campaign.revenuePreserved)}`,
+    `- بهبود سود مشارکتی: ${formatPercent(campaign.contributionProfitLift ?? campaign.marginLift)}`,
     `- اعتماد تحلیل: ${formatPercent(campaign.confidence || 0)}`,
     `- بینش اصلی: ${analysis.insight || "داده برای تولید بینش کافی نیست."}`,
     "",
     "## تصمیم پیشنهادی برای سگمنت‌ها",
     "",
-    "| سگمنت | کاربران | تصمیم | uplift | اعتبار | دلیل |",
-    "| --- | ---: | --- | ---: | --- | --- |",
-    ...analysis.segments.map(segment => `| ${segment.nameFa} | ${formatNumber(segment.users)} | ${segment.actionFa} | ${formatNumber(segment.uplift)} واحد | ${segment.confidenceLevel || "متوسط"} | ${segment.reasonFa} |`),
+    "| سگمنت | کاربران | تصمیم | وضعیت | uplift | سود مشارکتی پیشنهادی | اعتبار | دلیل |",
+    "| --- | ---: | --- | --- | ---: | ---: | --- | --- |",
+    ...analysis.segments.map(segment => `| ${segment.nameFa} | ${formatNumber(segment.users)} | ${segment.actionFa} | ${segment.decisionStatusFa || "آزمایش بیشتر"} | ${formatNumber(segment.uplift)} واحد | ${formatMoney(segment.projectedContributionProfit || 0)} | ${segment.confidenceLevel || "متوسط"} | ${segment.reasonFa} |`),
     "",
     "## گاردریل‌ها",
     "",
@@ -471,6 +787,136 @@ function loadSampleAnalysis() {
   return analyzeCampaign(rows, { name: "بازگشت با کش‌بک" });
 }
 
+function loadSampleCustomerAnalysis() {
+  const rows = normalizeCustomerRows(parseCSV(fs.readFileSync(sampleCustomerCsvPath, "utf8")));
+  return analyzeCustomers(rows, { name: "تحلیل مشتری‌محور نمونه" });
+}
+
+function buildAudienceCsv(rows) {
+  const headers = [
+    "customer_id",
+    "segment_fa",
+    "recommended_action",
+    "recommended_action_fa",
+    "risk_score",
+    "clv_toman",
+    "expected_incremental_profit_toman",
+    "reason_fa"
+  ];
+  const lines = [headers.join(",")];
+  rows.forEach(row => {
+    lines.push(headers.map(header => csvCell(row[header])).join(","));
+  });
+  return `${lines.join("\n")}\n`;
+}
+
+function buildPilotPackage(organization, campaignAnalysis, customerAnalysis, pilotState = {}) {
+  const campaign = campaignAnalysis.campaign || {};
+  const customerSummary = customerAnalysis.summary || {};
+  const finance = customerAnalysis.finance || {};
+  const experiment = customerAnalysis.experimentPlan || {};
+  const readiness = pilotState.readiness || {};
+  const snapshot = pilotState.savingsSnapshot || {};
+  const pricing = pilotState.pricing || buildPricingPlans();
+  const lines = [
+    `# بسته پایلوت MarginLift برای ${organization.name}`,
+    "",
+    "ما جایگزین CRM نیستیم؛ ما تصمیم می‌گیریم کجا تخفیف بدهید و کجا ندهید.",
+    "",
+    "## هدف پایلوت",
+    "",
+    "کاهش هزینه مشوق و افزایش سود نگهداشت با تصمیم‌گیری بر اساس uplift، نه صرفا پیش‌بینی ریزش.",
+    "",
+    "## Readiness و Snapshot",
+    "",
+    `- وضعیت داده: ${readiness.statusFa || "در حال بررسی"}`,
+    `- سطح ادعا: ${snapshot.claimLevelFa || "برآورد تاریخی"}`,
+    `- پیام مدیریتی: ${snapshot.headlineFa || "تخفیف کمتر، سود بیشتر"}`,
+    "",
+    "## دامنه اجرا",
+    "",
+    `- واحد تصمیم: ${customerAnalysis.model?.unitFa || "customer_id"}`,
+    `- تعریف نتیجه: خرید یا بازگشت در پنجره ${experiment.durationFa || "۳۰ روز"}`,
+    `- مخاطب پیشنهادی: ${experiment.audienceFa || "مشتریان دارای ریسک و CLV مثبت"}`,
+    `- کنترل پیشنهادی: ${experiment.recommendedHoldoutFa || "۱۰٪ کنترل تصادفی"}`,
+    "",
+    "## خروجی مورد انتظار",
+    "",
+    `- مشتریان قابل اقدام: ${formatNumber(customerSummary.targetableCustomers || 0)}`,
+    `- سود افزایشی مورد انتظار: ${formatMoney(customerSummary.expectedIncrementalProfit || 0)}`,
+    `- هزینه قابل جلوگیری: ${formatMoney(finance.avoidableIncentiveCost || 0)}`,
+    `- ROI پایلوت: ${formatNumber(finance.projectedRoi || 0)}x`,
+    `- صرفه‌جویی سگمنتی baseline: ${formatMoney(campaign.nextSavings || 0)}`,
+    `- تصمیم فعلی: ${snapshot.decisionFa || "طراحی پایلوت"}`,
+    "",
+    "## فرضیه آزمایش",
+    "",
+    experiment.hypothesisFa || "اگر مشوق‌ها فقط به مشتریان دارای سود افزایشی مثبت تخصیص داده شوند، سود نگهداشت بیشتر می‌شود.",
+    "",
+    "## معیارها",
+    "",
+    `- KPI اصلی: ${experiment.primaryMetricFa || "سود افزایشی به‌ازای مشتری هدف‌گیری‌شده"}`,
+    ...((experiment.guardrailsFa || []).map(item => `- گاردریل: ${item}`)),
+    "",
+    "## تعهدات داده",
+    "",
+    "- ارسال customer_id ناشناس",
+    "- ثبت treatment و زمان exposure",
+    "- ثبت converted و revenue در outcome window",
+    "- ارسال gross margin و هزینه کانال/مشوق",
+    "",
+    "## خروجی تحویلی",
+    "",
+    "- داشبورد Customer 360",
+    "- فایل مخاطبان قابل ارسال به CRM",
+    "- گزارش پایلوت برای مدیر رشد، مالی و مدیرعامل",
+    "- تصمیم scale / iterate / stop پس از پایان پنجره outcome",
+    "",
+    "## پکیج‌های تجاری پیشنهادی",
+    "",
+    "| پکیج | مدل پرداخت | مناسب برای |",
+    "| --- | --- | --- |",
+    ...pricing.map(plan => `| ${plan.name} | ${plan.priceFa} | ${plan.bestForFa} |`)
+  ];
+  return `${lines.join("\n")}\n`;
+}
+
+function buildPricingPlans() {
+  return [
+    {
+      key: "diagnostic",
+      name: "Diagnostic",
+      priceFa: "پرداخت ثابت برای تحلیل تاریخی",
+      bestForFa: "تیمی که هنوز برای live holdout آماده نیست",
+      promiseFa: "Data Readiness، Savings Snapshot و policy پیشنهادی"
+    },
+    {
+      key: "live_pilot",
+      name: "Live Pilot",
+      priceFa: "پرداخت ثابت + طراحی holdout",
+      bestForFa: "تیم Growth/CRM با کمپین نزدیک",
+      promiseFa: "اجرای کنترل‌شده، outcome loop و readout مدیریتی"
+    },
+    {
+      key: "success_plan",
+      name: "Success Plan",
+      priceFa: "ماهانه + درصدی از صرفه‌جویی تاییدشده",
+      bestForFa: "کسب‌وکار پرتراکنش با بودجه مشوق تکرارشونده",
+      promiseFa: "decision engine ماهانه و optimization مداوم"
+    }
+  ];
+}
+
+function formatNumber(value) {
+  return new Intl.NumberFormat("fa-IR").format(Number(value || 0));
+}
+
+function csvCell(value) {
+  const text = String(value ?? "");
+  if (/[",\n\r]/.test(text)) return `"${text.replace(/"/g, "\"\"")}"`;
+  return text;
+}
+
 function extractCsvText(body) {
   const candidate = body.csvText || body.csv || body.content || "";
   if (typeof candidate === "string") return candidate;
@@ -479,6 +925,7 @@ function extractCsvText(body) {
 }
 
 function seedDemoAccount() {
+  if (isProduction) return;
   transact(db => {
     const email = "growth@example.com";
     if (db.users.some(user => user.email === email)) return;
@@ -544,12 +991,18 @@ function serveStatic(requestPath, res) {
   const allowed = new Set([
     "/index.html",
     "/sales.html",
+    "/privacy.html",
+    "/terms.html",
+    "/security.html",
+    "/pilot-data-request.html",
     "/pilot.html",
     "/deck.html",
     "/submission.html",
     "/styles.css",
     "/app.js",
     "/synthetic-campaign-data.csv",
+    "/synthetic-customer-events.csv",
+    "/synthetic-outcome-data.csv",
     "/README.md",
     "/docs/pilot-data-request.md",
     "/docs/pilot-experiment-brief.md",
@@ -564,7 +1017,12 @@ function serveStatic(requestPath, res) {
     "/docs/competitive-benchmark-digital-marketing.md",
     "/docs/analytics-tracking-plan.md",
     "/docs/product-hardening-1.md",
-    "/docs/product-hardening-2.md"
+    "/docs/product-hardening-2.md",
+    "/docs/product-reassessment-2026.md",
+    "/docs/retention-decision-contract.md",
+    "/docs/uplift-modeling-kaggle-review.md",
+    "/docs/vm-deployment.md",
+    "/vm-deployment.html"
   ]);
 
   if (!allowed.has(routePath)) {
@@ -584,6 +1042,12 @@ function serveStatic(requestPath, res) {
 function readJson(req) {
   return new Promise((resolve, reject) => {
     let raw = "";
+    const contentLength = Number(req.headers["content-length"] || 0);
+    if (Number.isFinite(contentLength) && contentLength > maxBodyBytes) {
+      req.resume();
+      reject(httpError(413, "PAYLOAD_TOO_LARGE", "حجم درخواست بیشتر از حد مجاز است."));
+      return;
+    }
     req.on("data", chunk => {
       raw += chunk;
       if (Buffer.byteLength(raw) > maxBodyBytes) {
@@ -616,10 +1080,30 @@ function addSecurityHeaders(res) {
   res.setHeader("Referrer-Policy", "no-referrer");
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+  res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+  if (isProduction) {
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
+}
+
+function enforceSameOrigin(req) {
+  if (!isProduction || !appOrigin || !req.headers.origin) return;
+  let origin;
+  try {
+    origin = new URL(req.headers.origin).origin;
+  } catch (error) {
+    throw httpError(403, "ORIGIN_NOT_ALLOWED", "مبدأ درخواست مجاز نیست.");
+  }
+  if (origin !== appOrigin) {
+    throw httpError(403, "ORIGIN_NOT_ALLOWED", "مبدأ درخواست مجاز نیست.");
+  }
 }
 
 function checkRateLimit(req, bucketName) {
-  const ip = req.socket.remoteAddress || "local";
+  const ip = trustProxy
+    ? (req.headers["cf-connecting-ip"] || req.headers["x-forwarded-for"] || req.socket.remoteAddress || "local")
+    : (req.socket.remoteAddress || "local");
   const key = `${bucketName}:${ip}`;
   const now = Date.now();
   const windowMs = 15 * 60 * 1000;
@@ -630,6 +1114,12 @@ function checkRateLimit(req, bucketName) {
   }
   entry.count += 1;
   authAttempts.set(key, entry);
+
+  if (authAttempts.size > 5000) {
+    for (const [storedKey, storedEntry] of authAttempts) {
+      if (storedEntry.resetAt < now) authAttempts.delete(storedKey);
+    }
+  }
 
   if (entry.count > 30) {
     throw httpError(429, "RATE_LIMITED", "تعداد تلاش‌ها زیاد است. کمی بعد دوباره امتحان کنید.");

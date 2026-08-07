@@ -1,0 +1,13 @@
+customer_id,segment_fa,days_since_last_purchase,orders_90d,revenue_90d_toman,gross_margin_rate,treatment,exposed,converted,outcome_revenue_toman,incentive_cost_toman,channel_cost_toman,churned,channel
+C-1001,مشتریان وفادار اخیر,12,5,4200000,0.34,control,false,true,980000,0,0,false,none
+C-1002,مشتریان وفادار اخیر,18,4,3600000,0.34,high_incentive,true,true,1050000,75000,1800,false,push
+C-1003,مشتریان وفادار اخیر,22,3,3100000,0.34,small_discount,true,true,860000,25000,1800,false,sms
+C-1004,مشتریان خاموش اما قابل‌فعال‌سازی,55,1,1700000,0.36,control,false,false,0,0,0,true,none
+C-1005,مشتریان خاموش اما قابل‌فعال‌سازی,62,0,1450000,0.36,push_only,true,true,760000,0,1800,false,push
+C-1006,مشتریان خاموش اما قابل‌فعال‌سازی,70,0,1250000,0.36,small_discount,true,true,820000,25000,1800,false,sms
+C-1007,مشتریان حساس به تخفیف,44,1,2500000,0.31,control,false,false,0,0,0,true,none
+C-1008,مشتریان حساس به تخفیف,48,1,2650000,0.31,small_discount,true,true,1220000,25000,2200,false,sms
+C-1009,مشتریان حساس به تخفیف,50,1,2400000,0.31,high_incentive,true,true,1280000,75000,2200,false,push
+C-1010,مشتریان غیرفعال باارزش بالا,82,0,5200000,0.39,control,false,false,0,0,0,true,none
+C-1011,مشتریان غیرفعال باارزش بالا,88,0,6100000,0.39,high_incentive,true,true,2100000,75000,2500,false,call
+C-1012,مشتریان غیرفعال باارزش بالا,95,0,5800000,0.39,small_discount,true,false,0,25000,2500,true,sms

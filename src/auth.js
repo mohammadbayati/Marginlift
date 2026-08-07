@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const { isProduction, sessionSecret } = require("./config");
 
 const SESSION_COOKIE = "marginlift_session";
 const HASH_ITERATIONS = 120000;
@@ -41,16 +42,37 @@ function parseCookies(cookieHeader = "") {
     .reduce((cookies, part) => {
       const index = part.indexOf("=");
       if (index === -1) return cookies;
-      const key = decodeURIComponent(part.slice(0, index));
-      const value = decodeURIComponent(part.slice(index + 1));
-      cookies[key] = value;
+      try {
+        const key = decodeURIComponent(part.slice(0, index));
+        const value = decodeURIComponent(part.slice(index + 1));
+        cookies[key] = value;
+      } catch (error) {
+        return cookies;
+      }
       return cookies;
     }, {});
 }
 
+function signSessionId(sessionId) {
+  return crypto.createHmac("sha256", sessionSecret).update(sessionId).digest("base64url");
+}
+
+function verifySessionCookie(value) {
+  const [sessionId, signature] = String(value || "").split(".");
+  if (!sessionId || !signature) return null;
+
+  const expected = signSessionId(sessionId);
+  const actualBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expected);
+  if (actualBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(actualBuffer, expectedBuffer)) {
+    return null;
+  }
+  return sessionId;
+}
+
 function buildSessionCookie(sessionId, maxAgeSeconds) {
   const parts = [
-    `${SESSION_COOKIE}=${encodeURIComponent(sessionId)}`,
+    `${SESSION_COOKIE}=${encodeURIComponent(`${sessionId}.${signSessionId(sessionId)}`)}`,
     "Path=/",
     "HttpOnly",
     "SameSite=Lax",
@@ -65,7 +87,8 @@ function buildSessionCookie(sessionId, maxAgeSeconds) {
 }
 
 function clearSessionCookie() {
-  return `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
+  const secure = isProduction ? "; Secure" : "";
+  return `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`;
 }
 
 module.exports = {
@@ -75,5 +98,6 @@ module.exports = {
   createId,
   hashPassword,
   parseCookies,
-  verifyPassword
+  verifyPassword,
+  verifySessionCookie
 };
