@@ -50,7 +50,10 @@ async function run() {
     assert.strictEqual(health.response.headers.get("x-content-type-options"), "nosniff");
     assert.strictEqual(health.response.headers.get("x-frame-options"), "DENY");
 
-    for (const page of ["/sales.html", "/privacy.html", "/terms.html", "/security.html", "/pilot-data-request.html", "/vm-deployment.html", "/docs/vm-deployment.md"]) {
+    const healthHead = await request("/api/health", { method: "HEAD" });
+    assert.strictEqual(healthHead.response.status, 200);
+
+    for (const page of ["/login", "/signup", "/sales.html", "/privacy.html", "/terms.html", "/security.html", "/pilot-data-request.html", "/vm-deployment.html", "/docs/vm-deployment.md"]) {
       const pageResponse = await request(page);
       assert.strictEqual(pageResponse.response.status, 200, `${page} should be public`);
     }

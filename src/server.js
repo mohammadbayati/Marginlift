@@ -87,7 +87,7 @@ async function handleRequest(req, res) {
 }
 
 async function handleApi(req, res, url) {
-  if (url.pathname === "/api/health" && req.method === "GET") {
+  if (url.pathname === "/api/health" && (req.method === "GET" || req.method === "HEAD")) {
     sendJson(res, 200, { data: { status: "ok" } });
     return;
   }
@@ -987,7 +987,12 @@ function publicSession(session, user, organization, role) {
 }
 
 function serveStatic(requestPath, res) {
-  const routePath = requestPath === "/" ? "/index.html" : requestPath;
+  const routeAliases = {
+    "/": "/index.html",
+    "/login": "/index.html",
+    "/signup": "/index.html"
+  };
+  const routePath = routeAliases[requestPath] || requestPath;
   const allowed = new Set([
     "/index.html",
     "/sales.html",

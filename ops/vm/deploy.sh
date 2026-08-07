@@ -13,5 +13,5 @@ docker compose -f docker-compose.production.yml build --pull
 docker compose -f docker-compose.production.yml up -d
 docker compose -f docker-compose.production.yml ps
 
-curl --fail --silent --show-error http://127.0.0.1:3000/api/health
+docker compose -f docker-compose.production.yml exec -T app node -e "fetch('http://127.0.0.1:3000/api/health').then(response => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
 printf '\nMarginLift VM deployment is healthy.\n'

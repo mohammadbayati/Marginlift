@@ -19,7 +19,7 @@ services:
       start_period: 10s
 
   caddy:
-    image: caddy:2-alpine
+    image: public.ecr.aws/docker/library/caddy:2-alpine
     restart: unless-stopped
     env_file:
       - .env
