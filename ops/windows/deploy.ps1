@@ -83,8 +83,9 @@ chmod +x ops/vm/deploy.sh ops/vm/backup.sh
 
 rm -f "$RELEASE" "$CHECKSUM"
 '@
+  $remotePayload = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($remoteScript))
 
-  $remoteScript | ssh -i $KeyPath "${ServerUser}@${ServerHost}" "sudo -n bash -s"
+  ssh -i $KeyPath "${ServerUser}@${ServerHost}" "printf '%s' '$remotePayload' | base64 -d | sudo -n bash"
   Assert-NativeCommand "Remote deployment"
 
   Write-Host "[6/6] Verifying production..."
