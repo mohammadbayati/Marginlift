@@ -1,0 +1,97 @@
+name: Deploy MarginLift
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: marginlift-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build release archive
+        run: |
+          tar \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='.env' \
+            --exclude='data/db.json' \
+            --exclude='data/backups' \
+            --exclude='qa-*.png' \
+            --exclude='.agents' \
+            --exclude='.impeccable' \
+            --exclude='skills-lock.json' \
+            -czf /tmp/marginlift-release.tar.gz .
+          sha256sum /tmp/marginlift-release.tar.gz > /tmp/marginlift-release.sha256
+
+      - name: Configure SSH
+        env:
+          VM_HOST: ${{ secrets.VM_HOST }}
+          VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$VM_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$VM_HOST" >> ~/.ssh/known_hosts
+
+      - name: Upload release
+        env:
+          VM_HOST: ${{ secrets.VM_HOST }}
+          VM_USER: ${{ secrets.VM_USER }}
+        run: |
+          scp /tmp/marginlift-release.tar.gz /tmp/marginlift-release.sha256 \
+            "$VM_USER@$VM_HOST:/tmp/"
+
+      - name: Deploy and verify
+        env:
+          VM_HOST: ${{ secrets.VM_HOST }}
+          VM_USER: ${{ secrets.VM_USER }}
+        run: |
+          ssh "$VM_USER@$VM_HOST" "sudo -n bash -s" <<'REMOTE'
+          set -Eeuo pipefail
+
+          APP_DIR=/opt/marginlift
+          RELEASE=/tmp/marginlift-release.tar.gz
+          CHECKSUM=/tmp/marginlift-release.sha256
+
+          cd /tmp
+          sha256sum --check "$CHECKSUM"
+
+          cd "$APP_DIR"
+          cp .env /root/marginlift.env.backup
+          cp data/db.json /root/marginlift-db.backup.json 2>/dev/null || true
+
+          tar -xzf "$RELEASE" -C "$APP_DIR"
+          cp /root/marginlift.env.backup "$APP_DIR/.env"
+          test ! -f /root/marginlift-db.backup.json || \
+            cp /root/marginlift-db.backup.json "$APP_DIR/data/db.json"
+
+          chmod +x ops/vm/deploy.sh ops/vm/backup.sh
+          ./ops/vm/deploy.sh
+
+          rm -f "$RELEASE" "$CHECKSUM"
+          REMOTE
+
+      - name: Verify public site
+        run: |
+          curl --fail --retry 5 --retry-delay 5 https://marginlift.ir/ > /dev/null
+          curl --fail --retry 5 --retry-delay 5 https://marginlift.ir/fonts/Estedad-Variable.woff2 > /dev/null
