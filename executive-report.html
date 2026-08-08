@@ -20,66 +20,83 @@
         </div>
       </header>
 
-      <section class="report-cover panel">
-        <div>
-          <span class="mini-label">MarginLift Executive Decision Pack</span>
+      <section class="report-hero">
+        <div class="report-hero-copy">
+          <div class="report-brandline">
+            <span class="brand-symbol" aria-hidden="true">ML</span>
+            <span>MarginLift Decision Report</span>
+          </div>
+          <span class="report-kicker">گزارش تصمیم‌گیری برای مدیرعامل، مالی و مارکتینگ</span>
           <h1>آیا بودجه مشوق را افزایش بدهیم؟</h1>
           <p id="reportCoverText">در حال آماده‌سازی گزارش مدیریتی...</p>
+          <div class="report-meta-row">
+            <span id="evidenceBadge">سطح شواهد</span>
+            <span id="confidenceBadge">سطح اعتماد</span>
+            <span>نسخه قابل ارائه به مشتری</span>
+          </div>
         </div>
         <aside class="report-decision-card" id="reportDecisionCard">
           <span>پیشنهاد تصمیم</span>
           <strong>در حال بررسی</strong>
-          <small>پس از دریافت داده و outcome تکمیل می‌شود.</small>
+          <small>پس از دریافت داده و نتیجه پایلوت تکمیل می‌شود.</small>
         </aside>
       </section>
 
-      <section class="report-grid report-kpis" id="reportKpis"></section>
-
-      <section class="report-two-column">
-        <article class="panel report-narrative">
-          <span class="mini-label">برای مدیرعامل</span>
+      <section class="report-dashboard">
+        <article class="report-visual-card report-verdict">
+          <span class="mini-label">Executive Verdict</span>
           <h2>خلاصه تصمیم</h2>
           <p id="ceoSummary">گزارش هنوز آماده نیست.</p>
         </article>
-        <article class="panel report-narrative">
-          <span class="mini-label">برای CMO / CRM</span>
-          <h2>برداشت عملیاتی</h2>
-          <p id="marketingSummary">پس از ورود outcome، علت احتمالی اختلاف و مسیر اقدام نمایش داده می‌شود.</p>
+        <article class="report-visual-card report-chart-card">
+          <div class="report-section-head">
+            <div><span class="mini-label">Prediction Gap</span><h2>پیش‌بینی در برابر واقعیت</h2></div>
+          </div>
+          <div class="variance-chart" id="varianceChart"></div>
+        </article>
+        <article class="report-visual-card report-kpi-stack" id="reportKpis"></article>
+        <article class="report-visual-card report-gauge-card">
+          <div class="report-section-head">
+            <div><span class="mini-label">Confidence</span><h2>وضعیت اعتماد</h2></div>
+          </div>
+          <div class="confidence-gauge" id="confidenceGauge"></div>
         </article>
       </section>
 
-      <section class="panel report-section">
+      <section class="report-visual-card report-bridge-card">
         <div class="report-section-head">
           <div>
             <span class="mini-label">CFO View</span>
-            <h2>عددهای مالی و معنی تصمیم</h2>
+            <h2>پل مالی پایلوت</h2>
           </div>
-          <span class="pill" id="evidenceBadge">سطح شواهد</span>
+          <p>این بخش نشان می‌دهد پول کجا ساخته شده، کجا ریسک دارد، و چرا تصمیم فوری برای افزایش بودجه خطرناک است.</p>
         </div>
-        <div class="report-table-wrap">
-          <table class="report-table">
-            <thead><tr><th>شاخص</th><th>مقدار</th><th>برداشت مدیریتی</th></tr></thead>
-            <tbody id="financeRows"></tbody>
-          </table>
-        </div>
+        <div class="bridge-chart" id="bridgeChart"></div>
       </section>
 
       <section class="report-two-column">
-        <article class="panel report-section">
+        <article class="report-visual-card report-narrative">
+          <span class="mini-label">CMO / CRM</span>
+          <h2>برداشت عملیاتی</h2>
+          <p id="marketingSummary">پس از ورود نتیجه، علت احتمالی اختلاف و مسیر اقدام نمایش داده می‌شود.</p>
+        </article>
+        <article class="report-visual-card report-section">
           <div class="report-section-head">
-            <div><span class="mini-label">Evidence Room</span><h2>ریسک‌های تصمیم</h2></div>
+            <div><span class="mini-label">Decision Risks</span><h2>ریسک‌های تصمیم</h2></div>
           </div>
           <ul class="report-list" id="riskList"></ul>
         </article>
-        <article class="panel report-section">
-          <div class="report-section-head">
-            <div><span class="mini-label">Next Actions</span><h2>اقدام‌های بعدی</h2></div>
-          </div>
-          <ol class="report-list numbered" id="nextActionList"></ol>
-        </article>
       </section>
 
-      <section class="panel report-section">
+      <section class="report-visual-card report-action-plan">
+        <div class="report-section-head">
+          <div><span class="mini-label">Next Actions</span><h2>اقدام‌های پیشنهادی برای مشتری</h2></div>
+          <span class="pill save">قابل اجرا در پایلوت بعدی</span>
+        </div>
+        <ol class="report-action-list" id="nextActionList"></ol>
+      </section>
+
+      <section class="report-visual-card report-section">
         <div class="report-section-head">
           <div><span class="mini-label">Pilot Workspace</span><h2>وضعیت اجرای پایلوت</h2></div>
           <span class="pill save" id="workspaceBadge">در حال بررسی</span>
@@ -89,7 +106,7 @@
 
       <footer class="report-footer">
         <span><bdi>MarginLift</bdi> تصمیم می‌گیرد کجا مشوق بدهید و کجا ندهید.</span>
-        <span>این گزارش برای تصمیم پایلوت است؛ اجرای گسترده باید با گروه کنترل و outcome معتبر انجام شود.</span>
+        <span>این گزارش برای تصمیم پایلوت است؛ اجرای گسترده باید با گروه کنترل و نتیجه معتبر انجام شود.</span>
       </footer>
     </main>
   </body>

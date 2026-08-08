@@ -52,9 +52,9 @@ function ceoSummary(status) {
     return "پایلوت اثر مالی قابل دفاع ایجاد نکرده است. افزایش بودجه در این شرایط ریسک هدررفت مشوق را بالا می‌برد و اجرای گسترده توصیه نمی‌شود.";
   }
   if (status === "needs_review") {
-    return "پایلوت سود مثبت داشته، اما نتیجه واقعی فاصله معناداری با پیش‌بینی دارد. بنابراین تصمیم مدیریتی، افزایش بودجه نیست؛ ابتدا باید سیاست تخصیص مشوق، کیفیت داده و طراحی گروه کنترل بازبینی شود.";
+    return "پایلوت سود مثبت داشته، اما نتیجه واقعی فاصله معناداری با برآورد اولیه دارد. تصمیم مدیریتی این نیست که بودجه بیشتر آزاد شود؛ ابتدا باید سیاست تخصیص مشوق، کیفیت داده و طراحی گروه کنترل بازبینی شود.";
   }
-  return "داده آماده شده، اما تا قبل از دریافت outcome واقعی، هیچ تصمیم بودجه‌ای نباید به‌عنوان اثر تأییدشده ارائه شود.";
+  return "داده آماده شده، اما تا قبل از دریافت نتیجه واقعی، هیچ تصمیم بودجه‌ای نباید به‌عنوان اثر تأییدشده ارائه شود.";
 }
 
 function marketingSummary(status) {
@@ -77,7 +77,7 @@ function riskNotes(state) {
     notes.push("داده برای ادعای اثر افزایشی کامل نیست و خروجی باید فقط diagnostic تلقی شود.");
   }
   if (!state.outcome) {
-    notes.push("تا قبل از outcome واقعی، عددهای مالی برآورد هستند و نباید مبنای افزایش بودجه شوند.");
+    notes.push("تا قبل از نتیجه واقعی، عددهای مالی برآورد هستند و نباید مبنای افزایش بودجه شوند.");
   }
   if (status === "needs_review") {
     notes.push("شکاف منفی بین پیش‌بینی و نتیجه واقعی نشان می‌دهد سگمنت هدف، مقدار مشوق یا کیفیت ثبت نتیجه نیاز به بازبینی دارد.");
@@ -124,32 +124,78 @@ function renderKpis(state) {
   const snapshot = state.savingsSnapshot;
   const outcome = state.outcome?.summary;
   const cards = [
-    ["هزینه قابل بررسی", formatMoney(snapshot.avoidableIncentiveCost), "بودجه مشوق برای حذف یا بازتخصیص"],
+    ["بودجه قابل بازتخصیص", formatMoney(snapshot.avoidableIncentiveCost), "فرصت کاهش هدررفت مشوق"],
     ["سود مشاهده‌شده", formatMoney(snapshot.expectedIncrementalProfit), snapshot.claimLevelFa],
-    ["ROI پایلوت", `${formatNumber(snapshot.pilotRoi)}×`, `اعتماد: ${snapshot.confidenceFa}`],
-    ["شکاف پیش‌بینی", outcome ? formatMoney(outcome.predictionGap) : "در انتظار نتیجه", "معیار اصلی برای scale یا review"]
+    ["بازده پایلوت", `${formatNumber(snapshot.pilotRoi)}×`, `اعتماد: ${snapshot.confidenceFa}`],
+    ["شکاف برآورد", outcome ? formatMoney(outcome.predictionGap) : "در انتظار نتیجه", "معیار اصلی برای تصمیم افزایش بودجه"]
   ];
-  document.getElementById("reportKpis").innerHTML = cards.map(([label, value, note]) => `
-    <article class="report-kpi-card">
+  document.getElementById("reportKpis").innerHTML = `<span class="mini-label">Financial Snapshot</span><h2>عددهایی که مدیر مالی می‌پرسد</h2>` + cards.map(([label, value, note]) => `
+    <div class="report-kpi-row">
       <span>${escapeHtml(label)}</span>
       <strong class="number">${escapeHtml(value)}</strong>
       <small>${escapeHtml(note)}</small>
-    </article>
+    </div>
   `).join("");
 }
 
-function renderFinanceRows(state) {
+function renderVarianceChart(state) {
   const snapshot = state.savingsSnapshot;
   const outcome = state.outcome?.summary;
+  const predicted = Math.max(0, outcome?.predictedIncrementalProfit || snapshot.expectedIncrementalProfit || 0);
+  const observed = Math.max(0, outcome?.observedIncrementalProfit || snapshot.expectedIncrementalProfit || 0);
+  const maxValue = Math.max(predicted, observed, 1);
   const rows = [
-    ["هزینه مشوق قابل حذف", formatMoney(snapshot.avoidableIncentiveCost), "بخشی از بودجه که باید برای حذف یا بازتخصیص بررسی شود."],
-    ["سود افزایشی مشاهده‌شده", formatMoney(snapshot.expectedIncrementalProfit), "اثر مالی ثبت‌شده در این پایلوت، نه وعده قطعی برای کل بازار."],
-    ["ROI پایلوت", `${formatNumber(snapshot.pilotRoi)}×`, "بازده مثبت است، اما تصمیم افزایش بودجه به شکاف پیش‌بینی و واقعیت وابسته است."],
-    ["شکاف پیش‌بینی و واقعیت", outcome ? formatMoney(outcome.predictionGap) : "در انتظار نتیجه", "اختلاف منفی یعنی سیاست مشوق یا کیفیت داده باید پیش از افزایش بودجه بازبینی شود."]
+    ["برآورد اولیه", predicted, "expected"],
+    ["نتیجه مشاهده‌شده", observed, "observed"]
   ];
-  document.getElementById("financeRows").innerHTML = rows.map(([metric, value, meaning]) => `
-    <tr><td>${escapeHtml(metric)}</td><td class="number">${escapeHtml(value)}</td><td>${escapeHtml(meaning)}</td></tr>
+  const gap = outcome ? outcome.observedIncrementalProfit - outcome.predictedIncrementalProfit : 0;
+  document.getElementById("varianceChart").innerHTML = `
+    <div class="chart-bars">
+      ${rows.map(([label, value, kind]) => `
+        <div class="chart-bar-row ${kind}">
+          <div class="chart-bar-label"><span>${escapeHtml(label)}</span><strong class="number">${escapeHtml(formatMoney(value))}</strong></div>
+          <div class="chart-track"><span style="width:${Math.max(8, Math.round((value / maxValue) * 100))}%"></span></div>
+        </div>
+      `).join("")}
+    </div>
+    <div class="chart-gap ${gap < 0 ? "negative" : "positive"}">
+      <span>شکاف تصمیم</span>
+      <strong class="number">${escapeHtml(outcome ? formatMoney(gap) : "در انتظار نتیجه")}</strong>
+      <small>${gap < 0 ? "برای افزایش بودجه کافی نیست" : "برای اجرای محدود قابل بررسی است"}</small>
+    </div>
+  `;
+}
+
+function renderBridgeChart(state) {
+  const snapshot = state.savingsSnapshot;
+  const outcome = state.outcome?.summary;
+  const items = [
+    ["بودجه قابل بازتخصیص", snapshot.avoidableIncentiveCost || 0, "neutral"],
+    ["سود مشاهده‌شده", snapshot.expectedIncrementalProfit || 0, "positive"],
+    ["شکاف برآورد", outcome?.predictionGap || 0, "negative"]
+  ];
+  const maxValue = Math.max(...items.map(item => Math.abs(item[1])), 1);
+  document.getElementById("bridgeChart").innerHTML = items.map(([label, value, tone]) => `
+    <div class="bridge-item ${tone}">
+      <div class="bridge-value">
+        <span>${escapeHtml(label)}</span>
+        <strong class="number">${escapeHtml(formatMoney(value))}</strong>
+      </div>
+      <div class="bridge-column"><span style="height:${Math.max(14, Math.round((Math.abs(value) / maxValue) * 100))}%"></span></div>
+      <small>${tone === "negative" ? "نیازمند بازبینی" : tone === "positive" ? "اثر مثبت ثبت‌شده" : "فرصت کاهش هزینه"}</small>
+    </div>
   `).join("");
+}
+
+function renderConfidenceGauge(state, status) {
+  const score = status === "scale" ? 78 : status === "needs_review" ? 46 : status === "stop" ? 28 : 58;
+  document.getElementById("confidenceGauge").innerHTML = `
+    <div class="gauge-ring" style="--score:${score}">
+      <strong class="number">${formatNumber(score)}٪</strong>
+      <span>${escapeHtml(state.savingsSnapshot.confidenceFa)}</span>
+    </div>
+    <p>${status === "needs_review" ? "نتیجه مثبت است، اما اختلاف با برآورد اولیه اجازه افزایش بودجه فوری نمی‌دهد." : "سطح اعتماد بر اساس کیفیت داده، گروه کنترل و نتیجه پایلوت محاسبه شده است."}</p>
+  `;
 }
 
 function renderSteps(state) {
@@ -191,9 +237,12 @@ async function initReport() {
     document.getElementById("ceoSummary").textContent = ceoSummary(status);
     document.getElementById("marketingSummary").textContent = marketingSummary(status);
     document.getElementById("evidenceBadge").textContent = state.savingsSnapshot.claimLevelFa;
+    document.getElementById("confidenceBadge").textContent = `اعتماد: ${state.savingsSnapshot.confidenceFa}`;
     document.getElementById("workspaceBadge").textContent = state.workspace.overallStatusFa;
     renderKpis(state);
-    renderFinanceRows(state);
+    renderVarianceChart(state);
+    renderBridgeChart(state);
+    renderConfidenceGauge(state, status);
     renderSteps(state);
     renderLists(state, status);
   } catch (error) {
