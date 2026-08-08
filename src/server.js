@@ -1014,6 +1014,7 @@ function serveStatic(requestPath, res) {
     "/styles.css",
     "/styles-v2.css",
     "/styles-v3.css",
+    "/executive-report-v3.css",
     "/motion.js",
     "/app.js",
     "/executive-report.js",

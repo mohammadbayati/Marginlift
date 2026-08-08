@@ -3,111 +3,206 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#f5f5f7">
-    <meta name="description" content="گزارش مدیریتی MarginLift برای تصمیم‌گیری درباره بودجه مشوق، پایلوت و اجرای گسترده.">
+    <meta name="theme-color" content="#eef1f2">
+    <meta name="description" content="یادداشت تصمیم مدیریتی MarginLift برای بودجه مشوق، نتیجه پایلوت و اقدام بعدی.">
     <link rel="icon" href="data:,">
-    <title>گزارش مدیریتی MarginLift</title>
+    <title>یادداشت تصمیم MarginLift</title>
     <link rel="stylesheet" href="/styles-v3.css">
+    <link rel="stylesheet" href="/executive-report-v3.css">
     <script src="/executive-report.js" defer></script>
   </head>
   <body class="report-page">
     <main class="executive-report" id="executiveReport" aria-live="polite">
-      <header class="report-toolbar">
-        <a class="quiet-link" href="/login">بازگشت به پنل</a>
+      <header class="report-toolbar" aria-label="ابزارهای گزارش">
+        <a class="report-back-link" href="/login">
+          <span aria-hidden="true">←</span>
+          <span>بازگشت به مرکز تصمیم</span>
+        </a>
+        <div class="report-toolbar-title">
+          <strong>یادداشت تصمیم</strong>
+          <span id="toolbarOrganization">MarginLift</span>
+        </div>
         <div class="report-toolbar-actions">
-          <button class="secondary-button" id="downloadMarkdownButton" type="button">دریافت متن خام</button>
-          <button class="primary-button" id="printReportButton" type="button">ذخیره PDF</button>
+          <button class="report-button report-button--quiet" id="downloadMarkdownButton" type="button">دریافت متن</button>
+          <button class="report-button report-button--primary" id="printReportButton" type="button">
+            <span>ذخیره نسخه PDF</span>
+            <span class="report-button-icon" aria-hidden="true">↓</span>
+          </button>
         </div>
       </header>
 
-      <section class="report-hero">
-        <div class="report-hero-copy">
-          <div class="report-brandline">
-            <span class="brand-symbol" aria-hidden="true">ML</span>
-            <span>MarginLift Decision Report</span>
+      <section class="report-sheet report-sheet--decision" aria-labelledby="decisionHeadline">
+        <div class="report-cover">
+          <div class="report-cover-main">
+            <div class="report-brandline">
+              <span class="report-brandmark" aria-hidden="true">M</span>
+              <div>
+                <bdi>MarginLift</bdi>
+                <small>مرکز تصمیم سود</small>
+              </div>
+            </div>
+            <div class="report-cover-copy">
+              <span class="report-eyebrow">یادداشت تصمیم برای مدیرعامل، مالی و مارکتینگ</span>
+              <h1 id="decisionHeadline">در حال آماده‌سازی تصمیم...</h1>
+              <p id="reportCoverText">داده‌های پایلوت در حال تبدیل‌شدن به یک تصمیم اجرایی هستند.</p>
+            </div>
+            <div class="report-meta-row" aria-label="مشخصات گزارش">
+              <span id="evidenceBadge">سطح شواهد</span>
+              <span id="confidenceBadge">سطح اعتماد</span>
+              <span id="reportDate">تاریخ گزارش</span>
+            </div>
           </div>
-          <span class="report-kicker">گزارش تصمیم‌گیری برای مدیرعامل، مالی و مارکتینگ</span>
-          <h1>آیا بودجه مشوق را افزایش بدهیم؟</h1>
-          <p id="reportCoverText">در حال آماده‌سازی گزارش مدیریتی...</p>
-          <div class="report-meta-row">
-            <span id="evidenceBadge">سطح شواهد</span>
-            <span id="confidenceBadge">سطح اعتماد</span>
-            <span>نسخه قابل ارائه به مشتری</span>
-          </div>
+
+          <aside class="report-decision-card" id="reportDecisionCard">
+            <span class="report-decision-label">پیشنهاد تصمیم</span>
+            <strong>در حال بررسی</strong>
+            <p>پس از دریافت نتیجه پایلوت تکمیل می‌شود.</p>
+            <div class="report-decision-lock">
+              <span aria-hidden="true">◆</span>
+              <span>تصمیم بودجه‌ای نیازمند شواهد معتبر است</span>
+            </div>
+          </aside>
         </div>
-        <aside class="report-decision-card" id="reportDecisionCard">
-          <span>پیشنهاد تصمیم</span>
-          <strong>در حال بررسی</strong>
-          <small>پس از دریافت داده و نتیجه پایلوت تکمیل می‌شود.</small>
-        </aside>
-      </section>
 
-      <section class="report-dashboard">
-        <article class="report-visual-card report-verdict">
-          <span class="mini-label">Executive Verdict</span>
-          <h2>خلاصه تصمیم</h2>
-          <p id="ceoSummary">گزارش هنوز آماده نیست.</p>
-        </article>
-        <article class="report-visual-card report-chart-card">
-          <div class="report-section-head">
-            <div><span class="mini-label">Prediction Gap</span><h2>پیش‌بینی در برابر واقعیت</h2></div>
-          </div>
-          <div class="variance-chart" id="varianceChart"></div>
-        </article>
-        <article class="report-visual-card report-kpi-stack" id="reportKpis"></article>
-        <article class="report-visual-card report-gauge-card">
-          <div class="report-section-head">
-            <div><span class="mini-label">Confidence</span><h2>وضعیت اعتماد</h2></div>
-          </div>
-          <div class="confidence-gauge" id="confidenceGauge"></div>
-        </article>
-      </section>
-
-      <section class="report-visual-card report-bridge-card">
-        <div class="report-section-head">
+        <div class="report-section-intro">
           <div>
-            <span class="mini-label">CFO View</span>
-            <h2>پل مالی پایلوت</h2>
+            <span class="report-section-number">۰۱</span>
+            <span class="report-eyebrow">خلاصه مدیریتی</span>
+            <h2>تصمیم، عدد و دلیل؛ در یک نگاه</h2>
           </div>
-          <p>این بخش نشان می‌دهد پول کجا ساخته شده، کجا ریسک دارد، و چرا تصمیم فوری برای افزایش بودجه خطرناک است.</p>
+          <p id="ceoSummary">گزارش هنوز آماده نیست.</p>
         </div>
-        <div class="bridge-chart" id="bridgeChart"></div>
+
+        <div class="report-kpi-grid" id="reportKpis"></div>
+
+        <div class="report-decision-grid">
+          <article class="report-panel report-variance-panel">
+            <div class="report-panel-heading">
+              <div>
+                <span class="report-eyebrow">تحقق نتیجه</span>
+                <h3>برآورد اولیه در برابر نتیجه واقعی</h3>
+              </div>
+              <span class="report-status-chip" id="realizationBadge">در حال محاسبه</span>
+            </div>
+            <div class="variance-chart" id="varianceChart"></div>
+          </article>
+
+          <article class="report-panel report-gate-panel">
+            <span class="report-eyebrow">دروازه بودجه</span>
+            <h3>بودجه جدید چه زمانی آزاد شود؟</h3>
+            <p id="budgetGateText">بعد از تأیید کیفیت داده، گروه کنترل و هم‌راستایی نتیجه با پیش‌بینی.</p>
+            <div class="report-gate-rule" id="budgetGateRule">
+              <span>وضعیت فعلی</span>
+              <strong>قفل تصمیم فعال است</strong>
+            </div>
+          </article>
+        </div>
+
+        <footer class="report-page-footer">
+          <span><bdi>MarginLift</bdi> / یادداشت تصمیم پایلوت</span>
+          <span>صفحه ۱ از ۳</span>
+        </footer>
       </section>
 
-      <section class="report-two-column">
-        <article class="report-visual-card report-narrative">
-          <span class="mini-label">CMO / CRM</span>
-          <h2>برداشت عملیاتی</h2>
-          <p id="marketingSummary">پس از ورود نتیجه، علت احتمالی اختلاف و مسیر اقدام نمایش داده می‌شود.</p>
-        </article>
-        <article class="report-visual-card report-section">
-          <div class="report-section-head">
-            <div><span class="mini-label">Decision Risks</span><h2>ریسک‌های تصمیم</h2></div>
+      <section class="report-sheet report-sheet--evidence" aria-labelledby="evidenceTitle">
+        <div class="report-page-heading">
+          <div>
+            <span class="report-section-number">۰۲</span>
+            <span class="report-eyebrow">شواهد و ریسک</span>
+            <h2 id="evidenceTitle">این تصمیم روی چه شواهدی ایستاده است؟</h2>
           </div>
-          <ul class="report-list" id="riskList"></ul>
-        </article>
+          <p>در این صفحه، عددهای مالی از کیفیت شواهد جدا شده‌اند تا سود مثبت با اطمینان کاذب اشتباه گرفته نشود.</p>
+        </div>
+
+        <div class="report-evidence-grid">
+          <article class="report-panel report-financial-story">
+            <div class="report-panel-heading">
+              <div>
+                <span class="report-eyebrow">دید مدیر مالی</span>
+                <h3>داستان مالی پایلوت</h3>
+              </div>
+              <span class="report-status-chip">تومان</span>
+            </div>
+            <div class="bridge-chart" id="bridgeChart"></div>
+          </article>
+
+          <article class="report-panel report-passport-panel">
+            <div class="report-panel-heading">
+              <div>
+                <span class="report-eyebrow">گذرنامه شواهد</span>
+                <h3>چه چیزی تأیید شده و چه چیزی نه؟</h3>
+              </div>
+              <strong class="report-confidence-word" id="confidenceWord">در حال بررسی</strong>
+            </div>
+            <div class="evidence-passport" id="evidencePassport"></div>
+          </article>
+        </div>
+
+        <div class="report-context-grid">
+          <article class="report-panel report-narrative">
+            <span class="report-eyebrow">برداشت مارکتینگ و ارتباط با مشتری</span>
+            <h3>چه چیزی احتمالاً نیاز به اصلاح دارد؟</h3>
+            <p id="marketingSummary">پس از ورود نتیجه، علت احتمالی اختلاف و مسیر اقدام نمایش داده می‌شود.</p>
+          </article>
+
+          <article class="report-panel report-risk-panel">
+            <span class="report-eyebrow">ریسک‌های تصمیم</span>
+            <h3>پیش از هر افزایش بودجه بررسی شود</h3>
+            <ul class="report-risk-list" id="riskList"></ul>
+          </article>
+        </div>
+
+        <div class="report-method-note">
+          <span aria-hidden="true">i</span>
+          <p><strong>مرز ادعا:</strong> نتیجه مثبت پایلوت به معنی آمادگی برای اجرای سراسری نیست. تصمیم گسترش فقط وقتی قابل دفاع است که گروه کنترل، حجم نمونه، پنجره نتیجه و مدل هزینه هم‌زمان معتبر باشند.</p>
+        </div>
+
+        <footer class="report-page-footer">
+          <span><bdi>MarginLift</bdi> / شواهد و ریسک</span>
+          <span>صفحه ۲ از ۳</span>
+        </footer>
       </section>
 
-      <section class="report-visual-card report-action-plan">
-        <div class="report-section-head">
-          <div><span class="mini-label">Next Actions</span><h2>اقدام‌های پیشنهادی برای مشتری</h2></div>
-          <span class="pill save">قابل اجرا در پایلوت بعدی</span>
+      <section class="report-sheet report-sheet--action" aria-labelledby="actionTitle">
+        <div class="report-page-heading">
+          <div>
+            <span class="report-section-number">۰۳</span>
+            <span class="report-eyebrow">برنامه اقدام</span>
+            <h2 id="actionTitle">از گزارش به تصمیم بعدی</h2>
+          </div>
+          <p>هر اقدام یک مالک، بازه زمانی و خروجی قابل تحویل دارد تا گزارش در جلسه مدیریتی متوقف نماند.</p>
         </div>
+
         <ol class="report-action-list" id="nextActionList"></ol>
-      </section>
 
-      <section class="report-visual-card report-section">
-        <div class="report-section-head">
-          <div><span class="mini-label">Pilot Workspace</span><h2>وضعیت اجرای پایلوت</h2></div>
-          <span class="pill save" id="workspaceBadge">در حال بررسی</span>
+        <article class="report-panel report-workspace-panel">
+          <div class="report-panel-heading">
+            <div>
+              <span class="report-eyebrow">مسیر پایلوت</span>
+              <h3>وضعیت اجرای تصمیم</h3>
+            </div>
+            <span class="report-status-chip" id="workspaceBadge">در حال بررسی</span>
+          </div>
+          <div class="report-steps" id="workspaceStepsReport"></div>
+        </article>
+
+        <div class="report-close-grid">
+          <article class="report-close-statement">
+            <span>اصل تصمیم MarginLift</span>
+            <strong>به کسی مشوق بدهید که رفتار او واقعاً با اقدام شما تغییر می‌کند.</strong>
+          </article>
+          <article class="report-signoff">
+            <span>مالک تصمیم</span>
+            <strong id="decisionOwner">مدیر رشد یا ارتباط با مشتری</strong>
+            <small id="decisionDeadline">مهلت تصمیم پس از بسته‌شدن پنجره نتیجه</small>
+          </article>
         </div>
-        <div class="report-steps" id="workspaceStepsReport"></div>
-      </section>
 
-      <footer class="report-footer">
-        <span><bdi>MarginLift</bdi> تصمیم می‌گیرد کجا مشوق بدهید و کجا ندهید.</span>
-        <span>این گزارش برای تصمیم پایلوت است؛ اجرای گسترده باید با گروه کنترل و نتیجه معتبر انجام شود.</span>
-      </footer>
+        <footer class="report-page-footer">
+          <span><bdi>MarginLift</bdi> / برنامه اقدام</span>
+          <span>صفحه ۳ از ۳</span>
+        </footer>
+      </section>
     </main>
   </body>
 </html>

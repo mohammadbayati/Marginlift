@@ -1,13 +1,30 @@
-const faReport = new Intl.NumberFormat("fa-IR");
+const faInteger = new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 0 });
+const faDecimal = new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 1 });
+const faDate = new Intl.DateTimeFormat("fa-IR", { year: "numeric", month: "long", day: "numeric" });
 
 function formatNumber(value) {
-  return faReport.format(Number(value || 0));
+  return faInteger.format(Number(value || 0));
 }
 
 function formatMoney(value) {
   const number = Number(value || 0);
-  if (Math.abs(number) >= 1000000) return `${formatNumber(Math.round(number / 1000000))} میلیون تومان`;
-  return `${formatNumber(Math.round(number))} تومان`;
+  const sign = number < 0 ? "−" : "";
+  const absolute = Math.abs(number);
+  if (absolute >= 1000000) return `${sign}${faDecimal.format(absolute / 1000000)} میلیون تومان`;
+  return `${sign}${faInteger.format(absolute)} تومان`;
+}
+
+function formatPercent(value) {
+  return `${faDecimal.format(Number(value || 0))}٪`;
+}
+
+function localizeTerms(value) {
+  return String(value ?? "")
+    .replace(/scale\s*\/\s*stop/gi, "گسترش یا توقف")
+    .replace(/holdout/gi, "گروه کنترل")
+    .replace(/outcome/gi, "نتیجه")
+    .replace(/exposure/gi, "مواجهه با کمپین")
+    .replace(/CRM/g, "ارتباط با مشتری");
 }
 
 function escapeHtml(value) {
@@ -30,191 +47,229 @@ function decisionStatus(state) {
   return state.outcome?.summary?.decisionStatus || "pending";
 }
 
-function decisionLabel(status) {
-  if (status === "scale") return "گسترش کنترل‌شده";
-  if (status === "stop") return "توقف اجرای گسترده";
-  if (status === "needs_review") return "بازبینی قبل از افزایش بودجه";
-  return "در انتظار نتیجه پایلوت";
-}
-
-function decisionTone(status) {
-  if (status === "scale") return "positive";
-  if (status === "stop") return "negative";
-  if (status === "needs_review") return "review";
-  return "pending";
+function decisionContent(status) {
+  const content = {
+    scale: {
+      tone: "positive",
+      headline: "بودجه را مرحله‌ای و با سقف مشخص افزایش دهید.",
+      label: "گسترش کنترل‌شده",
+      note: "اثر مالی مثبت ثبت شده است؛ گروه کنترل و سقف هزینه در اجرای بعدی حفظ شود.",
+      gate: "آزادسازی مرحله‌ای بودجه با کنترل هفتگی سود افزایشی",
+      lock: "دروازه بودجه با کنترل مالی باز است"
+    },
+    stop: {
+      tone: "negative",
+      headline: "اجرای گسترده این سیاست را متوقف کنید.",
+      label: "توقف اجرای گسترده",
+      note: "اثر مالی قابل دفاع ثبت نشده و ادامه سیاست فعلی ریسک هدررفت بودجه دارد.",
+      gate: "بودجه جدید تا طراحی فرضیه و سیاست تازه آزاد نشود",
+      lock: "دروازه بودجه بسته است"
+    },
+    needs_review: {
+      tone: "review",
+      headline: "فعلاً بودجه مشوق را افزایش ندهید.",
+      label: "بازبینی پیش از افزایش بودجه",
+      note: "سود مثبت است، اما فاصله نتیجه واقعی با برآورد اولیه برای گسترش قابل قبول نیست.",
+      gate: "پس از اصلاح سیاست هدف‌گیری و تأیید دوباره کیفیت گروه کنترل",
+      lock: "قفل تصمیم فعال است"
+    },
+    pending: {
+      tone: "pending",
+      headline: "پیش از تصمیم بودجه‌ای، نتیجه پایلوت را ثبت کنید.",
+      label: "در انتظار نتیجه پایلوت",
+      note: "عددهای فعلی برآورد هستند و هنوز اثر واقعی تأیید نشده است.",
+      gate: "بعد از بسته‌شدن پنجره نتیجه و ورود داده واقعی پایلوت",
+      lock: "تصمیم بودجه‌ای در انتظار شواهد است"
+    }
+  };
+  return content[status] || content.pending;
 }
 
 function ceoSummary(status) {
-  if (status === "scale") {
-    return "پایلوت اثر مالی مثبت نشان داده است. پیشنهاد می‌شود اجرای بعدی فقط روی سگمنت‌های مشابه، با سقف بودجه مشخص و نگه‌داشتن گروه کنترل انجام شود.";
-  }
-  if (status === "stop") {
-    return "پایلوت اثر مالی قابل دفاع ایجاد نکرده است. افزایش بودجه در این شرایط ریسک هدررفت مشوق را بالا می‌برد و اجرای گسترده توصیه نمی‌شود.";
-  }
-  if (status === "needs_review") {
-    return "پایلوت سود مثبت داشته، اما نتیجه واقعی فاصله معناداری با برآورد اولیه دارد. تصمیم مدیریتی این نیست که بودجه بیشتر آزاد شود؛ ابتدا باید سیاست تخصیص مشوق، کیفیت داده و طراحی گروه کنترل بازبینی شود.";
-  }
-  return "داده آماده شده، اما تا قبل از دریافت نتیجه واقعی، هیچ تصمیم بودجه‌ای نباید به‌عنوان اثر تأییدشده ارائه شود.";
+  if (status === "scale") return "پایلوت اثر مالی مثبت و قابل دفاع نشان داده است. اجرای بعدی باید محدود، مرحله‌ای و فقط روی سگمنت‌های مشابه انجام شود تا سود افزایشی در مقیاس بزرگ‌تر دوباره تأیید شود.";
+  if (status === "stop") return "پایلوت ارزش اقتصادی قابل دفاع ایجاد نکرده است. افزایش بودجه در این وضعیت، هزینه مشوق را بالا می‌برد بدون آنکه تغییر رفتار مشتری اثبات شده باشد.";
+  if (status === "needs_review") return "پایلوت سود مثبت داشته، اما نتیجه واقعی به‌طور معناداری از برآورد اولیه کمتر است. تصمیم درست، آزادکردن بودجه بیشتر نیست؛ ابتدا سیاست تخصیص مشوق، کیفیت داده و طراحی گروه کنترل باید بازبینی شود.";
+  return "داده اولیه آماده است، اما تا پیش از دریافت نتیجه واقعی پایلوت هیچ عدد مالی نباید به‌عنوان اثر تأییدشده مبنای افزایش بودجه قرار گیرد.";
 }
 
 function marketingSummary(status) {
-  if (status === "scale") {
-    return "کمپین در نمونه فعلی توانسته رفتار مشتری را با هزینه قابل دفاع تغییر دهد. اجرای بعدی باید روی همان سگمنت‌های رفتاری و با پیام مشابه انجام شود.";
-  }
-  if (status === "stop") {
-    return "پیام، سگمنت یا مقدار مشوق فعلی رفتار مشتری را به اندازه کافی تغییر نداده است. کمپین بعدی باید با فرضیه تازه و مشوق کمتر یا غیرتخفیفی طراحی شود.";
-  }
-  if (status === "needs_review") {
-    return "کمپین کاملاً شکست نخورده، اما برای اجرای بزرگ‌تر قابل اتکا نیست. باید روشن شود اختلاف از سگمنت‌بندی، مقدار مشوق، زمان‌بندی کمپین یا کیفیت ثبت نتیجه آمده است.";
-  }
-  return "قبل از اجرای گسترده، تیم مارکتینگ باید تعریف موفقیت، پنجره سنجش نتیجه و گروه کنترل را نهایی کند.";
+  if (status === "scale") return "پیام و سگمنت فعلی توانسته‌اند رفتار مشتری را با هزینه قابل دفاع تغییر دهند. مرحله بعد باید همان الگوی رفتاری را حفظ کند و فقط دامنه اجرا را کنترل‌شده افزایش دهد.";
+  if (status === "stop") return "پیام، سگمنت یا مقدار مشوق فعلی رفتار مشتری را به‌اندازه کافی تغییر نداده است. کمپین بعدی باید با فرضیه‌ای تازه و ترجیحاً مشوق کمتر یا غیرتخفیفی طراحی شود.";
+  if (status === "needs_review") return "کمپین شکست کامل نخورده، اما برای اجرای بزرگ‌تر قابل اتکا نیست. چهار فرضیه باید جداگانه آزموده شوند: انتخاب سگمنت، مقدار مشوق، زمان‌بندی تماس و کیفیت ثبت نتیجه.";
+  return "تیم مارکتینگ باید پیش از اجرا، تعریف موفقیت، پنجره سنجش نتیجه و گروه کنترل را نهایی کند تا نتیجه بعدی قابلیت دفاع مالی داشته باشد.";
 }
 
 function riskNotes(state) {
   const notes = [];
   const status = decisionStatus(state);
-  if (state.readiness.status !== "ready") {
-    notes.push("داده برای ادعای اثر افزایشی کامل نیست و خروجی باید فقط diagnostic تلقی شود.");
-  }
-  if (!state.outcome) {
-    notes.push("تا قبل از نتیجه واقعی، عددهای مالی برآورد هستند و نباید مبنای افزایش بودجه شوند.");
-  }
-  if (status === "needs_review") {
-    notes.push("شکاف منفی بین پیش‌بینی و نتیجه واقعی نشان می‌دهد سگمنت هدف، مقدار مشوق یا کیفیت ثبت نتیجه نیاز به بازبینی دارد.");
-  }
-  if (state.outcome?.summary?.controlUsers === 0) {
-    notes.push("بدون گروه کنترل، اثر افزایشی قابل دفاع نیست.");
-  }
-  if ((state.outcome?.summary?.treatmentUsers || 0) < 100) {
-    notes.push("این خروجی برای نمایش محصول و تصمیم پایلوت مناسب است؛ برای تصمیم تجاری واقعی باید روی نمونه بزرگ‌تر اجرا شود.");
-  }
-  return notes.length ? notes : ["ریسک اصلی پایین است، اما اجرای گسترده باید مرحله‌ای و با سقف بودجه انجام شود."];
+  const outcome = state.outcome?.summary;
+  if (state.readiness.status !== "ready") notes.push("قرارداد داده برای ادعای اثر افزایشی کامل نیست؛ خروجی فعلی فقط برای شناخت تاریخی قابل استفاده است.");
+  if (!outcome) notes.push("نتیجه واقعی پایلوت هنوز ثبت نشده و عددهای مالی فعلی برآورد هستند.");
+  if (status === "needs_review") notes.push("فاصله منفی برآورد و واقعیت، احتمال خطا در هدف‌گیری، مقدار مشوق یا ثبت نتیجه را بالا می‌برد.");
+  if (outcome?.controlUsers === 0) notes.push("بدون گروه کنترل، اثر افزایشی از خرید طبیعی مشتری جدا نمی‌شود.");
+  if (outcome && (outcome.treatmentUsers < 50 || outcome.controlUsers < 50)) notes.push("حجم نمونه برای تصمیم تجاری سراسری کافی نیست و عدم‌قطعیت نتیجه بالاست.");
+  return notes.length ? notes : ["ریسک اصلی پایین است؛ بااین‌حال اجرای گسترده باید مرحله‌ای، سقف‌دار و همراه با گروه کنترل باقی بماند."];
 }
 
 function nextActions(status) {
   if (status === "scale") {
     return [
-      "بودجه مرحله بعد را محدود و از قبل تصویب کنید.",
-      "گروه کنترل را در اجرای بعدی نگه دارید.",
-      "گزارش هفتگی سود افزایشی، نرخ تبدیل و هزینه مشوق را برای CMO و CFO ارسال کنید."
+      { window: "۴۸ ساعت", owner: "مدیر مالی و رشد", title: "تصویب سقف بودجه", detail: "بودجه مرحله بعد، دامنه سگمنت و معیار توقف را پیش از اجرا ثبت کنید." },
+      { window: "هفته اول", owner: "تیم ارتباط با مشتری", title: "اجرای محدود", detail: "فقط سگمنت‌های مشابه پایلوت را فعال و گروه کنترل را در هر سگمنت حفظ کنید." },
+      { window: "هفتگی", owner: "تحلیل و مالی", title: "کنترل سود افزایشی", detail: "سود، هزینه مشوق و انحراف از نتیجه پایلوت را در هر چرخه بازبینی کنید." }
     ];
   }
   if (status === "stop") {
     return [
-      "اجرای گسترده این کمپین را متوقف کنید.",
-      "سگمنت‌هایی را که مشوق گرفته‌اند اما رفتارشان تغییر نکرده بررسی کنید.",
-      "یک پیشنهاد جدید با مشوق کمتر یا پیام غیرتخفیفی طراحی کنید."
+      { window: "امروز", owner: "مدیر رشد", title: "توقف گسترش", detail: "فعال‌سازی جدید را متوقف و بودجه استفاده‌نشده را مسدود کنید." },
+      { window: "هفته اول", owner: "ارتباط با مشتری و تحلیل", title: "تحلیل شکست", detail: "رفتار دریافت‌کنندگان مشوق را با کنترل و سگمنت‌های بدون پاسخ مقایسه کنید." },
+      { window: "هفته دوم", owner: "مارکتینگ", title: "طراحی فرضیه تازه", detail: "یک پیام غیرتخفیفی یا مشوق کمتر با معیار موفقیت از پیش مصوب طراحی کنید." }
     ];
   }
   if (status === "needs_review") {
     return [
-      "کیفیت گروه کنترل، نسبت نمونه و پنجره سنجش نتیجه را بررسی کنید.",
-      "سگمنت هدف و مقدار مشوق را قبل از اجرای بزرگ‌تر بازبینی کنید.",
-      "یک پایلوت کوچک‌تر با سیاست اصلاح‌شده و معیار موفقیت روشن اجرا کنید."
+      { window: "۴۸ ساعت", owner: "تیم داده", title: "ممیزی شواهد", detail: "نسبت نمونه، تخصیص گروه‌ها، پنجره نتیجه و ثبت هزینه واقعی را دوباره بررسی کنید." },
+      { window: "هفته اول", owner: "ارتباط با مشتری و مارکتینگ", title: "اصلاح سیاست هدف‌گیری", detail: "سگمنت هدف، مقدار مشوق و زمان تماس را بر اساس مشتریان پاسخ‌داده و پاسخ‌نداده بازطراحی کنید." },
+      { window: "۲ تا ۴ هفته", owner: "رشد و مالی", title: "بازاجرای پایلوت", detail: "پایلوت کوچک‌تر را با گروه کنترل کافی، سقف بودجه و معیار موفقیت مصوب اجرا کنید." }
     ];
   }
   return [
-    "کمپین را با گروه کنترل ثابت اجرا کنید.",
-    "exposure و نتیجه را در سطح مشتری ثبت کنید.",
-    "پس از بسته‌شدن پنجره سنجش، گزارش نهایی را صادر کنید."
+    { window: "هفته اول", owner: "تیم داده", title: "تکمیل قرارداد نتیجه", detail: "شناسه مشتری، گروه تخصیص، زمان مواجهه، درآمد و هزینه واقعی را آماده کنید." },
+    { window: "پیش از اجرا", owner: "مدیر رشد", title: "قفل‌کردن طراحی آزمایش", detail: "گروه کنترل، بازه سنجش و معیار موفقیت را پیش از شروع تغییرناپذیر کنید." },
+    { window: "پس از پایان پنجره", owner: "تحلیل و مالی", title: "صدور تصمیم نهایی", detail: "نتیجه واقعی را وارد و تصمیم گسترش، بازبینی یا توقف را ثبت کنید." }
   ];
 }
 
-function renderKpis(state) {
+function outcomeMetrics(state) {
   const snapshot = state.savingsSnapshot;
   const outcome = state.outcome?.summary;
+  const predicted = Number(outcome?.predictedIncrementalProfit || snapshot.expectedIncrementalProfit || 0);
+  const observed = Number(outcome?.observedIncrementalProfit ?? snapshot.expectedIncrementalProfit ?? 0);
+  const gap = outcome ? observed - predicted : 0;
+  const realization = predicted > 0 ? Math.max(0, (observed / predicted) * 100) : 0;
+  return { snapshot, outcome, predicted, observed, gap, realization };
+}
+
+function renderKpis(state) {
+  const { snapshot, outcome, observed, realization } = outcomeMetrics(state);
   const cards = [
-    ["بودجه قابل بازتخصیص", formatMoney(snapshot.avoidableIncentiveCost), "فرصت کاهش هدررفت مشوق"],
-    ["سود مشاهده‌شده", formatMoney(snapshot.expectedIncrementalProfit), snapshot.claimLevelFa],
-    ["بازده پایلوت", `${formatNumber(snapshot.pilotRoi)}×`, `اعتماد: ${snapshot.confidenceFa}`],
-    ["شکاف برآورد", outcome ? formatMoney(outcome.predictionGap) : "در انتظار نتیجه", "معیار اصلی برای تصمیم افزایش بودجه"]
+    { label: "سود افزایشی ثبت‌شده", value: formatMoney(observed), note: snapshot.claimLevelFa, tone: "profit" },
+    { label: "هزینه مشوق قابل بازتخصیص", value: formatMoney(snapshot.avoidableIncentiveCost), note: "فرصت کاهش هدررفت", tone: "saving" },
+    { label: "بازده پایلوت", value: `${faDecimal.format(snapshot.pilotRoi)}×`, note: outcome ? "بر پایه هزینه واقعی" : "برآورد پیش از پایلوت", tone: "roi" },
+    { label: "تحقق نسبت به برآورد", value: outcome ? formatPercent(realization) : "در انتظار نتیجه", note: outcome ? "معیار کلیدی گسترش" : "پس از ورود نتیجه محاسبه می‌شود", tone: realization >= 50 ? "profit" : "risk" }
   ];
-  document.getElementById("reportKpis").innerHTML = `<span class="mini-label">Financial Snapshot</span><h2>عددهایی که مدیر مالی می‌پرسد</h2>` + cards.map(([label, value, note]) => `
-    <div class="report-kpi-row">
-      <span>${escapeHtml(label)}</span>
-      <strong class="number">${escapeHtml(value)}</strong>
-      <small>${escapeHtml(note)}</small>
-    </div>
+  document.getElementById("reportKpis").innerHTML = cards.map(card => `
+    <article class="report-kpi report-kpi--${card.tone}">
+      <span>${escapeHtml(card.label)}</span>
+      <strong class="number">${escapeHtml(card.value)}</strong>
+      <small>${escapeHtml(card.note)}</small>
+    </article>
   `).join("");
 }
 
 function renderVarianceChart(state) {
-  const snapshot = state.savingsSnapshot;
-  const outcome = state.outcome?.summary;
-  const predicted = Math.max(0, outcome?.predictedIncrementalProfit || snapshot.expectedIncrementalProfit || 0);
-  const observed = Math.max(0, outcome?.observedIncrementalProfit || snapshot.expectedIncrementalProfit || 0);
+  const { outcome, predicted, observed, gap, realization } = outcomeMetrics(state);
   const maxValue = Math.max(predicted, observed, 1);
   const rows = [
-    ["برآورد اولیه", predicted, "expected"],
-    ["نتیجه مشاهده‌شده", observed, "observed"]
+    { label: "برآورد اولیه", value: predicted, tone: "expected" },
+    { label: "نتیجه واقعی", value: observed, tone: "observed" }
   ];
-  const gap = outcome ? outcome.observedIncrementalProfit - outcome.predictedIncrementalProfit : 0;
+  document.getElementById("realizationBadge").textContent = outcome ? `${formatPercent(realization)} تحقق` : "در انتظار نتیجه";
   document.getElementById("varianceChart").innerHTML = `
-    <div class="chart-bars">
-      ${rows.map(([label, value, kind]) => `
-        <div class="chart-bar-row ${kind}">
-          <div class="chart-bar-label"><span>${escapeHtml(label)}</span><strong class="number">${escapeHtml(formatMoney(value))}</strong></div>
-          <div class="chart-track"><span style="width:${Math.max(8, Math.round((value / maxValue) * 100))}%"></span></div>
+    <div class="variance-bars">
+      ${rows.map(row => `
+        <div class="variance-row variance-row--${row.tone}">
+          <div class="variance-label"><span>${escapeHtml(row.label)}</span><strong class="number">${escapeHtml(formatMoney(row.value))}</strong></div>
+          <div class="variance-track" aria-hidden="true"><span style="--bar-size:${Math.max(5, (row.value / maxValue) * 100)}%"></span></div>
         </div>
       `).join("")}
     </div>
-    <div class="chart-gap ${gap < 0 ? "negative" : "positive"}">
-      <span>شکاف تصمیم</span>
+    <div class="variance-callout ${gap < 0 ? "is-negative" : "is-positive"}">
+      <span>فاصله برآورد و واقعیت</span>
       <strong class="number">${escapeHtml(outcome ? formatMoney(gap) : "در انتظار نتیجه")}</strong>
-      <small>${gap < 0 ? "برای افزایش بودجه کافی نیست" : "برای اجرای محدود قابل بررسی است"}</small>
+      <p>${gap < 0 ? "نتیجه مثبت است، اما هنوز برای افزایش بودجه کافی نیست." : "نتیجه برای اجرای محدود و کنترل‌شده قابل بررسی است."}</p>
     </div>
   `;
 }
 
 function renderBridgeChart(state) {
-  const snapshot = state.savingsSnapshot;
-  const outcome = state.outcome?.summary;
-  const items = [
-    ["بودجه قابل بازتخصیص", snapshot.avoidableIncentiveCost || 0, "neutral"],
-    ["سود مشاهده‌شده", snapshot.expectedIncrementalProfit || 0, "positive"],
-    ["شکاف برآورد", outcome?.predictionGap || 0, "negative"]
+  const { snapshot, observed, gap } = outcomeMetrics(state);
+  const signals = [
+    { label: "سود واقعی پایلوت", value: observed, note: "ارزش اقتصادی ثبت‌شده", tone: "profit" },
+    { label: "بودجه قابل بازتخصیص", value: snapshot.avoidableIncentiveCost, note: "مشوق قابل حذف یا انتقال", tone: "saving" },
+    { label: "انحراف از برآورد", value: gap, note: gap < 0 ? "ریسک مدل یا سیاست" : "فراتر از برآورد", tone: gap < 0 ? "risk" : "profit" }
   ];
-  const maxValue = Math.max(...items.map(item => Math.abs(item[1])), 1);
-  document.getElementById("bridgeChart").innerHTML = items.map(([label, value, tone]) => `
-    <div class="bridge-item ${tone}">
-      <div class="bridge-value">
-        <span>${escapeHtml(label)}</span>
-        <strong class="number">${escapeHtml(formatMoney(value))}</strong>
+  document.getElementById("bridgeChart").innerHTML = signals.map((signal, index) => `
+    <div class="financial-signal financial-signal--${signal.tone}">
+      <span class="financial-signal-index">۰${index + 1}</span>
+      <div>
+        <span>${escapeHtml(signal.label)}</span>
+        <strong class="number">${escapeHtml(formatMoney(signal.value))}</strong>
+        <small>${escapeHtml(signal.note)}</small>
       </div>
-      <div class="bridge-column"><span style="height:${Math.max(14, Math.round((Math.abs(value) / maxValue) * 100))}%"></span></div>
-      <small>${tone === "negative" ? "نیازمند بازبینی" : tone === "positive" ? "اثر مثبت ثبت‌شده" : "فرصت کاهش هزینه"}</small>
     </div>
   `).join("");
 }
 
-function renderConfidenceGauge(state, status) {
-  const score = status === "scale" ? 78 : status === "needs_review" ? 46 : status === "stop" ? 28 : 58;
-  document.getElementById("confidenceGauge").innerHTML = `
-    <div class="gauge-ring" style="--score:${score}">
-      <strong class="number">${formatNumber(score)}٪</strong>
-      <span>${escapeHtml(state.savingsSnapshot.confidenceFa)}</span>
+function renderEvidencePassport(state) {
+  const { outcome, predicted, observed } = outcomeMetrics(state);
+  const readinessCheck = key => Boolean(state.readiness.checks.find(item => item.key === key)?.passed);
+  const sampleAdequate = Boolean(outcome && outcome.treatmentUsers >= 50 && outcome.controlUsers >= 50);
+  const aligned = Boolean(outcome && (predicted <= 0 || observed >= predicted * 0.5));
+  const checks = [
+    { label: "گروه کنترل", detail: outcome ? `${formatNumber(outcome.controlUsers)} مشتری` : "در داده تاریخی موجود است", passed: readinessCheck("control") && (!outcome || outcome.controlUsers > 0) },
+    { label: "نتیجه و هزینه واقعی", detail: outcome ? "ثبت شده" : "هنوز دریافت نشده", passed: Boolean(outcome) },
+    { label: "حاشیه سود", detail: readinessCheck("gross_margin") ? "موجود" : "ناقص", passed: readinessCheck("gross_margin") },
+    { label: "کفایت حجم نمونه", detail: outcome ? `${formatNumber(outcome.treatmentUsers)} اقدام / ${formatNumber(outcome.controlUsers)} کنترل` : "پس از اجرا سنجیده می‌شود", passed: sampleAdequate },
+    { label: "هم‌راستایی پیش‌بینی و واقعیت", detail: outcome ? (aligned ? "در محدوده قابل قبول" : "نیازمند بازبینی") : "در انتظار نتیجه", passed: aligned }
+  ];
+  document.getElementById("evidencePassport").innerHTML = `
+    <div class="passport-summary">
+      <span>آمادگی داده</span>
+      <strong class="number">${formatPercent(state.readiness.score)}</strong>
     </div>
-    <p>${status === "needs_review" ? "نتیجه مثبت است، اما اختلاف با برآورد اولیه اجازه افزایش بودجه فوری نمی‌دهد." : "سطح اعتماد بر اساس کیفیت داده، گروه کنترل و نتیجه پایلوت محاسبه شده است."}</p>
+    <div class="passport-checks">
+      ${checks.map(check => `
+        <div class="passport-check ${check.passed ? "is-passed" : "is-watch"}">
+          <span class="passport-icon" aria-hidden="true">${check.passed ? "✓" : "!"}</span>
+          <div><strong>${escapeHtml(check.label)}</strong><small>${escapeHtml(check.detail)}</small></div>
+          <span class="passport-state">${check.passed ? "تأیید" : "بررسی"}</span>
+        </div>
+      `).join("")}
+    </div>
   `;
 }
 
 function renderSteps(state) {
-  document.getElementById("workspaceStepsReport").innerHTML = state.workspace.steps.map(step => `
-    <div class="report-step ${step.complete ? "complete" : ""}">
-      <span aria-hidden="true">${step.complete ? "✓" : "•"}</span>
-      <strong>${escapeHtml(step.labelFa)}</strong>
-      <small>${escapeHtml(step.statusFa)}</small>
-    </div>
-  `).join("");
+  document.getElementById("workspaceStepsReport").innerHTML = state.workspace.steps.map((step, index) => {
+    const warning = step.statusFa.includes("اصلاح");
+    const tone = step.complete ? "is-complete" : warning ? "is-warning" : "is-pending";
+    return `
+      <div class="report-step ${tone}">
+        <span class="report-step-index number">${formatNumber(index + 1)}</span>
+        <div><strong>${escapeHtml(localizeTerms(step.labelFa))}</strong><small>${escapeHtml(localizeTerms(step.statusFa))}</small></div>
+      </div>
+    `;
+  }).join("");
 }
 
 function renderLists(state, status) {
-  document.getElementById("riskList").innerHTML = riskNotes(state).map(item => `<li>${escapeHtml(item)}</li>`).join("");
-  document.getElementById("nextActionList").innerHTML = nextActions(status).map(item => `<li>${escapeHtml(item)}</li>`).join("");
+  document.getElementById("riskList").innerHTML = riskNotes(state).map((item, index) => `
+    <li><span class="number">${formatNumber(index + 1)}</span><p>${escapeHtml(item)}</p></li>
+  `).join("");
+  document.getElementById("nextActionList").innerHTML = nextActions(status).map((item, index) => `
+    <li>
+      <div class="action-card-top"><span class="action-number number">${formatNumber(index + 1)}</span><span class="action-window">${escapeHtml(item.window)}</span></div>
+      <h3>${escapeHtml(item.title)}</h3>
+      <p>${escapeHtml(item.detail)}</p>
+      <div class="action-owner"><span>مالک</span><strong>${escapeHtml(item.owner)}</strong></div>
+    </li>
+  `).join("");
 }
 
 async function downloadMarkdown() {
   const response = await fetch("/api/pilot/readout.md", { credentials: "same-origin" });
+  if (!response.ok) throw new Error("دریافت متن گزارش ممکن نشد.");
   const blob = await response.blob();
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
@@ -231,25 +286,44 @@ async function initReport() {
       fetchJson("/api/pilot/workspace")
     ]);
     const status = decisionStatus(state);
-    document.getElementById("reportCoverText").textContent = `گزارش تصمیم برای ${session.organization.name}: کاهش هدررفت مشوق، سنجش نتیجه پایلوت و تعیین مسیر افزایش بودجه.`;
-    document.getElementById("reportDecisionCard").className = `report-decision-card ${decisionTone(status)}`;
-    document.getElementById("reportDecisionCard").innerHTML = `<span>پیشنهاد تصمیم</span><strong>${escapeHtml(decisionLabel(status))}</strong><small>${escapeHtml(state.savingsSnapshot.confidenceFa)} / ${escapeHtml(state.savingsSnapshot.claimLevelFa)}</small>`;
+    const decision = decisionContent(status);
+    const organization = session.organization.name;
+
+    document.body.dataset.decisionTone = decision.tone;
+    document.getElementById("toolbarOrganization").textContent = organization;
+    document.getElementById("decisionHeadline").textContent = decision.headline;
+    document.getElementById("reportCoverText").textContent = `تصمیم پیشنهادی برای ${organization} بر اساس نتیجه پایلوت، هزینه واقعی مشوق و کیفیت شواهد.`;
+    document.getElementById("reportDecisionCard").className = `report-decision-card report-decision-card--${decision.tone}`;
+    document.getElementById("reportDecisionCard").innerHTML = `
+      <span class="report-decision-label">پیشنهاد تصمیم</span>
+      <strong>${escapeHtml(decision.label)}</strong>
+      <p>${escapeHtml(decision.note)}</p>
+      <div class="report-decision-lock"><span aria-hidden="true">◆</span><span>${escapeHtml(decision.lock)}</span></div>
+    `;
     document.getElementById("ceoSummary").textContent = ceoSummary(status);
     document.getElementById("marketingSummary").textContent = marketingSummary(status);
     document.getElementById("evidenceBadge").textContent = state.savingsSnapshot.claimLevelFa;
     document.getElementById("confidenceBadge").textContent = `اعتماد: ${state.savingsSnapshot.confidenceFa}`;
-    document.getElementById("workspaceBadge").textContent = state.workspace.overallStatusFa;
+    document.getElementById("reportDate").textContent = faDate.format(new Date());
+    document.getElementById("confidenceWord").textContent = state.savingsSnapshot.confidenceFa;
+    document.getElementById("workspaceBadge").textContent = localizeTerms(state.workspace.overallStatusFa);
+    document.getElementById("budgetGateText").textContent = decision.gate;
+    document.getElementById("budgetGateRule").innerHTML = `<span>وضعیت فعلی</span><strong>${escapeHtml(decision.lock)}</strong>`;
+    document.getElementById("decisionOwner").textContent = localizeTerms(state.workspace.ownerFa);
+    document.getElementById("decisionDeadline").textContent = `مهلت تصمیم: ${localizeTerms(state.workspace.decisionDeadlineFa)}`;
+
     renderKpis(state);
     renderVarianceChart(state);
     renderBridgeChart(state);
-    renderConfidenceGauge(state, status);
+    renderEvidencePassport(state);
     renderSteps(state);
     renderLists(state, status);
+    requestAnimationFrame(() => document.documentElement.classList.add("report-ready"));
   } catch (error) {
-    document.getElementById("executiveReport").innerHTML = `<section class="panel report-error"><h1>گزارش آماده نشد</h1><p>${escapeHtml(error.message)}</p><a class="primary-button" href="/login">ورود به پنل</a></section>`;
+    document.getElementById("executiveReport").innerHTML = `<section class="report-load-error"><h1>گزارش آماده نشد</h1><p>${escapeHtml(error.message)}</p><a href="/login">بازگشت به مرکز تصمیم</a></section>`;
   }
 }
 
 document.getElementById("printReportButton").addEventListener("click", () => window.print());
-document.getElementById("downloadMarkdownButton").addEventListener("click", downloadMarkdown);
+document.getElementById("downloadMarkdownButton").addEventListener("click", () => downloadMarkdown().catch(error => window.alert(error.message)));
 initReport();
