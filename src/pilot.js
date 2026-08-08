@@ -124,17 +124,34 @@ function analyzeOutcomeRows(rows, customerAnalysis) {
 
 function buildPilotReadout(organization, readiness, snapshot, workspace, outcomeRecord) {
   const outcome = outcomeRecord?.summary;
+  const decisionStatus = outcome?.decisionStatus || "pending";
+  const nextActions = executiveNextActions(decisionStatus);
+  const riskNotes = executiveRiskNotes(readiness, outcomeRecord);
   const lines = [
     `# گزارش پایلوت MarginLift برای ${organization.name}`,
     "",
-    "## خلاصه مدیریتی",
+    "## تصمیم اجرایی",
     "",
-    `- سطح شواهد: ${snapshot.claimLevelFa}`,
-    `- تصمیم: ${snapshot.decisionFa}`,
-    `- سطح اعتماد: ${snapshot.confidenceFa}`,
-    `- هزینه مشوق قابل حذف: ${formatMoney(snapshot.avoidableIncentiveCost)}`,
-    `- سود افزایشی: ${formatMoney(snapshot.expectedIncrementalProfit)}`,
-    `- ROI پایلوت: ${formatNumber(snapshot.pilotRoi)}x`,
+    executiveVerdictFa(decisionStatus),
+    "",
+    `**پیشنهاد تصمیم:** ${executiveRecommendationFa(decisionStatus)}`,
+    "",
+    `**سطح شواهد:** ${snapshot.claimLevelFa}`,
+    "",
+    `**سطح اعتماد:** ${snapshot.confidenceFa}`,
+    "",
+    "## عددهای مهم برای مدیر مالی",
+    "",
+    "| شاخص | مقدار | برداشت مدیریتی |",
+    "| --- | ---: | --- |",
+    `| هزینه مشوق قابل حذف | ${formatMoney(snapshot.avoidableIncentiveCost)} | بخشی از بودجه مشوق که باید برای حذف یا بازتخصیص بررسی شود. |`,
+    `| سود افزایشی مشاهده‌شده | ${formatMoney(snapshot.expectedIncrementalProfit)} | اثر مالی ثبت‌شده در این پایلوت، نه وعده قطعی برای کل بازار. |`,
+    `| ROI پایلوت | ${formatNumber(snapshot.pilotRoi)}x | بازده پایلوت مثبت است، اما تصمیم scale به شکاف پیش‌بینی و واقعیت وابسته است. |`,
+    outcome ? `| شکاف پیش‌بینی و واقعیت | ${formatMoney(outcome.predictionGap)} | اختلاف منفی یعنی مدل یا policy باید قبل از افزایش بودجه بازبینی شود. |` : `| شکاف پیش‌بینی و واقعیت | در انتظار outcome | پس از ورود نتیجه واقعی محاسبه می‌شود. |`,
+    "",
+    "## پیام برای مدیر مارکتینگ و CRM",
+    "",
+    executiveMarketingMessageFa(decisionStatus),
     "",
     "## آمادگی داده",
     "",
@@ -142,11 +159,11 @@ function buildPilotReadout(organization, readiness, snapshot, workspace, outcome
     `- امتیاز: ${formatNumber(readiness.score)}٪`,
     `- قدم بعدی: ${readiness.nextStepFa}`,
     "",
-    "## وضعیت Workspace",
+    "## وضعیت اجرای پایلوت",
     "",
     ...workspace.steps.map(step => `- ${step.labelFa}: ${step.statusFa}`),
     "",
-    "## Outcome",
+    "## نتیجه پایلوت",
     "",
     outcome
       ? `- سود افزایشی مشاهده‌شده: ${formatMoney(outcome.observedIncrementalProfit)}`
@@ -154,10 +171,20 @@ function buildPilotReadout(organization, readiness, snapshot, workspace, outcome
     outcome
       ? `- شکاف پیش‌بینی/واقعیت: ${formatMoney(outcome.predictionGap)}`
       : "- readout نهایی پس از بسته‌شدن پنجره outcome صادر می‌شود.",
+    outcome
+      ? `- کاربران دریافت‌کننده اقدام: ${formatNumber(outcome.treatmentUsers)}`
+      : "- تعداد کاربران دریافت‌کننده اقدام پس از outcome نمایش داده می‌شود.",
+    outcome
+      ? `- کاربران گروه کنترل: ${formatNumber(outcome.controlUsers)}`
+      : "- تعداد کاربران کنترل پس از outcome نمایش داده می‌شود.",
     "",
-    "## توصیه",
+    "## ریسک‌ها و محدودیت‌های تصمیم",
     "",
-    outcome?.recommendationFa || "فعلا پایلوت live holdout را اجرا کنید و تا قبل از outcome ادعای verified incremental نکنید."
+    ...riskNotes.map(item => `- ${item}`),
+    "",
+    "## اقدام‌های پیشنهادی بعدی",
+    "",
+    ...nextActions.map(item => `- ${item}`)
   ];
   return `${lines.join("\n")}\n`;
 }
@@ -208,9 +235,88 @@ function profit(rows) {
 }
 
 function recommendationFa(status) {
-  if (status === "scale") return "پایلوت مثبت است؛ با سقف بودجه کنترل‌شده scale کنید.";
-  if (status === "stop") return "اثر مالی مثبت نشد؛ اجرای کامل متوقف شود.";
-  return "نتیجه از پیش‌بینی ضعیف‌تر است؛ policy و داده باید بازبینی شوند.";
+  if (status === "scale") return "پایلوت مثبت است؛ با سقف بودجه کنترل‌شده گسترش دهید.";
+  if (status === "stop") return "اثر مالی مثبت نشد؛ اجرای گسترده متوقف شود.";
+  return "نتیجه پایلوت از برآورد اولیه ضعیف‌تر است؛ قبل از افزایش بودجه، سیاست مشوق و کیفیت داده را بازبینی کنید.";
+}
+
+function executiveVerdictFa(status) {
+  if (status === "scale") {
+    return "پایلوت از نظر مالی مثبت بوده و می‌تواند با سقف بودجه مشخص وارد اجرای محدود بعدی شود.";
+  }
+  if (status === "stop") {
+    return "پایلوت اثر مالی قابل دفاع نشان نداده است. اجرای گسترده فعلاً توصیه نمی‌شود.";
+  }
+  if (status === "needs_review") {
+    return "پایلوت سود مثبت نشان داده، اما نتیجه واقعی به‌طور معنادار ضعیف‌تر از پیش‌بینی بوده است. تصمیم درست، افزایش بودجه نیست؛ بازبینی policy و داده است.";
+  }
+  return "داده آماده شده، اما تا زمان دریافت outcome واقعی نباید درباره افزایش بودجه تصمیم قطعی گرفت.";
+}
+
+function executiveRecommendationFa(status) {
+  if (status === "scale") return "Scale کنترل‌شده با بودجه محدود و پایش هفتگی.";
+  if (status === "stop") return "توقف اجرای گسترده و بازطراحی فرضیه کمپین.";
+  if (status === "needs_review") return "بازبینی قبل از scale؛ بودجه جدید تا روشن‌شدن علت اختلاف آزاد نشود.";
+  return "اجرای پایلوت live holdout و ثبت outcome قبل از هر تصمیم بودجه‌ای.";
+}
+
+function executiveMarketingMessageFa(status) {
+  if (status === "scale") {
+    return "کمپین در این نمونه توانسته اثر مالی مثبت بسازد. تیم مارکتینگ می‌تواند همان policy را فقط روی سگمنت‌های مشابه و با کنترل بودجه اجرا کند.";
+  }
+  if (status === "stop") {
+    return "پیام، پیشنهاد یا سگمنت فعلی رفتار مشتری را به اندازه کافی تغییر نداده است. قبل از کمپین بعدی باید فرضیه، مخاطب و نوع مشوق بازطراحی شود.";
+  }
+  if (status === "needs_review") {
+    return "کمپین کاملاً شکست نخورده، اما آن‌قدر از پیش‌بینی فاصله دارد که برای اجرای بزرگ‌تر قابل اتکا نیست. باید مشخص شود مشکل از سگمنت‌بندی، مقدار مشوق، زمان‌بندی کمپین یا کیفیت ثبت outcome بوده است.";
+  }
+  return "قبل از اجرای گسترده، تیم مارکتینگ باید گروه کنترل، پنجره سنجش outcome و تعریف موفقیت کمپین را نهایی کند.";
+}
+
+function executiveRiskNotes(readiness, outcomeRecord) {
+  const notes = [];
+  if (readiness.status !== "ready") {
+    notes.push("داده هنوز برای ادعای causal کامل نیست؛ نتیجه فقط باید به‌عنوان diagnostic استفاده شود.");
+  }
+  if (!outcomeRecord) {
+    notes.push("تا قبل از outcome واقعی، همه عددهای مالی برآورد هستند و نباید مبنای scale شوند.");
+  }
+  if (outcomeRecord?.summary?.decisionStatus === "needs_review") {
+    notes.push("شکاف منفی بین پیش‌بینی و نتیجه واقعی، ریسک over-targeting یا کیفیت پایین policy را نشان می‌دهد.");
+  }
+  if (outcomeRecord?.summary?.controlUsers === 0) {
+    notes.push("بدون گروه کنترل، اثر افزایشی قابل دفاع نیست.");
+  }
+  return notes.length ? notes : ["ریسک اصلی فعلی پایین است، اما scale باید مرحله‌ای و با سقف بودجه انجام شود."];
+}
+
+function executiveNextActions(status) {
+  if (status === "scale") {
+    return [
+      "اجرای مرحله بعد فقط روی سگمنت‌های مشابه با سقف بودجه مشخص.",
+      "نگه‌داشتن گروه کنترل برای سنجش اثر واقعی.",
+      "گزارش هفتگی ROI، نرخ تبدیل و هزینه مشوق به CFO و CMO."
+    ];
+  }
+  if (status === "stop") {
+    return [
+      "توقف اجرای گسترده این policy.",
+      "تحلیل سگمنت‌هایی که هزینه مشوق گرفته‌اند اما رفتارشان تغییر نکرده است.",
+      "طراحی یک پیشنهاد جدید با مشوق کمتر یا پیام غیرتخفیفی."
+    ];
+  }
+  if (status === "needs_review") {
+    return [
+      "بررسی کیفیت گروه کنترل، نسبت نمونه و پنجره outcome.",
+      "بازبینی سگمنت هدف و مقدار مشوق قبل از اجرای بزرگ‌تر.",
+      "اجرای یک پایلوت کوچک‌تر با policy اصلاح‌شده و معیار موفقیت روشن."
+    ];
+  }
+  return [
+    "اجرای کمپین با گروه کنترل ثابت.",
+    "ثبت exposure و outcome در سطح مشتری.",
+    "صدور readout نهایی پس از بسته‌شدن پنجره سنجش."
+  ];
 }
 
 function formatMoney(value) {
