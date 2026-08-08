@@ -490,8 +490,7 @@ function setupActions() {
     downloadBlob(await response.blob(), "marginlift-pilot-package.md");
   });
   document.getElementById("downloadReadoutButton").addEventListener("click", async () => {
-    const response = await fetch("/api/pilot/readout.md", { credentials: "same-origin" });
-    downloadBlob(await response.blob(), "marginlift-pilot-readout.md");
+    window.open("/executive-report.html", "_blank", "noopener");
   });
 }
 

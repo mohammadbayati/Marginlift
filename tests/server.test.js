@@ -53,7 +53,7 @@ async function run() {
     const healthHead = await request("/api/health", { method: "HEAD" });
     assert.strictEqual(healthHead.response.status, 200);
 
-    for (const page of ["/", "/login", "/signup", "/sales.html", "/styles-v2.css", "/styles-v3.css", "/motion.js", "/privacy.html", "/terms.html", "/security.html", "/pilot-data-request.html", "/vm-deployment.html", "/docs/vm-deployment.md"]) {
+    for (const page of ["/", "/login", "/signup", "/sales.html", "/styles-v2.css", "/styles-v3.css", "/motion.js", "/executive-report.html", "/executive-report.js", "/privacy.html", "/terms.html", "/security.html", "/pilot-data-request.html", "/vm-deployment.html", "/docs/vm-deployment.md"]) {
       const pageResponse = await request(page);
       assert.strictEqual(pageResponse.response.status, 200, `${page} should be public`);
     }

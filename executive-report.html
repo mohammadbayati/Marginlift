@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f5f5f7">
+    <meta name="description" content="گزارش مدیریتی MarginLift برای تصمیم‌گیری درباره بودجه مشوق، پایلوت و اجرای گسترده.">
+    <link rel="icon" href="data:,">
+    <title>گزارش مدیریتی MarginLift</title>
+    <link rel="stylesheet" href="/styles-v3.css">
+    <script src="/executive-report.js" defer></script>
+  </head>
+  <body class="report-page">
+    <main class="executive-report" id="executiveReport" aria-live="polite">
+      <header class="report-toolbar">
+        <a class="quiet-link" href="/login">بازگشت به پنل</a>
+        <div class="report-toolbar-actions">
+          <button class="secondary-button" id="downloadMarkdownButton" type="button">دریافت متن خام</button>
+          <button class="primary-button" id="printReportButton" type="button">ذخیره PDF</button>
+        </div>
+      </header>
+
+      <section class="report-cover panel">
+        <div>
+          <span class="mini-label">MarginLift Executive Decision Pack</span>
+          <h1>آیا بودجه مشوق را افزایش بدهیم؟</h1>
+          <p id="reportCoverText">در حال آماده‌سازی گزارش مدیریتی...</p>
+        </div>
+        <aside class="report-decision-card" id="reportDecisionCard">
+          <span>پیشنهاد تصمیم</span>
+          <strong>در حال بررسی</strong>
+          <small>پس از دریافت داده و outcome تکمیل می‌شود.</small>
+        </aside>
+      </section>
+
+      <section class="report-grid report-kpis" id="reportKpis"></section>
+
+      <section class="report-two-column">
+        <article class="panel report-narrative">
+          <span class="mini-label">برای مدیرعامل</span>
+          <h2>خلاصه تصمیم</h2>
+          <p id="ceoSummary">گزارش هنوز آماده نیست.</p>
+        </article>
+        <article class="panel report-narrative">
+          <span class="mini-label">برای CMO / CRM</span>
+          <h2>برداشت عملیاتی</h2>
+          <p id="marketingSummary">پس از ورود outcome، علت احتمالی اختلاف و مسیر اقدام نمایش داده می‌شود.</p>
+        </article>
+      </section>
+
+      <section class="panel report-section">
+        <div class="report-section-head">
+          <div>
+            <span class="mini-label">CFO View</span>
+            <h2>عددهای مالی و معنی تصمیم</h2>
+          </div>
+          <span class="pill" id="evidenceBadge">سطح شواهد</span>
+        </div>
+        <div class="report-table-wrap">
+          <table class="report-table">
+            <thead><tr><th>شاخص</th><th>مقدار</th><th>برداشت مدیریتی</th></tr></thead>
+            <tbody id="financeRows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="report-two-column">
+        <article class="panel report-section">
+          <div class="report-section-head">
+            <div><span class="mini-label">Evidence Room</span><h2>ریسک‌های تصمیم</h2></div>
+          </div>
+          <ul class="report-list" id="riskList"></ul>
+        </article>
+        <article class="panel report-section">
+          <div class="report-section-head">
+            <div><span class="mini-label">Next Actions</span><h2>اقدام‌های بعدی</h2></div>
+          </div>
+          <ol class="report-list numbered" id="nextActionList"></ol>
+        </article>
+      </section>
+
+      <section class="panel report-section">
+        <div class="report-section-head">
+          <div><span class="mini-label">Pilot Workspace</span><h2>وضعیت اجرای پایلوت</h2></div>
+          <span class="pill save" id="workspaceBadge">در حال بررسی</span>
+        </div>
+        <div class="report-steps" id="workspaceStepsReport"></div>
+      </section>
+
+      <footer class="report-footer">
+        <span><bdi>MarginLift</bdi> تصمیم می‌گیرد کجا مشوق بدهید و کجا ندهید.</span>
+        <span>این گزارش برای تصمیم پایلوت است؛ اجرای گسترده باید با گروه کنترل و outcome معتبر انجام شود.</span>
+      </footer>
+    </main>
+  </body>
+</html>
