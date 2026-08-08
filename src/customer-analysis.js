@@ -203,7 +203,7 @@ function evaluateCustomerDataQuality(rows) {
   const hasMargin = rows.every(row => row.grossMarginRate > 0 && row.grossMarginRate <= 1);
   const uniqueCustomers = new Set(rows.map(row => row.customerId));
   if (!hasControl) issues.push("گروه کنترل در داده مشتری‌محور وجود ندارد.");
-  if (!hasOutcome) issues.push("هیچ outcome قابل‌سنجشی در داده دیده نشد.");
+  if (!hasOutcome) issues.push("هیچ outcome قابل سنجشی در داده دیده نشد.");
   if (uniqueCustomers.size !== rows.length) issues.push("customer_id تکراری وجود دارد؛ برای نسخه رویدادی باید aggregation مشخص شود.");
   if (!hasMargin) issues.push("حاشیه سود باید بین صفر و یک باشد.");
   return {
@@ -237,7 +237,7 @@ function riskBand(score) {
 
 function classifyReactionType(riskScore, action) {
   if (action.key === "control") return riskScore < 35 ? "خریدار قطعی یا کم‌ریسک" : "عدم اقدام اقتصادی";
-  if (action.expectedIncrementalProfit > 0) return "قابل‌نجات";
+  if (action.expectedIncrementalProfit > 0) return "قابل نجات";
   return "نیازمند آزمایش";
 }
 

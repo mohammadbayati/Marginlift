@@ -22,7 +22,7 @@ const groupToAction = {
 const actionNotes = {
   "بدون پیشنهاد": "به کاربرانی که احتمالاً بدون تخفیف هم خرید می‌کنند، تخفیف نده.",
   "فقط پوش": "قبل از خرج‌کردن مشوق پولی، از کانال رایگان استفاده کن.",
-  "تخفیف کوچک": "کاربران قابل‌متقاعدسازی را با هزینه کنترل‌شده هدف بگیر.",
+  "تخفیف کوچک": "کاربران قابل متقاعدسازی را با هزینه کنترل‌شده هدف بگیر.",
   "مشوق قوی": "مشوق قوی را برای کاربران غیرفعال اما باارزش بالا نگه دار."
 };
 
@@ -354,7 +354,7 @@ function evaluateDataQuality(rows) {
   const score = Math.max(0, 100 - issues.length * 30 - warnings.length * 10);
   return {
     score,
-    labelFa: score >= 85 ? "قابل‌اعتماد" : score >= 65 ? "نیازمند احتیاط" : "ضعیف",
+    labelFa: score >= 85 ? "قابل اعتماد" : score >= 65 ? "نیازمند احتیاط" : "ضعیف",
     confidence: score >= 85 ? 88 : score >= 65 ? 72 : 55,
     issues,
     warnings,
@@ -385,19 +385,19 @@ function buildGuardrails({ quality, segmentResults, baseline, observed, recommen
       labelFa: "کیفیت داده",
       valueFa: `${quality.score}٪`,
       status: quality.issues.length === 0 ? "pass" : "fail",
-      noteFa: quality.issues.length === 0 ? "Schema و گروه کنترل قابل‌قبول‌اند." : quality.issues[0]
+      noteFa: quality.issues.length === 0 ? "Schema و گروه کنترل قابل قبول‌اند." : quality.issues[0]
     },
     {
       labelFa: "درآمد محافظت‌شده",
       valueFa: `${revenuePreserved}٪`,
       status: revenuePreserved >= revenueGuardrail ? "pass" : "warn",
-      noteFa: `حداقل قابل‌قبول برای پایلوت ${revenueGuardrail}٪ است.`
+      noteFa: `حداقل قابل قبول برای پایلوت ${revenueGuardrail}٪ است.`
     },
     {
       labelFa: "ریسک تصمیم پولی",
       valueFa: `${executablePaid.length}/${paidSegments.length || 0}`,
       status: executablePaid.length === paidSegments.length ? "pass" : "warn",
-      noteFa: "مشوق پولی فقط وقتی «اجرا» می‌شود که سود افزایشی و کران پایین ریسک قابل‌قبول باشد."
+      noteFa: "مشوق پولی فقط وقتی «اجرا» می‌شود که سود افزایشی و کران پایین ریسک قابل قبول باشد."
     },
     {
       labelFa: "سود مشارکتی",

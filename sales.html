@@ -3,179 +3,126 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>MarginLift | پایلوت سودآوری مشوق‌ها</title>
-    <link rel="stylesheet" href="styles.css">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="description" content="MarginLift به تیم‌های رشد و مالی نشان می‌دهد کجا تخفیف بدهند، کجا ندهند و چگونه سود افزایشی را اثبات کنند.">
+    <link rel="icon" href="data:,">
+    <title>MarginLift | تخفیف کمتر، سود بیشتر</title>
+    <link rel="stylesheet" href="/styles-v3.css">
+    <script src="/motion.js" defer></script>
   </head>
-  <body class="sales-page">
-    <main class="sales-shell">
-      <nav class="sales-nav" aria-label="ناوبری فروش">
-        <div class="brand-lockup">
-          <div class="brand-mark">ML</div>
-          <div>
-            <strong><bdi class="brand">MarginLift</bdi></strong>
-            <span>لایه تصمیم‌گیری مشوق و تخفیف</span>
-          </div>
-        </div>
-        <div class="sales-nav-actions"><a class="sales-nav-link" href="/">ورود به دمو</a><a class="sales-nav-link" href="/security.html">امنیت</a></div>
+  <body class="site-page">
+    <a class="skip-link" href="#siteMain">رفتن به محتوای اصلی</a>
+    <header class="site-header">
+      <nav class="site-nav" aria-label="ناوبری اصلی">
+        <a class="site-brand" href="/" aria-label="MarginLift، صفحه اصلی"><span class="brand-symbol" aria-hidden="true">M</span><bdi>MarginLift</bdi></a>
+        <div class="site-links"><a href="#product">محصول</a><a href="#how">روش کار</a><a href="#trust">شواهد</a><a href="#plans">پایلوت</a></div>
+        <div class="site-actions"><a class="site-login" href="/login">ورود</a><a class="site-cta" href="/signup">شروع پایلوت</a></div>
       </nav>
+    </header>
 
-      <section class="sales-hero">
-        <div>
-          <p class="section-kicker">برای تیم‌های رشد، مارکتینگ و مالی</p>
-          <h1>تخفیف کمتر، سود بیشتر.</h1>
-          <p>
-            <bdi class="brand-inline">MarginLift</bdi> جایگزین CRM نیست؛ ما تصمیم می‌گیریم کجا تخفیف بدهید و کجا ندهید.
-            محصول در کمتر از ده دقیقه نشان می‌دهد داده شما آماده تحلیل uplift هست یا نه، چه مقدار مشوق احتمالا هدر می‌رود،
-            و آیا اجرای پایلوت با گروه کنترل ارزش دارد یا نه.
-          </p>
-          <div class="sales-actions">
-            <a class="primary-button" href="/">دیدن داشبورد دمو</a>
-            <a class="secondary-button" href="synthetic-customer-events.csv">دانلود داده نمونه</a>
-          </div>
+    <main id="siteMain">
+      <section class="site-hero">
+        <div class="site-hero-copy">
+          <p class="site-kicker">لایه تصمیم‌گیری سود برای مشوق و تخفیف</p>
+          <h1><bdi>MarginLift</bdi></h1>
+          <p class="hero-statement">تخفیف کمتر، سود بیشتر.</p>
+          <p class="hero-description">مشخص کنید کدام مشتری واقعاً به مشوق نیاز دارد، چه مقدار هزینه را می‌توان بازتخصیص داد و چگونه نتیجه را با یک پایلوت کنترل‌شده اثبات کرد.</p>
+          <div class="site-hero-actions"><a class="site-primary" href="/signup">بررسی آمادگی داده</a><a class="site-secondary" href="/login">ورود به دموی محصول</a></div>
+          <div class="site-hero-proof"><span>بدون جایگزینی CRM</span><span>شروع با CSV ناشناس</span><span>اثر تأییدشده فقط با holdout</span></div>
         </div>
-        <aside class="sales-proof-card">
-          <span>خروجی مدیریتی نمونه</span>
-          <strong class="number">۵۷۲ میلیون تومان</strong>
-          <p>بودجه مشوق قابل بررسی برای حذف یا کاهش، با برچسب شواهد و سطح اعتماد.</p>
-        </aside>
+        <figure class="site-product-stage" aria-label="نمای واقعی مرکز تصمیم MarginLift">
+          <figcaption><span>مرکز تصمیم سود</span><strong>از داده تا اقدام قابل دفاع</strong></figcaption>
+          <img src="/marginlift-command-center.png" alt="نمای مرکز فرمان MarginLift شامل فرصت مالی، سطح آمادگی داده و صف تصمیم مشتریان">
+        </figure>
       </section>
 
-      <section class="sales-audit">
-        <div>
-          <p class="section-kicker">Data Readiness Audit</p>
-          <h2>اول اعتماد، بعد ادعا.</h2>
-          <p>
-            اگر داده گروه کنترل یا holdout نداشته باشد، MarginLift ادعای causal نمی‌کند.
-            خروجی به‌جای بزرگ‌نمایی، یکی از سه مسیر را روشن می‌کند: آماده تحلیل uplift، فقط diagnostic تاریخی،
-            یا نیازمند اصلاح داده.
-          </p>
-        </div>
-        <form class="audit-form" id="auditForm">
-          <label>
-            بودجه مشوق ماهانه
-            <input id="auditBudget" inputmode="numeric" placeholder="مثلا ۴۲۰۰۰۰۰۰۰">
-          </label>
-          <label>
-            نرخ هدررفت حدسی
-            <select id="auditWasteRate">
-              <option value="0.18">۱۸٪ محافظه‌کارانه</option>
-              <option value="0.24" selected>۲۴٪ محتمل</option>
-              <option value="0.32">۳۲٪ پرریسک</option>
-            </select>
-          </label>
-          <button class="primary-button" type="submit">ساخت تخمین سریع</button>
-          <output id="auditResult">با واردکردن بودجه، تخمین اولیه اینجا نمایش داده می‌شود.</output>
-        </form>
-      </section>
-
-      <section class="sales-grid">
-        <article>
-          <span>مسئله</span>
-          <h2>گزارش کمپین می‌گوید فروش بالا رفته؛ اما نمی‌گوید تخفیف علت آن بوده یا نه.</h2>
-          <p>بدون گروه کنترل، تیم رشد ممکن است به مشتریانی تخفیف بدهد که بدون مشوق هم خرید می‌کردند.</p>
-        </article>
-        <article>
-          <span>راه‌حل</span>
-          <h2>MarginLift فروش افزایشی را از فروش اتفاقی جدا می‌کند.</h2>
-          <p>خروجی محصول فقط نمودار نیست؛ سیاست کمپین بعدی است: بدون پیشنهاد، فقط پیام، تخفیف کوچک، یا مشوق قوی.</p>
-        </article>
-      </section>
-
-      <section class="sales-benchmark">
-        <div class="benchmark-heading">
-          <p class="section-kicker">Evidence Room</p>
-          <h2>هر عدد مالی باید قابل دفاع باشد.</h2>
-        </div>
-        <div class="benchmark-grid">
-          <article>
-            <span>Control</span>
-            <h3>گروه کنترل وجود دارد؟</h3>
-            <p>اگر کنترل معتبر نباشد، خروجی فقط diagnostic تاریخی است و مسیر طراحی holdout پیشنهاد می‌شود.</p>
-          </article>
-          <article>
-            <span>Sample Ratio</span>
-            <h3>نسبت نمونه سالم است؟</h3>
-            <p>عدم توازن شدید بین control و treatment قبل از تصمیم اجرایی علامت‌گذاری می‌شود.</p>
-          </article>
-          <article>
-            <span>Margin</span>
-            <h3>سود ناخالص معتبر است؟</h3>
-            <p>اعداد بدون margin با اعتماد پایین نمایش داده می‌شوند تا CFO بتواند ریسک را ببیند.</p>
-          </article>
-          <article>
-            <span>Outcome</span>
-            <h3>نتیجه پایلوت بسته شده؟</h3>
-            <p>بعد از ورود outcome، پیش‌بینی با نتیجه واقعی مقایسه می‌شود و تصمیم scale/stop ساخته می‌شود.</p>
-          </article>
+      <section class="site-outcome-band" aria-label="وعده محصول">
+        <span>خروجی واقعی محصول</span>
+        <h2>گزارش بیشتر نمی‌خرید؛ تصمیم قابل اجرا می‌خرید.</h2>
+        <div class="outcome-list">
+          <article><span class="outcome-step">تشخیص</span><h3>چه کسی؟</h3><p>مشتریانی که اقدام می‌تواند رفتارشان را تغییر دهد.</p></article>
+          <article><span class="outcome-step">تصمیم</span><h3>چه اقدامی؟</h3><p>بدون پیشنهاد، پیام کم‌هزینه، تخفیف کوچک یا مشوق قوی.</p></article>
+          <article><span class="outcome-step">اثبات</span><h3>با چه اطمینانی؟</h3><p>برآورد تاریخی، تخمین پایلوت یا اثر افزایشی تأییدشده.</p></article>
         </div>
       </section>
 
-      <section class="sales-process">
-        <div>
-          <p class="section-kicker">Pilot Workspace</p>
-          <h2>مسیر اجرایی پایلوت از فایل CSV تا تصمیم scale/stop</h2>
+      <section class="site-product" id="product">
+        <div class="site-section-head"><p class="site-kicker">مرکز تصمیم</p><h2>از عددهای کمپین به تصمیم امروز برسید.</h2><p>نمای اول برای مدیر رشد و مالی ساخته شده است. جزئیات مدل در دسترس‌اند، اما مزاحم تصمیم نمی‌شوند.</p></div>
+        <div class="site-feature-grid">
+          <article class="feature-wide feature-dark"><span>Savings Snapshot</span><strong>۵۷۲ میلیون تومان</strong><h3>هزینه مشوق قابل بررسی</h3><p>یک خلاصه مالی روشن از هزینه قابل حذف، سود افزایشی، درآمد در معرض ریسک و ROI پایلوت.</p></article>
+          <article><span>Data Readiness</span><strong>۱۰۰٪</strong><h3>قبل از ادعا، داده را بسنجید.</h3><p>وجود control، treatment، margin، outcome و سلامت نسبت نمونه بررسی می‌شود.</p></article>
+          <article><span>Decision Queue</span><strong>۴ سیاست</strong><h3>هر مشتری یک اقدام مشخص دارد.</h3><p>تصمیم، دلیل و وضعیت شواهد کنار هم دیده می‌شوند.</p></article>
+          <article class="feature-wide"><span>Outcome Loop</span><strong>Scale / Review / Stop</strong><h3>پیش‌بینی را با واقعیت روبه‌رو کنید.</h3><p>نتیجه واقعی پایلوت با uplift پیش‌بینی‌شده مقایسه می‌شود؛ اختلاف جدی، تصمیم را وارد بازبینی می‌کند.</p></article>
         </div>
-        <ol>
-          <li><strong>دریافت داده</strong><span>CSV ناشناس‌شده یا aggregate از کمپین‌های قبلی.</span></li>
-          <li><strong>اعتبارسنجی داده</strong><span>بررسی customer_id، control، treatment، outcome، revenue، margin و cost.</span></li>
-          <li><strong>تحلیل تاریخی</strong><span>ساخت Savings Snapshot و تشخیص مشوق‌های قابل حذف.</span></li>
-          <li><strong>طراحی holdout</strong><span>تبدیل diagnostic به پایلوت قابل اثبات.</span></li>
-          <li><strong>اجرای کمپین</strong><span>تصمیم تخفیف برای هر سگمنت یا مشتری.</span></li>
-          <li><strong>دریافت outcome</strong><span>ورود CSV نتیجه واقعی پایلوت.</span></li>
-          <li><strong>تصمیم scale/stop</strong><span>گزارش مدیریتی برای ادامه، توقف یا بازبینی.</span></li>
+      </section>
+
+      <section class="site-method" id="how">
+        <div class="site-section-head"><p class="site-kicker">تشخیص، تصمیم، اثبات</p><h2>یک مسیر کوتاه از داده تا نتیجه.</h2></div>
+        <ol class="method-flow">
+          <li><span>آماده‌سازی</span><h3>داده را بررسی کنید.</h3><p>در کمتر از ده دقیقه مشخص می‌شود داده برای uplift آماده است یا فقط تحلیل تاریخی ممکن است.</p></li>
+          <li><span>تصمیم</span><h3>بودجه را بازتخصیص دهید.</h3><p>صف اقدام بر اساس سود افزایشی، هزینه مشوق و ظرفیت اجرا ساخته می‌شود.</p></li>
+          <li><span>اثبات</span><h3>holdout را اجرا کنید.</h3><p>نتیجه پایلوت با گاردریل مالی و پنجره outcome از پیش تعیین‌شده خوانده می‌شود.</p></li>
         </ol>
       </section>
 
-      <section class="sales-pricing">
-        <div>
-          <p class="section-kicker">Pricing</p>
-          <h2>سه مسیر فروش برای شروع کم‌ریسک و رشد درآمدی</h2>
-          <p>برای مشتری اول، فروش را service-led نگه می‌داریم: اول تحلیل تاریخی، بعد پایلوت زنده، سپس مدل موفقیت‌محور.</p>
+      <section class="site-estimator" aria-labelledby="estimatorTitle">
+        <div><p class="site-kicker">Savings calculator</p><h2 id="estimatorTitle">فرصت اولیه را تخمین بزنید.</h2><p>این عدد تشخیص اولیه است، نه ادعای اثر افزایشی. برای نتیجه قابل دفاع به داده و گروه کنترل نیاز داریم.</p></div>
+        <form class="audit-form" id="auditForm">
+          <label for="auditBudget">بودجه ماهانه مشوق</label>
+          <input id="auditBudget" inputmode="numeric" placeholder="مثلاً ۴۲۰٬۰۰۰٬۰۰۰">
+          <label for="auditWasteRate">سناریوی هدررفت</label>
+          <select id="auditWasteRate"><option value="0.18">۱۸٪ محافظه‌کارانه</option><option value="0.24" selected>۲۴٪ محتمل</option><option value="0.32">۳۲٪ پرریسک</option></select>
+          <button class="site-primary" type="submit">محاسبه فرصت اولیه</button>
+          <output id="auditResult" role="status">بودجه را وارد کنید تا دامنه فرصت احتمالی نمایش داده شود.</output>
+        </form>
+      </section>
+
+      <section class="site-trust" id="trust">
+        <div class="site-section-head"><p class="site-kicker">Evidence Room</p><h2>هر عدد مالی باید قابل دفاع باشد.</h2><p>MarginLift میان مشاهده، تخمین پایلوت و اثر تأییدشده تفاوت می‌گذارد.</p></div>
+        <div class="trust-rail">
+          <article><span class="trust-state">✓</span><div><h3>Control</h3><p>گروه کنترل وجود دارد و تعریف آن روشن است؟</p></div></article>
+          <article><span class="trust-state">✓</span><div><h3>Sample ratio</h3><p>تخصیص control و treatment سالم مانده است؟</p></div></article>
+          <article><span class="trust-state">✓</span><div><h3>Margin</h3><p>سود ناخالص و هزینه واقعی مشوق معتبر است؟</p></div></article>
+          <article><span class="trust-state">✓</span><div><h3>Outcome</h3><p>پنجره سنجش بسته شده و نتیجه قابل مقایسه است؟</p></div></article>
         </div>
-        <div class="pricing-grid">
-          <article class="price-card">
-            <span>Diagnostic</span>
-            <strong>پرداخت ثابت</strong>
-            <p>تحلیل تاریخی، Data Readiness Audit، Savings Snapshot و نقشه ریسک داده.</p>
-          </article>
-          <article class="price-card featured">
-            <span>Live Pilot</span>
-            <strong>پرداخت ثابت + طراحی holdout</strong>
-            <p>طراحی گروه کنترل، اجرای پایلوت، guardrail مالی و گزارش تصمیم‌گیری.</p>
-          </article>
-          <article class="price-card">
-            <span>Success Plan</span>
-            <strong>ماهانه + درصدی از صرفه‌جویی تاییدشده</strong>
-            <p>تصمیم‌سازی مداوم، outcome loop و گزارش verified incremental برای مدیریت.</p>
-          </article>
+        <div class="trust-links"><a href="/security.html">امنیت و معماری داده</a><a href="/privacy.html">حریم خصوصی</a><a href="/pilot-data-request.html">قرارداد داده پایلوت</a></div>
+      </section>
+
+      <section class="site-plans" id="plans">
+        <div class="site-section-head"><p class="site-kicker">Pilot paths</p><h2>با سطح شواهد فعلی شروع کنید.</h2><p>مسیر فروش service-led است؛ ابتدا ارزش را در یک دامنه محدود اثبات می‌کنیم، سپس مقیاس می‌دهیم.</p></div>
+        <div class="plans-grid">
+          <article><span>Diagnostic</span><h3>تحلیل تاریخی</h3><p>آمادگی داده، Savings Snapshot و نقشه پایلوت برای تیمی که هنوز control معتبر ندارد.</p><a href="/signup">شروع تحلیل</a></article>
+          <article class="plan-primary"><span>Live Pilot</span><h3>پایلوت کنترل‌شده</h3><p>طراحی holdout، گاردریل مالی، اجرای کمپین و readout نهایی برای تصمیم scale یا stop.</p><a href="/signup">ساخت پایلوت</a></article>
+          <article><span>Success Plan</span><h3>تصمیم‌سازی مداوم</h3><p>مدل ماهانه همراه با سهمی از صرفه‌جویی افزایشی تأییدشده.</p><a href="/signup">گفت‌وگو درباره مقیاس</a></article>
         </div>
       </section>
+
+      <section class="site-final-cta"><p class="site-kicker">MarginLift</p><h2>از تخفیف عمومی، به تصمیم سودآور برسید.</h2><p>یک فایل ناشناس کافی است تا بدانیم نقطه شروع درست کجاست.</p><div><a class="site-primary" href="/signup">شروع پایلوت</a><a class="site-secondary" href="/login">ورود به دمو</a></div></section>
     </main>
-    <footer class="trust-footer sales-footer"><a href="/privacy.html">حریم خصوصی</a><a href="/terms.html">شرایط استفاده</a><a href="/pilot-data-request.html">درخواست داده پایلوت</a></footer>
+
+    <footer class="site-footer"><a class="site-brand" href="/"><span class="brand-symbol" aria-hidden="true">M</span><bdi>MarginLift</bdi></a><p>موتور تصمیم‌گیری مشوق و تخفیف برای تیم‌های رشد و مالی.</p><nav><a href="/privacy.html">حریم خصوصی</a><a href="/terms.html">شرایط استفاده</a><a href="/security.html">امنیت</a></nav></footer>
+
     <script>
       const auditFa = new Intl.NumberFormat("fa-IR");
       const persianDigits = "۰۱۲۳۴۵۶۷۸۹";
       const arabicDigits = "٠١٢٣٤٥٦٧٨٩";
-      const normalizeNumber = value => value
-        .replace(/[^\d۰-۹٠-٩]/g, "")
-        .replace(/[۰-۹]/g, digit => persianDigits.indexOf(digit))
-        .replace(/[٠-٩]/g, digit => arabicDigits.indexOf(digit));
-
+      const normalizeNumber = value => value.replace(/[^\d۰-۹٠-٩]/g, "").replace(/[۰-۹]/g, digit => persianDigits.indexOf(digit)).replace(/[٠-٩]/g, digit => arabicDigits.indexOf(digit));
       document.getElementById("auditForm")?.addEventListener("submit", event => {
         event.preventDefault();
         const budget = Number(normalizeNumber(document.getElementById("auditBudget").value));
         const rate = Number(document.getElementById("auditWasteRate").value);
         const output = document.getElementById("auditResult");
-
         if (!Number.isFinite(budget) || budget <= 0) {
           output.textContent = "یک عدد معتبر برای بودجه مشوق وارد کنید.";
           output.dataset.kind = "error";
+          output.classList.remove("message-pop");
+          requestAnimationFrame(() => output.classList.add("message-pop"));
           return;
         }
-
-        const waste = Math.round(budget * rate);
-        output.textContent = `تخمین اولیه: حدود ${auditFa.format(waste)} تومان از بودجه ماهانه می‌تواند کاندیدای بررسی، کاهش یا آزادسازی باشد.`;
+        output.textContent = `فرصت تشخیصی: حدود ${auditFa.format(Math.round(budget * rate))} تومان از بودجه ماهانه می‌تواند نامزد بررسی یا بازتخصیص باشد.`;
         output.dataset.kind = "success";
+        output.classList.remove("message-pop");
+        requestAnimationFrame(() => output.classList.add("message-pop"));
       });
     </script>
   </body>

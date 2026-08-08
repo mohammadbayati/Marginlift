@@ -4,7 +4,7 @@ const riskProfiles = [
     riskBandFa: "کم",
     riskScore: 18,
     economicTierFa: "ارزش متوسط",
-    rationaleFa: "رفتار اخیر پایدار است؛ تماس پولی احتمالا ارزش افزوده‌ای ندارد."
+    rationaleFa: "رفتار اخیر پایدار است؛ تماس پولی احتمالاً ارزش افزوده‌ای ندارد."
   },
   {
     match: "خاموش",
@@ -142,7 +142,7 @@ function buildUpliftLab(analysis, decisionQueue) {
     modelCards: [
       modelCard("T-Learner", "هر اقدام را جداگانه با کنترل مقایسه می‌کند.", "بهترین شروع برای داده‌های کمپین تجمیعی", "فعال در نسخه سگمنتی"),
       modelCard("X-Learner", "برای عدم‌تعادل بین کنترل و درمان پایدارتر است.", "وقتی حجم گروه‌ها متفاوت است", "مرحله بعد"),
-      modelCard("Uplift Tree", "قواعد قابل‌فهم برای تیم مارکتینگ می‌سازد.", "وقتی توضیح‌پذیری مهم‌تر از دقت خام است", "مرحله بعد"),
+      modelCard("Uplift Tree", "قواعد قابل فهم برای تیم مارکتینگ می‌سازد.", "وقتی توضیح‌پذیری مهم‌تر از دقت خام است", "مرحله بعد"),
       modelCard("Causal Forest", "اثر درمان ناهمگن را با عدم‌قطعیت بهتر تخمین می‌زند.", "برای نسخه فردی و دیتای بزرگ", "بعد از Customer 360")
     ],
     experimentDesign: {
@@ -186,8 +186,8 @@ function buildQiniCurve(segments) {
 
 function buildReactionMix(decisionQueue) {
   const mix = {
-    persuadable: reaction("قابل‌نجات", "Persuadables", "با اقدام درست، سود افزایشی مثبت می‌سازند."),
-    sureThing: reaction("خریدار قطعی", "Sure Things", "احتمالا بدون تخفیف هم برمی‌گردند."),
+    persuadable: reaction("قابل نجات", "Persuadables", "با اقدام درست، سود افزایشی مثبت می‌سازند."),
+    sureThing: reaction("خریدار قطعی", "Sure Things", "احتمالاً بدون تخفیف هم برمی‌گردند."),
     testMore: reaction("نیازمند آزمایش", "Uncertain", "اثر مثبت دیده می‌شود اما هنوز برای اجرای کامل کافی نیست."),
     avoid: reaction("عدم اقدام", "Lost / Sleeping", "خرج‌کردن ممکن است بی‌اثر یا زیان‌ده باشد.")
   };

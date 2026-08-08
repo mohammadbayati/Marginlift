@@ -6,6 +6,7 @@ let currentOverview = null;
 let currentCustomerAnalysis = null;
 let currentHistory = [];
 let currentPilotState = null;
+const MAX_IMPORT_FILE_BYTES = 1800000;
 
 function formatNumber(value) {
   return fa.format(Number(value || 0));
@@ -52,6 +53,22 @@ function setMessage(id, message, kind = "") {
   if (!target) return;
   target.textContent = message;
   target.dataset.kind = kind;
+  target.classList.remove("message-pop");
+  requestAnimationFrame(() => target.classList.add("message-pop"));
+}
+
+function setButtonBusy(button, busy, busyLabel = "در حال انجام...") {
+  if (!button) return;
+  if (busy) {
+    button.dataset.idleLabel = button.textContent.trim();
+    button.textContent = busyLabel;
+    button.disabled = true;
+    button.setAttribute("aria-busy", "true");
+    return;
+  }
+  button.textContent = button.dataset.idleLabel || button.textContent;
+  button.disabled = false;
+  button.removeAttribute("aria-busy");
 }
 
 function downloadBlob(blob, filename) {
@@ -66,10 +83,62 @@ function downloadBlob(blob, filename) {
 function setAuthMode(mode) {
   document.querySelectorAll("[data-auth-tab]").forEach(tab => {
     tab.classList.toggle("active", tab.dataset.authTab === mode);
+    tab.setAttribute("aria-selected", String(tab.dataset.authTab === mode));
   });
   document.querySelectorAll(".auth-form").forEach(form => {
     form.classList.toggle("active", form.id === `${mode}Form`);
   });
+}
+
+function fileIsTooLarge(file) {
+  return file && file.size > MAX_IMPORT_FILE_BYTES;
+}
+
+function showFileSizeError(messageId, previewId) {
+  const limit = new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 1 }).format(MAX_IMPORT_FILE_BYTES / 1000000);
+  if (previewId) {
+    document.getElementById(previewId).innerHTML = `<strong>حجم فایل بیشتر از حد مجاز است</strong><span>نسخه فعلی فایل‌های تا ${limit} مگابایت را می‌پذیرد. فایل را کوچک‌تر کنید یا نمونه‌ای از ردیف‌ها بسازید.</span>`;
+  }
+  setMessage(messageId, "فایل برای بارگذاری مستقیم بزرگ است؛ ابتدا حجم یا تعداد ردیف‌ها را کاهش دهید.", "error");
+}
+
+function setSidebarOpen(open) {
+  const sidebar = document.getElementById("productSidebar");
+  const scrim = document.getElementById("sidebarScrim");
+  const toggle = document.getElementById("mobileNavToggle");
+  if (!sidebar || !scrim || !toggle) return;
+  sidebar.classList.toggle("is-open", open);
+  scrim.hidden = !open;
+  toggle.setAttribute("aria-expanded", String(open));
+  document.body.classList.toggle("nav-open", open);
+}
+
+function setupNavigation() {
+  document.getElementById("mobileNavToggle")?.addEventListener("click", () => setSidebarOpen(true));
+  document.getElementById("mobileNavClose")?.addEventListener("click", () => setSidebarOpen(false));
+  document.getElementById("sidebarScrim")?.addEventListener("click", () => setSidebarOpen(false));
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape") setSidebarOpen(false);
+  });
+
+  const navLinks = [...document.querySelectorAll(".side-nav a[href^='#']")];
+  navLinks.forEach(link => link.addEventListener("click", () => {
+    navLinks.forEach(item => item.classList.toggle("active", item === link));
+    setSidebarOpen(false);
+  }));
+
+  const observedSections = navLinks.map(link => document.querySelector(link.getAttribute("href"))).filter(Boolean);
+  if ("IntersectionObserver" in window) {
+    const observer = new IntersectionObserver(entries => {
+      const visible = entries.filter(entry => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      if (!visible) return;
+      navLinks.forEach(link => link.classList.toggle("active", link.getAttribute("href") === `#${visible.target.id}`));
+    }, { rootMargin: "-18% 0px -68% 0px", threshold: [0, 0.2, 0.55] });
+    observedSections.forEach(section => observer.observe(section));
+  }
+
+  const dateTarget = document.getElementById("topbarDate");
+  if (dateTarget) dateTarget.textContent = `آخرین به‌روزرسانی: ${new Date().toLocaleDateString("fa-IR")}`;
 }
 
 function renderMetrics() {
@@ -262,8 +331,10 @@ function renderDashboard() {
   renderEvidence();
   const readiness = currentOverview.readiness;
   document.getElementById("readinessValue").textContent = formatPercent(readiness.score);
+  document.getElementById("readinessHeroValue").textContent = formatNumber(readiness.score);
   document.getElementById("readinessLabel").textContent = readiness.labelFa;
   document.getElementById("readinessMeter").style.width = `${readiness.score}%`;
+  document.querySelector(".pulse-meter")?.setAttribute("aria-valuenow", String(readiness.score));
   document.getElementById("pulseHeadline").textContent = `${formatNumber(currentOverview.summary.atRiskAudience)} کاربر نیازمند بررسی هستند`;
   document.getElementById("pulseNote").textContent = readiness.noteFa;
   document.getElementById("queueCount").textContent = formatNumber(currentOverview.decisionQueue.length);
@@ -291,26 +362,42 @@ async function loadDashboard() {
   renderCustomerProduct();
   renderPilotState();
   renderHistory();
+  window.MarginLiftMotion?.refresh(document.getElementById("appShell"));
 }
 
 function setupAuth() {
   document.querySelectorAll("[data-auth-tab]").forEach(tab => tab.addEventListener("click", () => setAuthMode(tab.dataset.authTab)));
+  document.querySelectorAll("[data-password-toggle]").forEach(button => button.addEventListener("click", () => {
+    const input = document.getElementById(button.dataset.passwordToggle);
+    const willShow = input.type === "password";
+    input.type = willShow ? "text" : "password";
+    button.textContent = willShow ? "پنهان" : "نمایش";
+    button.setAttribute("aria-label", willShow ? "پنهان‌کردن رمز عبور" : "نمایش رمز عبور");
+  }));
   document.getElementById("loginForm").addEventListener("submit", async event => {
     event.preventDefault();
+    const submitButton = event.currentTarget.querySelector("button[type='submit']");
+    setButtonBusy(submitButton, true, "در حال ورود...");
     try {
       await apiRequest("/api/auth/login", { method: "POST", body: JSON.stringify({ email: loginEmail.value, password: loginPassword.value }) });
       await enterApp();
     } catch (error) {
       setMessage("loginMessage", error.message, "error");
+    } finally {
+      setButtonBusy(submitButton, false);
     }
   });
   document.getElementById("signupForm").addEventListener("submit", async event => {
     event.preventDefault();
+    const submitButton = event.currentTarget.querySelector("button[type='submit']");
+    setButtonBusy(submitButton, true, "در حال ساخت حساب...");
     try {
       await apiRequest("/api/auth/signup", { method: "POST", body: JSON.stringify({ companyName: companyName.value, email: signupEmail.value, password: signupPassword.value }) });
       await enterApp();
     } catch (error) {
       setMessage("signupMessage", error.message, "error");
+    } finally {
+      setButtonBusy(submitButton, false);
     }
   });
 }
@@ -318,6 +405,8 @@ function setupAuth() {
 async function enterApp() {
   document.getElementById("authShell").classList.add("is-hidden");
   document.getElementById("appShell").classList.remove("is-hidden");
+  setSidebarOpen(false);
+  window.scrollTo({ top: 0, behavior: "instant" });
   try {
     const session = await apiRequest("/api/session");
     document.getElementById("workspaceName").textContent = session.organization.name;
@@ -332,6 +421,7 @@ function setupUpload() {
   document.getElementById("campaignCsvFile").addEventListener("change", async event => {
     const file = event.target.files[0];
     if (!file) return;
+    if (fileIsTooLarge(file)) return showFileSizeError("uploadMessage", "uploadPreview");
     try {
       const preview = await apiRequest("/api/imports/preview", { method: "POST", body: JSON.stringify({ csvText: await file.text() }) });
       const missingText = preview.missing.length ? `ستون‌های ناقص: ${preview.missing.join("، ")}` : "قرارداد داده آماده تحلیل است.";
@@ -345,8 +435,11 @@ function setupUpload() {
 
   document.getElementById("campaignUploadForm").addEventListener("submit", async event => {
     event.preventDefault();
+    const submitButton = event.currentTarget.querySelector("button[type='submit']");
     const file = document.getElementById("campaignCsvFile").files[0];
     if (!file) return setMessage("uploadMessage", "یک فایل CSV انتخاب کنید.", "error");
+    if (fileIsTooLarge(file)) return showFileSizeError("uploadMessage", "uploadPreview");
+    setButtonBusy(submitButton, true, "در حال تحلیل...");
     setMessage("uploadMessage", "در حال تحلیل فایل...", "");
     try {
       const result = await apiRequest("/api/imports/csv", { method: "POST", body: JSON.stringify({ name: document.getElementById("campaignUploadName").value, csvText: await file.text() }) });
@@ -354,13 +447,18 @@ function setupUpload() {
       setMessage("uploadMessage", result.type === "customer" ? "Customer 360 و برنامه پایلوت ساخته شد." : "صف تصمیم سگمنتی ساخته شد.", "success");
     } catch (error) {
       setMessage("uploadMessage", error.message, "error");
+    } finally {
+      setButtonBusy(submitButton, false);
     }
   });
 
   document.getElementById("outcomeUploadForm").addEventListener("submit", async event => {
     event.preventDefault();
+    const submitButton = event.currentTarget.querySelector("button[type='submit']");
     const file = document.getElementById("outcomeCsvFile").files[0];
     if (!file) return setMessage("outcomeMessage", "یک فایل outcome CSV انتخاب کنید.", "error");
+    if (fileIsTooLarge(file)) return showFileSizeError("outcomeMessage");
+    setButtonBusy(submitButton, true, "در حال مقایسه...");
     setMessage("outcomeMessage", "در حال مقایسه outcome با پیش‌بینی...", "");
     try {
       const result = await apiRequest("/api/outcomes/import", { method: "POST", body: JSON.stringify({ name: document.getElementById("outcomeUploadName").value, csvText: await file.text() }) });
@@ -368,6 +466,8 @@ function setupUpload() {
       setMessage("outcomeMessage", result.summary.recommendationFa, result.summary.decisionStatus === "needs_review" ? "error" : "success");
     } catch (error) {
       setMessage("outcomeMessage", error.message, "error");
+    } finally {
+      setButtonBusy(submitButton, false);
     }
   });
 }
@@ -397,6 +497,7 @@ function setupActions() {
 
 async function init() {
   setupAuth();
+  setupNavigation();
   setupUpload();
   setupActions();
   try {

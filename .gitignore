@@ -5,3 +5,7 @@ data/backups/
 .env
 .DS_Store
 *.log
+qa-*.png
+.agents/
+.impeccable/
+skills-lock.json

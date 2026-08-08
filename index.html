@@ -3,74 +3,123 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#0c172a">
-    <title>MarginLift | موتور تصمیم‌گیری نگهداشت</title>
-    <link rel="stylesheet" href="styles.css">
+    <meta name="theme-color" content="#f5f5f7">
+    <meta name="description" content="MarginLift؛ موتور تصمیم‌گیری برای کاهش هدررفت تخفیف و افزایش سود افزایشی.">
+    <link rel="icon" href="data:,">
+    <title>MarginLift | مرکز تصمیم سود</title>
+    <link rel="stylesheet" href="/styles-v3.css">
+    <script src="/motion.js" defer></script>
   </head>
-  <body>
+  <body class="product-page">
+    <a class="skip-link" href="#mainContent">رفتن به محتوای اصلی</a>
+
     <section class="auth-shell" id="authShell" aria-label="ورود به MarginLift">
-      <div class="auth-copy">
-        <div class="brand-lockup auth-brand">
-          <div class="brand-mark">ML</div>
-          <div>
-            <strong><bdi class="brand">MarginLift</bdi></strong>
-            <span>موتور تصمیم‌گیری درآمد</span>
-          </div>
+      <a class="auth-home-link" href="/" aria-label="بازگشت به صفحه اصلی MarginLift">
+        <span class="brand-symbol" aria-hidden="true">M</span>
+        <bdi>MarginLift</bdi>
+      </a>
+
+      <div class="auth-story">
+        <div class="auth-story-copy">
+          <p class="section-kicker">مرکز تصمیم سود</p>
+          <h1>قبل از خرج‌کردن بودجه، اثر واقعی را ببینید.</h1>
+          <p>MarginLift مشخص می‌کند کدام مشتری به مشوق نیاز دارد، کدام هزینه قابل حذف است و هر تصمیم بر چه شواهدی تکیه دارد.</p>
         </div>
-        <p class="section-kicker">برای تیم‌های رشد، CRM و مالی</p>
-        <h1>هر مشتریِ در معرض ریزش، لزوماً به مشوق نیاز ندارد.</h1>
-        <p>ریسک، ارزش، اثر واقعی اقدام و ظرفیت اجرا را کنار هم می‌گذاریم تا تیم شما بداند چه کسی را نجات دهد، با چه اقدامی و با چه سطحی از اطمینان.</p>
-        <div class="auth-proof-grid">
-          <div><strong class="number">۰۱</strong><span>تشخیص مشتری و ارزش اقتصادی</span></div>
-          <div><strong class="number">۰۲</strong><span>انتخاب بهترین اقدام بعدی</span></div>
-          <div><strong class="number">۰۳</strong><span>اندازه‌گیری سود افزایشی</span></div>
+        <div class="auth-signal" aria-label="نمونه خروجی محصول">
+          <div class="auth-signal-head"><span>فرصت این دوره</span><span class="status-dot"></span></div>
+          <strong class="number">۵۷۲ میلیون تومان</strong>
+          <p>هزینه مشوق قابل بررسی برای حذف یا بازتخصیص</p>
+          <div class="signal-rule"><span style="width:72%"></span></div>
+          <div class="auth-signal-meta"><span>سطح شواهد</span><strong>برآورد پایلوت</strong></div>
+        </div>
+        <div class="auth-proof-line">
+          <span>آمادگی داده</span><span>طراحی holdout</span><span>اندازه‌گیری سود افزایشی</span>
         </div>
       </div>
-      <div class="auth-panel">
-        <div class="auth-tabs" role="tablist" aria-label="ورود یا ثبت‌نام">
-          <button class="auth-tab active" type="button" data-auth-tab="login">ورود</button>
-          <button class="auth-tab" type="button" data-auth-tab="signup">ثبت‌نام</button>
+
+      <div class="auth-panel-wrap">
+        <div class="auth-panel">
+          <div class="auth-panel-heading">
+            <p class="section-kicker">فضای کاری امن</p>
+            <h2>به MarginLift خوش آمدید.</h2>
+            <p>برای ادامه وارد شوید یا یک فضای کاری پایلوت بسازید.</p>
+          </div>
+          <div class="auth-tabs" role="tablist" aria-label="ورود یا ثبت‌نام">
+            <button class="auth-tab active" type="button" role="tab" aria-selected="true" data-auth-tab="login">ورود</button>
+            <button class="auth-tab" type="button" role="tab" aria-selected="false" data-auth-tab="signup">ثبت‌نام</button>
+          </div>
+          <form class="auth-form active" id="loginForm">
+            <label for="loginEmail">ایمیل کاری</label>
+            <input id="loginEmail" name="email" type="email" value="growth@example.com" autocomplete="email" required>
+            <label for="loginPassword">رمز عبور</label>
+            <div class="password-field"><input id="loginPassword" name="password" type="password" value="demo1234" autocomplete="current-password" required minlength="6"><button type="button" data-password-toggle="loginPassword" aria-label="نمایش رمز عبور">نمایش</button></div>
+            <button class="primary-button" type="submit">ورود به مرکز تصمیم</button>
+            <p class="auth-hint" id="loginMessage" role="status">اطلاعات حساب دمو از قبل وارد شده است.</p>
+          </form>
+          <form class="auth-form" id="signupForm">
+            <label for="signupEmail">ایمیل کاری</label>
+            <input id="signupEmail" name="email" type="email" placeholder="name@company.com" autocomplete="email" required>
+            <label for="signupPassword">رمز عبور</label>
+            <div class="password-field"><input id="signupPassword" name="password" type="password" placeholder="حداقل ۸ کاراکتر" autocomplete="new-password" required minlength="8" aria-describedby="signupPasswordHint"><button type="button" data-password-toggle="signupPassword" aria-label="نمایش رمز عبور">نمایش</button></div>
+            <span class="field-help" id="signupPasswordHint">از یک عبارت طولانی و به‌یادماندنی استفاده کنید.</span>
+            <label for="companyName">نام کسب‌وکار <span>اختیاری</span></label>
+            <input id="companyName" name="company" type="text" placeholder="مثلاً فروشگاه آنلاین شما" autocomplete="organization">
+            <button class="primary-button" type="submit">ساخت فضای کاری</button>
+            <p class="auth-hint" id="signupMessage" role="status">کارت بانکی لازم نیست؛ پایلوت با داده ناشناس شروع می‌شود.</p>
+          </form>
+          <div class="auth-legal">با ادامه، <a href="/terms.html">شرایط استفاده</a> و <a href="/privacy.html">حریم خصوصی</a> را می‌پذیرید.</div>
         </div>
-        <form class="auth-form active" id="loginForm">
-          <div><p class="section-kicker">ورود به فضای کاری</p><h2>مرکز فرمان نگهداشت</h2><p class="form-lead">تصمیم‌های امروز، با شواهد قابل‌پیگیری.</p></div>
-          <label>ایمیل کاری<input id="loginEmail" name="email" type="email" value="growth@example.com" autocomplete="email" required></label>
-          <label>رمز عبور<input id="loginPassword" name="password" type="password" value="demo1234" autocomplete="current-password" required minlength="6"></label>
-          <button class="primary-button" type="submit">ورود به فضای کاری</button>
-          <p class="auth-hint" id="loginMessage">برای دمو، مقدارهای پیش‌فرض آماده‌اند.</p>
-        </form>
-        <form class="auth-form" id="signupForm">
-          <div><p class="section-kicker">شروع پایلوت</p><h2>فضای کاری کسب‌وکارتان را بسازید</h2><p class="form-lead">اول با داده‌ی ناشناس شروع کنید، بعد به CRM متصل شوید.</p></div>
-          <label>نام کسب‌وکار<input id="companyName" name="company" type="text" placeholder="مثلاً فروشگاه آنلاین شما" autocomplete="organization" required></label>
-          <label>ایمیل کاری<input id="signupEmail" name="email" type="email" placeholder="name@company.com" autocomplete="email" required></label>
-          <label>رمز عبور<input id="signupPassword" name="password" type="password" placeholder="حداقل ۶ کاراکتر" autocomplete="new-password" required minlength="6"></label>
-          <button class="primary-button" type="submit">ساخت فضای کاری</button>
-          <p class="auth-hint" id="signupMessage">حساب شما روی سرور محلی این دمو ذخیره می‌شود.</p>
-        </form>
       </div>
     </section>
 
     <div class="app-shell is-hidden" id="appShell">
-      <aside class="sidebar" aria-label="ناوبری محصول">
-        <div class="brand-lockup">
-          <div class="brand-mark">ML</div>
-          <div><strong><bdi class="brand">MarginLift</bdi></strong><span>موتور تصمیم‌گیری درآمد</span></div>
+      <aside class="sidebar" id="productSidebar" aria-label="ناوبری محصول">
+        <div class="sidebar-top">
+          <a class="sidebar-brand" href="#command" aria-label="مرکز تصمیم MarginLift">
+            <span class="brand-symbol" aria-hidden="true">M</span>
+            <span><bdi>MarginLift</bdi><small>مرکز تصمیم سود</small></span>
+          </a>
+          <button class="sidebar-close" id="mobileNavClose" type="button" aria-label="بستن فهرست">×</button>
         </div>
-        <div class="workspace-chip"><span class="status-dot"></span><div><small>فضای کاری</small><strong id="sidebarWorkspace">پلتفرم مصرفی نمونه</strong></div></div>
-        <nav class="side-nav">
-          <a class="active" href="#command"><span class="nav-icon">⌂</span>مرکز فرمان</a>
-          <a href="#customers"><span class="nav-icon">◎</span>مشتریان در معرض ریزش</a>
-          <a href="#decisions"><span class="nav-icon">↗</span>اقدام بعدی</a>
-          <a href="#customer360"><span class="nav-icon">◱</span>Customer 360</a>
-          <a href="#experiments"><span class="nav-icon">⊕</span>آزمایش‌ها</a>
-          <a href="#data"><span class="nav-icon">▤</span>داده و مدل</a>
-        </nav>
-        <div class="sidebar-footer"><span>نسخه پایلوت</span><strong>لایه تصمیم‌سازی فعال</strong><p>هر توصیه همراه با دلیل، وضعیت شواهد و محدودیت آن نمایش داده می‌شود.</p></div>
-      </aside>
 
-      <main class="dashboard">
+        <div class="workspace-chip">
+          <span class="status-dot" aria-hidden="true"></span>
+          <div><small>فضای کاری فعال</small><strong id="sidebarWorkspace">پلتفرم مصرفی نمونه</strong></div>
+        </div>
+
+        <nav class="side-nav" id="sideNav">
+          <span class="nav-group-label">امروز</span>
+          <a class="active" href="#command"><span class="nav-index">۰۱</span>مرکز فرمان</a>
+          <a href="#customers"><span class="nav-index">۰۲</span>صف تصمیم</a>
+          <a href="#decisions"><span class="nav-index">۰۳</span>سیاست اقدام</a>
+          <span class="nav-group-label">تحلیل</span>
+          <a href="#uplift"><span class="nav-index">۰۴</span>اثر افزایشی</a>
+          <a href="#customer360"><span class="nav-index">۰۵</span>مشتریان</a>
+          <a href="#experiments"><span class="nav-index">۰۶</span>شواهد و آزمایش</a>
+          <span class="nav-group-label">عملیات</span>
+          <a href="#data"><span class="nav-index">۰۷</span>داده و پایلوت</a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <span>وضعیت محصول</span>
+          <strong><span class="status-dot"></span> لایه تصمیم‌سازی فعال</strong>
+          <p>هر عدد مالی با نوع شواهد و محدودیت آن نمایش داده می‌شود.</p>
+          <a href="/security.html">امنیت و اعتماد</a>
+        </div>
+      </aside>
+      <div class="sidebar-scrim" id="sidebarScrim" hidden></div>
+
+      <main class="dashboard" id="mainContent">
         <header class="topbar">
-          <div><p class="eyebrow">مرکز فرمان / تصمیم‌گیری نگهداشت</p><p class="topbar-date" id="topbarDate">آخرین به‌روزرسانی: امروز</p></div>
-          <div class="topbar-actions"><span class="live-status"><span class="status-dot"></span>داده نمونه فعال</span><button class="icon-button" id="exportReportButton" type="button" title="دریافت گزارش" aria-label="دریافت گزارش">↓</button><button class="text-button" id="logoutButton" type="button">خروج</button></div>
+          <div class="topbar-title">
+            <button class="mobile-nav-toggle" id="mobileNavToggle" type="button" aria-label="بازکردن فهرست" aria-controls="productSidebar" aria-expanded="false">فهرست</button>
+            <div><p class="eyebrow">مرکز فرمان</p><p class="topbar-date" id="topbarDate">آخرین به‌روزرسانی: امروز</p></div>
+          </div>
+          <div class="topbar-actions">
+            <span class="live-status"><span class="status-dot"></span>داده نمونه فعال</span>
+            <button class="icon-button" id="exportReportButton" type="button" title="دریافت گزارش" aria-label="دریافت گزارش">↓</button>
+            <button class="text-button" id="logoutButton" type="button">خروج</button>
+          </div>
         </header>
 
         <section class="workspace-bar" aria-label="خلاصه فضای کاری">
@@ -80,64 +129,136 @@
           <div class="workspace-readiness"><span>آمادگی پایلوت</span><strong class="number" id="readinessValue">—</strong></div>
         </section>
 
-        <section class="command-hero" id="command">
-          <div class="hero-intro"><p class="section-kicker">تصمیم امروز</p><h1>بودجه نگهداشت را جایی خرج کنید که رفتار را تغییر می‌دهد.</h1><p>AI Brainstorm ریسک ریزش را از ارزش مشتری و اثر واقعی اقدام جدا می‌کند؛ سپس بهترین گزینه را حتی اگر «هیچ اقدامی نکنیم» باشد، پیشنهاد می‌دهد.</p><div class="hero-actions"><a class="primary-button button-link" href="#customers">دیدن صف تصمیم‌ها <span>←</span></a><a class="quiet-link" href="#data">بررسی داده ورودی</a></div></div>
-          <div class="hero-pulse"><div class="pulse-top"><span class="pulse-label">وضعیت موتور تصمیم</span><span class="status-badge" id="readinessLabel">در حال بررسی</span></div><strong id="pulseHeadline">صف تصمیم در حال آماده‌سازی است</strong><p id="pulseNote">کیفیت داده، کنترل و حاشیه سود برای هر تصمیم بررسی می‌شود.</p><div class="pulse-meter"><span id="readinessMeter"></span></div><div class="pulse-foot"><span>تصمیم‌های قابل بررسی</span><strong class="number" id="queueCount">—</strong></div></div>
+        <section class="command-hero" id="command" aria-labelledby="pulseHeadline">
+          <div class="hero-intro">
+            <div class="decision-brief-meta"><span class="decision-label"><span class="status-dot" aria-hidden="true"></span>تصمیم پیشنهادی امروز</span><span class="evidence-label">برآورد پایلوت</span></div>
+            <h1 id="pulseHeadline">صف تصمیم در حال آماده‌سازی است</h1>
+            <p id="pulseNote">کیفیت داده، گروه کنترل و حاشیه سود برای هر تصمیم بررسی می‌شود.</p>
+            <div class="hero-actions">
+              <a class="primary-button button-link" href="#customers">مشاهده صف تصمیم <span aria-hidden="true">←</span></a>
+              <a class="quiet-link" href="#data">بررسی آمادگی داده</a>
+            </div>
+          </div>
+          <aside class="hero-pulse" aria-label="وضعیت موتور تصمیم">
+            <div class="pulse-top"><span class="pulse-label">آمادگی داده</span><span class="status-badge" id="readinessLabel">در حال بررسی</span></div>
+            <div class="pulse-score"><strong class="number" id="readinessHeroValue">—</strong><span>از ۱۰۰</span></div>
+            <div class="pulse-meter" role="progressbar" aria-label="امتیاز آمادگی داده" aria-valuemin="0" aria-valuemax="100"><span id="readinessMeter"></span></div>
+            <div class="pulse-foot"><span>تصمیم‌های قابل بررسی</span><strong class="number" id="queueCount">—</strong></div>
+          </aside>
         </section>
 
-        <section class="snapshot-panel panel" id="snapshot"><div class="panel-heading"><div><span class="mini-label">Savings Snapshot</span><h3>تخفیف کمتر، سود بیشتر</h3></div><span class="pill" id="snapshotEvidence">observational estimate</span></div><div class="snapshot-grid" id="savingsSnapshot"></div></section>
+        <section class="snapshot-panel panel" id="snapshot">
+          <div class="panel-heading">
+            <div><span class="mini-label">خلاصه مالی</span><h2>فرصت مالی این دوره</h2></div>
+            <span class="pill" id="snapshotEvidence">برآورد مشاهده‌ای</span>
+          </div>
+          <div class="snapshot-grid" id="savingsSnapshot"></div>
+        </section>
 
         <section class="metric-grid" id="metricGrid" aria-label="شاخص‌های اصلی"></section>
 
-        <section class="section-heading" id="customers"><div><p class="section-kicker">صف تصمیم</p><h2>چه کسی، با چه ارزشی، چه اقدامی می‌خواهد؟</h2><p>این نسخه برآورد را در سطح سگمنت نشان می‌دهد. امتیاز فردی پس از ورود داده‌های customer_id و رویدادهای نقطه‌ای فعال می‌شود.</p></div><span class="section-tag" id="queueSource">برآورد اولیه سگمنت</span></section>
-        <section class="decision-layout">
-          <article class="panel decision-panel"><div class="panel-heading"><div><span class="mini-label">اولویت‌بندی اقتصادی</span><h3>صف مشتریان قابل‌اقدام</h3></div><span class="pill" id="queueFilter">همه سگمنت‌ها</span></div><div class="decision-table-wrap"><table class="decision-table"><thead><tr><th>گروه مشتری</th><th>ریسک</th><th>ارزش</th><th>اقدام بعدی</th><th>وضعیت</th><th>دلیل تصمیم</th></tr></thead><tbody id="decisionRows"></tbody></table></div></article>
-          <aside class="panel decision-aside"><div class="panel-heading"><div><span class="mini-label">پالس درآمد</span><h3>ارزش در معرض تصمیم</h3></div><span class="signal-icon">↗</span></div><div class="aside-number"><strong class="number" id="protectedProfit">—</strong><span>سود مشارکتی قابل‌حفاظت در صف ریسک</span></div><div class="stat-line"><span>مشتریان در معرض ریزش</span><strong class="number" id="atRiskAudience">—</strong></div><div class="stat-line"><span>مشتریان پرارزش در معرض ریسک</span><strong class="number" id="highValueAtRisk">—</strong></div><div class="aside-note"><strong>قانون تصمیم</strong><p>ریسک بالا به‌تنهایی مجوز تخفیف نیست. اقدام فقط وقتی جلو می‌رود که اثر افزایشی، سود و ظرفیت اجرا هم‌زمان قابل‌دفاع باشند.</p></div></aside>
+        <section class="content-section" id="customers">
+          <div class="section-heading">
+            <div><p class="section-kicker">صف تصمیم</p><h2>چه کسی به اقدام نیاز دارد؟</h2><p>هر ردیف یک تصمیم اقتصادی است؛ ریسک بالا به‌تنهایی مجوز تخفیف نیست.</p></div>
+            <span class="section-tag" id="queueSource">برآورد اولیه سگمنت</span>
+          </div>
+          <div class="decision-layout">
+            <article class="panel decision-panel">
+              <div class="panel-heading"><div><span class="mini-label">اولویت‌بندی اقتصادی</span><h3>مشتریان قابل اقدام</h3></div><span class="pill" id="queueFilter">همه سگمنت‌ها</span></div>
+              <div class="decision-table-wrap"><table class="decision-table"><thead><tr><th>گروه مشتری</th><th>ریسک</th><th>ارزش</th><th>اقدام بعدی</th><th>وضعیت</th><th>دلیل تصمیم</th></tr></thead><tbody id="decisionRows"></tbody></table></div>
+            </article>
+            <aside class="panel decision-aside">
+              <div class="panel-heading"><div><span class="mini-label">Revenue pulse</span><h3>ارزش در معرض تصمیم</h3></div><span class="signal-icon" aria-hidden="true">↗</span></div>
+              <div class="aside-number"><strong class="number" id="protectedProfit">—</strong><span>سود مشارکتی قابل حفاظت</span></div>
+              <div class="stat-line"><span>مشتریان در معرض ریزش</span><strong class="number" id="atRiskAudience">—</strong></div>
+              <div class="stat-line"><span>مشتریان پرارزش در معرض ریسک</span><strong class="number" id="highValueAtRisk">—</strong></div>
+              <div class="aside-note"><strong>قانون تصمیم</strong><p>اقدام فقط وقتی جلو می‌رود که اثر افزایشی، سود و ظرفیت اجرا هم‌زمان قابل دفاع باشند.</p></div>
+            </aside>
+          </div>
         </section>
 
-        <section class="section-heading" id="decisions"><div><p class="section-kicker">Policy engine</p><h2>از تشخیص تا اقدام، در یک مسیر قابل‌ردیابی</h2></div><span class="section-tag">بدون اقدام هم یک تصمیم است</span></section>
-        <section class="action-grid" id="actionCards"></section>
-
-        <section class="section-heading" id="uplift"><div><p class="section-kicker">Uplift Intelligence Lab</p><h2>اثر افزایشی را از پیش‌بینی معمولی جدا کن.</h2><p>این بخش از منطق Qini و Uplift Modeling استفاده می‌کند تا نشان دهد کدام اقدام واقعا سود اضافه می‌سازد و کدام تخفیف فقط حاشیه سود را می‌سوزاند.</p></div><span class="section-tag" id="upliftModelStatus">در حال تحلیل</span></section>
-        <section class="uplift-lab">
-          <article class="panel uplift-summary"><div class="panel-heading"><div><span class="mini-label">Qini view</span><h3>بهترین نقطه هدف‌گیری</h3></div><span class="signal-icon">∑</span></div><div class="uplift-summary-grid" id="upliftSummary"></div></article>
-          <article class="panel qini-panel"><div class="panel-heading"><div><span class="mini-label">رتبه‌بندی افزایشی</span><h3>منحنی Qini در سطح سگمنت</h3></div><span class="pill">Profit first</span></div><div class="qini-bars" id="qiniBars"></div></article>
-          <article class="panel reaction-panel"><div class="panel-heading"><div><span class="mini-label">Customer reaction types</span><h3>چه کسی واقعا قابل‌نجات است؟</h3></div></div><div class="reaction-grid" id="reactionCards"></div></article>
-          <article class="panel treatment-panel"><div class="panel-heading"><div><span class="mini-label">Treatment vs Control</span><h3>مقایسه اقدام‌ها</h3></div></div><div class="treatment-table-wrap"><table class="decision-table compact"><thead><tr><th>اقدام</th><th>کاربر</th><th>تبدیل</th><th>Lift</th><th>بازه</th><th>تصمیم</th></tr></thead><tbody id="treatmentRows"></tbody></table></div></article>
-        </section>
-        <section class="model-card-strip" id="upliftModelCards"></section>
-
-        <section class="section-heading" id="customer360"><div><p class="section-kicker">Customer 360</p><h2>تصمیم را تا سطح مشتری پایین بیاور.</h2><p>هر مشتری با ریسک، ارزش، اقدام پیشنهادی، سود افزایشی و دلیل تصمیم دیده می‌شود.</p></div><button class="secondary-button" id="exportAudienceButton" type="button">خروجی مخاطبان</button></section>
-        <section class="customer-product-grid">
-          <article class="panel customer-panel"><div class="panel-heading"><div><span class="mini-label">اولویت اجرا</span><h3>مشتریان آماده اقدام</h3></div><span class="pill save" id="customerModelStatus">در حال تحلیل</span></div><div class="customer-list" id="customerCards"></div></article>
-          <article class="panel finance-panel"><div class="panel-heading"><div><span class="mini-label">CFO view</span><h3>اثر مالی پایلوت</h3></div><span class="signal-icon">٪</span></div><div class="finance-grid" id="financeSummary"></div></article>
+        <section class="content-section" id="decisions">
+          <div class="section-heading"><div><p class="section-kicker">Policy engine</p><h2>از سیگنال تا اقدام</h2><p>«هیچ اقدامی نکن» هم یک تصمیم معتبر است، وقتی هزینه از اثر احتمالی بیشتر باشد.</p></div><span class="section-tag">Profit first</span></div>
+          <div class="action-grid" id="actionCards"></div>
         </section>
 
-        <section class="section-heading"><div><p class="section-kicker">Experiment Builder</p><h2>قبل از خودکارسازی، آزمایش را درست طراحی کن.</h2></div><span class="section-tag">Fixed horizon / No peeking</span></section>
-        <section class="panel experiment-builder"><div class="experiment-copy"><h3 id="experimentHypothesis">—</h3><p>معیار اصلی، سود افزایشی است؛ conversion فقط یک تشخیص کمکی است.</p></div><div class="experiment-grid" id="experimentPlan"></div></section>
-
-        <section class="flow-panel panel"><div class="panel-heading"><div><span class="mini-label">معماری محصول</span><h3>هشت لایه‌ای که هر تصمیم از آن عبور می‌کند</h3></div><span class="pill save">Closed-loop</span></div><div class="stage-grid" id="stageGrid"></div></section>
-
-        <section class="evidence-layout" id="experiments">
-          <article class="panel"><div class="panel-heading"><div><span class="mini-label">اتاق شواهد</span><h3>قبل از اجرای خودکار، این چهار سؤال را جواب بده</h3></div><span class="pill warn">گاردریل</span></div><div class="evidence-list" id="evidenceList"></div></article>
-          <article class="panel contract-card"><div class="panel-heading"><div><span class="mini-label">Retention Decision Contract</span><h3>تعریف مسئله در این فضای کاری</h3></div><span class="pill">قابل تنظیم</span></div><dl id="contractDetails"></dl></article>
+        <section class="content-section" id="uplift">
+          <div class="section-heading"><div><p class="section-kicker">Uplift Intelligence</p><h2>اثر واقعی را از هم‌بستگی جدا کنید.</h2><p>جزئیات علمی در این بخش می‌ماند؛ نمای مدیریتی فقط نتیجه اقتصادی و سطح اعتماد را نشان می‌دهد.</p></div><span class="section-tag" id="upliftModelStatus">در حال تحلیل</span></div>
+          <div class="uplift-lab">
+            <article class="panel uplift-summary"><div class="panel-heading"><div><span class="mini-label">Targeting point</span><h3>بهترین نقطه هدف‌گیری</h3></div></div><div class="uplift-summary-grid" id="upliftSummary"></div></article>
+            <article class="panel qini-panel"><div class="panel-heading"><div><span class="mini-label">رتبه‌بندی افزایشی</span><h3>منحنی Qini در سطح سگمنت</h3></div><span class="pill">تحلیل تخصصی</span></div><div class="qini-bars" id="qiniBars"></div></article>
+            <article class="panel reaction-panel"><div class="panel-heading"><div><span class="mini-label">Customer reaction</span><h3>چه کسی واقعاً قابل نجات است؟</h3></div></div><div class="reaction-grid" id="reactionCards"></div></article>
+            <article class="panel treatment-panel"><div class="panel-heading"><div><span class="mini-label">Treatment vs Control</span><h3>مقایسه اقدام‌ها</h3></div></div><div class="treatment-table-wrap"><table class="decision-table compact"><thead><tr><th>اقدام</th><th>کاربر</th><th>تبدیل</th><th>Lift</th><th>بازه</th><th>تصمیم</th></tr></thead><tbody id="treatmentRows"></tbody></table></div></article>
+          </div>
+          <div class="model-card-strip" id="upliftModelCards"></div>
         </section>
 
-        <section class="data-panel" id="data"><div><p class="section-kicker">Data onboarding</p><h2>CSV را بده؛ نوع داده را خود محصول تشخیص می‌دهد.</h2><p>فایل سگمنتی برای شروع سریع مناسب است. فایل مشتری‌محور با customer_id، treatment، exposure و outcome محصول را وارد حالت پایلوت واقعی می‌کند.</p><div class="data-contract-tags"><span>customer_id</span><span>treatment</span><span>exposure</span><span>outcome</span><span>revenue و margin</span></div><div class="upload-preview" id="uploadPreview"><strong>هنوز فایلی انتخاب نشده</strong><span>نمونه‌ها: synthetic-campaign-data.csv یا synthetic-customer-events.csv</span></div></div><form class="upload-form" id="campaignUploadForm"><label>نام تحلیل<input id="campaignUploadName" type="text" value="تحلیل نگهداشت مشتریان" required></label><label>فایل CSV<input id="campaignCsvFile" type="file" accept=".csv,text/csv" required></label><button class="primary-button" type="submit">تحلیل داده و ساخت محصول</button><button class="secondary-button" id="downloadPilotButton" type="button">دانلود بسته پایلوت</button><p class="auth-hint" id="uploadMessage">فایل انتخاب‌شده قبل از تحلیل، از نظر ستون‌ها بررسی می‌شود.</p></form></section>
-
-        <section class="pilot-grid" id="pilotWorkspace">
-          <article class="panel readiness-panel"><div class="panel-heading"><div><span class="mini-label">Data Readiness</span><h3>آیا داده برای uplift آماده است؟</h3></div><span class="status-badge" id="readinessAuditStatus">در حال بررسی</span></div><div class="readiness-score"><strong class="number" id="readinessAuditScore">—</strong><span id="readinessAuditNext">—</span></div><div class="readiness-checks" id="readinessChecks"></div></article>
-          <article class="panel workspace-panel"><div class="panel-heading"><div><span class="mini-label">Pilot Workspace</span><h3>مسیر اجرای پایلوت</h3></div><span class="pill save" id="workspaceStatus">—</span></div><div class="workspace-steps" id="workspaceSteps"></div></article>
+        <section class="content-section" id="customer360">
+          <div class="section-heading"><div><p class="section-kicker">Customer 360</p><h2>تصمیم را تا سطح مشتری پایین بیاورید.</h2><p>ریسک، ارزش، اقدام پیشنهادی و سود افزایشی در یک نمای قابل ارسال به CRM.</p></div><button class="secondary-button" id="exportAudienceButton" type="button">دریافت خروجی مخاطبان</button></div>
+          <div class="customer-product-grid">
+            <article class="panel customer-panel"><div class="panel-heading"><div><span class="mini-label">اولویت اجرا</span><h3>مشتریان آماده اقدام</h3></div><span class="pill save" id="customerModelStatus">در حال تحلیل</span></div><div class="customer-list" id="customerCards"></div></article>
+            <article class="panel finance-panel"><div class="panel-heading"><div><span class="mini-label">CFO view</span><h3>اثر مالی پایلوت</h3></div><span class="signal-icon" aria-hidden="true">٪</span></div><div class="finance-grid" id="financeSummary"></div></article>
+          </div>
         </section>
 
-        <section class="panel outcome-panel"><div class="panel-heading"><div><span class="mini-label">Outcome Loop</span><h3>بعد از کمپین، واقعیت را با پیش‌بینی مقایسه کن.</h3></div><button class="secondary-button" id="downloadReadoutButton" type="button">دانلود readout</button></div><div class="outcome-layout"><form class="upload-form" id="outcomeUploadForm"><label>نام outcome<input id="outcomeUploadName" type="text" value="نتیجه پایلوت live holdout" required></label><label>فایل outcome CSV<input id="outcomeCsvFile" type="file" accept=".csv,text/csv" required></label><button class="primary-button" type="submit">واردکردن outcome</button><p class="auth-hint" id="outcomeMessage">برای تست از synthetic-outcome-data.csv استفاده کنید.</p></form><div class="outcome-readout" id="outcomeReadout"></div></div></section>
+        <section class="content-section" id="experiments">
+          <div class="section-heading"><div><p class="section-kicker">Evidence & Experiment</p><h2>قبل از مقیاس، اثبات کنید.</h2><p>طراحی آزمایش، گاردریل مالی و قرارداد تصمیم در یک مسیر قابل پیگیری.</p></div><span class="section-tag">Fixed horizon / No peeking</span></div>
+          <section class="panel experiment-builder"><div class="experiment-copy"><span class="mini-label">فرضیه پایلوت</span><h3 id="experimentHypothesis">—</h3><p>معیار اصلی، سود افزایشی است؛ conversion فقط یک شاخص کمکی است.</p></div><div class="experiment-grid" id="experimentPlan"></div></section>
+          <section class="flow-panel panel"><div class="panel-heading"><div><span class="mini-label">Decision pipeline</span><h3>هر تصمیم از چه مراحلی عبور می‌کند؟</h3></div><span class="pill save">Closed loop</span></div><div class="stage-grid" id="stageGrid"></div></section>
+          <div class="evidence-layout">
+            <article class="panel"><div class="panel-heading"><div><span class="mini-label">Evidence Room</span><h3>کنترل‌های اعتماد</h3></div><span class="pill warn">گاردریل</span></div><div class="evidence-list" id="evidenceList"></div></article>
+            <article class="panel contract-card"><div class="panel-heading"><div><span class="mini-label">Decision contract</span><h3>تعریف مسئله</h3></div><span class="pill">قابل تنظیم</span></div><dl id="contractDetails"></dl></article>
+          </div>
+        </section>
 
-        <section class="panel history-panel"><div class="panel-heading"><div><span class="mini-label">Analysis history</span><h3>آخرین تحلیل‌ها</h3></div><span class="pill">قابل پیگیری</span></div><div class="history-list" id="analysisHistory"></div></section>
+        <section class="content-section data-workspace" id="data">
+          <div class="section-heading"><div><p class="section-kicker">Data & Pilot</p><h2>از فایل خام تا تصمیم پایلوت</h2><p>MarginLift ابتدا نوع داده و محدودیت ادعا را تشخیص می‌دهد، سپس مسیر درست را پیشنهاد می‌کند.</p></div><span class="section-tag">CSV امن و ناشناس</span></div>
+          <section class="data-panel panel">
+            <div class="data-copy">
+              <span class="mini-label">Data onboarding</span>
+              <h3>فایل را وارد کنید؛ قرارداد داده را ما بررسی می‌کنیم.</h3>
+              <p>فایل مشتری‌محور با customer_id، treatment، exposure و outcome محصول را وارد حالت پایلوت واقعی می‌کند.</p>
+              <div class="data-contract-tags"><span>customer_id</span><span>treatment</span><span>exposure</span><span>outcome</span><span>revenue & margin</span></div>
+              <div class="upload-preview" id="uploadPreview"><strong>هنوز فایلی انتخاب نشده</strong><span>برای شروع از synthetic-customer-events.csv استفاده کنید.</span></div>
+            </div>
+            <form class="upload-form" id="campaignUploadForm">
+              <label for="campaignUploadName">نام تحلیل</label>
+              <input id="campaignUploadName" type="text" value="تحلیل نگهداشت مشتریان" required>
+              <label for="campaignCsvFile">فایل CSV</label>
+              <input id="campaignCsvFile" type="file" accept=".csv,text/csv" required>
+              <button class="primary-button" type="submit">تحلیل داده و ساخت تصمیم</button>
+              <button class="secondary-button" id="downloadPilotButton" type="button">دریافت بسته پایلوت</button>
+              <p class="auth-hint" id="uploadMessage" role="status">فایل قبل از تحلیل از نظر ستون‌ها و حجم بررسی می‌شود.</p>
+            </form>
+          </section>
 
-        <section class="limitations-panel panel"><div><p class="section-kicker">شفافیت مدل</p><h3>این نسخه چه چیزی را هنوز ادعا نمی‌کند؟</h3></div><ul id="limitationsList"></ul></section>
-        <footer class="dashboard-footer"><span><bdi class="brand-inline">MarginLift</bdi> / AI Brainstorm</span><span>داده‌های دمو مصنوعی‌اند؛ تصمیم‌های واقعی به holdout و outcome واقعی نیاز دارند.</span><span class="dashboard-footer-links"><a href="/privacy.html">حریم خصوصی</a><a href="/security.html">امنیت</a></span></footer>
+          <div class="pilot-grid" id="pilotWorkspace">
+            <article class="panel readiness-panel"><div class="panel-heading"><div><span class="mini-label">Data Readiness</span><h3>آیا داده آماده است؟</h3></div><span class="status-badge" id="readinessAuditStatus">در حال بررسی</span></div><div class="readiness-score"><strong class="number" id="readinessAuditScore">—</strong><span id="readinessAuditNext">—</span></div><div class="readiness-checks" id="readinessChecks"></div></article>
+            <article class="panel workspace-panel"><div class="panel-heading"><div><span class="mini-label">Pilot Workspace</span><h3>مسیر اجرای پایلوت</h3></div><span class="pill save" id="workspaceStatus">—</span></div><div class="workspace-steps" id="workspaceSteps"></div></article>
+          </div>
+
+          <section class="panel outcome-panel">
+            <div class="panel-heading"><div><span class="mini-label">Outcome Loop</span><h3>پیش‌بینی را با واقعیت مقایسه کنید.</h3></div><button class="secondary-button" id="downloadReadoutButton" type="button">دریافت گزارش نتیجه</button></div>
+            <div class="outcome-layout">
+              <form class="upload-form" id="outcomeUploadForm">
+                <label for="outcomeUploadName">نام نتیجه</label>
+                <input id="outcomeUploadName" type="text" value="نتیجه پایلوت live holdout" required>
+                <label for="outcomeCsvFile">فایل outcome CSV</label>
+                <input id="outcomeCsvFile" type="file" accept=".csv,text/csv" required>
+                <button class="primary-button" type="submit">واردکردن نتیجه پایلوت</button>
+                <p class="auth-hint" id="outcomeMessage" role="status">برای تست از synthetic-outcome-data.csv استفاده کنید.</p>
+              </form>
+              <div class="outcome-readout" id="outcomeReadout"></div>
+            </div>
+          </section>
+
+          <section class="panel history-panel"><div class="panel-heading"><div><span class="mini-label">Analysis history</span><h3>آخرین تحلیل‌ها</h3></div><span class="pill">قابل پیگیری</span></div><div class="history-list" id="analysisHistory"></div></section>
+        </section>
+
+        <section class="limitations-panel panel"><div><p class="section-kicker">شفافیت مدل</p><h2>مرز ادعای محصول</h2></div><ul id="limitationsList"></ul></section>
+        <footer class="dashboard-footer"><span><bdi>MarginLift</bdi> / مرکز تصمیم سود</span><span>داده‌های دمو مصنوعی‌اند؛ اثر واقعی به holdout و outcome معتبر نیاز دارد.</span><span class="dashboard-footer-links"><a href="/privacy.html">حریم خصوصی</a><a href="/security.html">امنیت</a></span></footer>
       </main>
     </div>
-    <script src="app.js"></script>
+    <script src="/app.js"></script>
   </body>
 </html>

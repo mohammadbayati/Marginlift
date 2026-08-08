@@ -33,7 +33,7 @@ function buildReadinessAudit(customerAnalysis, campaignAnalysis, outcomeRecord) 
     status,
     statusFa: statusFa(status),
     claimLevel: outcomeRecord ? "verified_incremental" : status === "ready" ? "pilot_estimate" : "observational_estimate",
-    claimLevelFa: outcomeRecord ? "اثر تاییدشده پایلوت" : status === "ready" ? "تخمین پایلوت" : "برآورد تاریخی",
+    claimLevelFa: outcomeRecord ? "اثر تأییدشده پایلوت" : status === "ready" ? "تخمین پایلوت" : "برآورد تاریخی",
     nextStepFa: nextStepFa(status, outcomeRecord),
     checks: requiredReadinessChecks.map(([key, labelFa]) => ({
       key,

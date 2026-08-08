@@ -34,7 +34,7 @@ assert.ok(analysis.actions.some(action => action.titleFa === "بدون پیشن�
 assert.ok(analysis.actions.some(action => action.titleFa === "مشوق قوی"));
 
 const loyalSegment = analysis.segments.find(segment => segment.nameFa === "کاربران وفادار اخیر");
-const sleepingSegment = analysis.segments.find(segment => segment.nameFa === "کاربران خاموش اما قابل‌فعال‌سازی");
+const sleepingSegment = analysis.segments.find(segment => segment.nameFa === "کاربران خاموش اما قابل فعال‌سازی");
 const discountSegment = analysis.segments.find(segment => segment.nameFa === "کاربران حساس به تخفیف");
 const dormantSegment = analysis.segments.find(segment => segment.nameFa === "کاربران غیرفعال باارزش بالا");
 

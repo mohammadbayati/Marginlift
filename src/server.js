@@ -41,7 +41,9 @@ const contentTypes = {
   ".csv": "text/csv; charset=utf-8",
   ".md": "text/markdown; charset=utf-8",
   ".json": "application/json; charset=utf-8",
-  ".svg": "image/svg+xml"
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".woff2": "font/woff2"
 };
 
 function start(port = defaultPort) {
@@ -274,14 +276,19 @@ async function handleApi(req, res, url) {
 }
 
 function signup(body) {
-  const companyName = cleanText(body.companyName || body.company);
   const email = normalizeEmail(body.email);
+  const submittedCompany = cleanText(body.companyName || body.company);
+  const emailDomain = email.includes("@") ? email.split("@")[1].split(".")[0] : "";
+  const companyName = submittedCompany || emailDomain || "فضای کاری جدید";
   const password = String(body.password || "");
 
-  if (!companyName || companyName.length < 2) {
-    throw httpError(400, "VALIDATION_ERROR", "نام کسب‌وکار را وارد کنید.");
+  if (submittedCompany && submittedCompany.length < 2) {
+    throw httpError(400, "VALIDATION_ERROR", "نام کسب‌وکار باید حداقل ۲ کاراکتر باشد.");
   }
   validateEmailAndPassword(email, password);
+  if (password.length < 8) {
+    throw httpError(400, "VALIDATION_ERROR", "رمز عبور باید حداقل ۸ کاراکتر باشد.");
+  }
 
   return transact(db => {
     if (db.users.some(user => user.email === email)) {
@@ -735,7 +742,7 @@ function buildMarkdownReport(analysis, organization) {
     "",
     "## خلاصه مدیریتی",
     "",
-    `- بودجه قابل‌آزادسازی نسبت به baseline: ${formatMoney(campaign.nextSavings)}`,
+    `- بودجه قابل آزادسازی نسبت به baseline: ${formatMoney(campaign.nextSavings)}`,
     `- صرفه‌جویی نسبت به هزینه مشاهده‌شده: ${formatMoney(campaign.observedSavings || 0)}`,
     `- درآمد حفظ‌شده نسبت به baseline: ${formatPercent(campaign.revenuePreserved)}`,
     `- بهبود سود مشارکتی: ${formatPercent(campaign.contributionProfitLift ?? campaign.marginLift)}`,
@@ -757,7 +764,7 @@ function buildMarkdownReport(analysis, organization) {
     "## اقدام بعدی",
     "",
     "۱. این گزارش را با مدیر رشد، مالی و داده مرور کنید.",
-    "۲. سگمنت‌هایی را که مشوق کمتر می‌گیرند تایید کنید.",
+    "۲. سگمنت‌هایی را که مشوق کمتر می‌گیرند تأیید کنید.",
     "۳. برای کمپین بعدی یک holdout کوچک طراحی کنید.",
     "۴. موفقیت را با هزینه مشوق به‌ازای هر سفارش افزایشی بسنجید.",
     "",
@@ -900,7 +907,7 @@ function buildPricingPlans() {
     {
       key: "success_plan",
       name: "Success Plan",
-      priceFa: "ماهانه + درصدی از صرفه‌جویی تاییدشده",
+      priceFa: "ماهانه + درصدی از صرفه‌جویی تأییدشده",
       bestForFa: "کسب‌وکار پرتراکنش با بودجه مشوق تکرارشونده",
       promiseFa: "decision engine ماهانه و optimization مداوم"
     }
@@ -988,7 +995,7 @@ function publicSession(session, user, organization, role) {
 
 function serveStatic(requestPath, res) {
   const routeAliases = {
-    "/": "/index.html",
+    "/": "/sales.html",
     "/login": "/index.html",
     "/signup": "/index.html"
   };
@@ -1004,7 +1011,15 @@ function serveStatic(requestPath, res) {
     "/deck.html",
     "/submission.html",
     "/styles.css",
+    "/styles-v2.css",
+    "/styles-v3.css",
+    "/motion.js",
     "/app.js",
+    "/marginlift-command-center.png",
+    "/fonts/Estedad-Variable.woff2",
+    "/fonts/Estedad-OFL.txt",
+    "/fonts/Vazirmatn-Variable.woff2",
+    "/fonts/OFL.txt",
     "/synthetic-campaign-data.csv",
     "/synthetic-customer-events.csv",
     "/synthetic-outcome-data.csv",
