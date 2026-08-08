@@ -1019,6 +1019,7 @@ button[aria-busy="true"]::before, .is-busy::before {
 .report-verdict { background: #fff; }
 .report-verdict p, .report-narrative p { color: #313b49; font-size: .92rem; line-height: 2.05; }
 .report-chart-card { grid-column: span 1; }
+.variance-chart { display: grid; gap: 18px; }
 .report-kpi-stack { display: grid; gap: 1px; padding: 0; overflow: hidden; background: #dfe5ec; }
 .report-kpi-stack > .mini-label, .report-kpi-stack > h2 { margin-inline: 20px; }
 .report-kpi-stack > .mini-label { margin-block-start: 20px; }
