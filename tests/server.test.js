@@ -56,7 +56,7 @@ async function run() {
     const healthHead = await request("/api/health", { method: "HEAD" });
     assert.strictEqual(healthHead.response.status, 200);
 
-    for (const page of ["/", "/login", "/signup", "/sales.html", "/styles-v2.css", "/styles-v3.css", "/executive-report-v3.css", "/motion.js", "/executive-report.html", "/executive-report.js", "/privacy.html", "/terms.html", "/security.html", "/pilot-data-request.html", "/vm-deployment.html", "/docs/vm-deployment.md", "/docs/model-governance.md"]) {
+    for (const page of ["/", "/login", "/signup", "/sales.html", "/styles-v2.css", "/styles-v3.css", "/executive-report-v3.css", "/motion.js", "/executive-report.html", "/executive-report.js", "/privacy.html", "/terms.html", "/security.html", "/pilot-data-request.html", "/vm-deployment.html", "/docs/vm-deployment.md", "/docs/model-governance.md", "/docs/demo-user-guide-fa.md"]) {
       const pageResponse = await request(page);
       assert.strictEqual(pageResponse.response.status, 200, `${page} should be public`);
     }
@@ -134,6 +134,24 @@ async function run() {
     assert.strictEqual(viewerWrite.payload.error.code, "INSUFFICIENT_ROLE");
     const viewerOps = await request("/api/ops/metrics", { cookie: viewerCookie });
     assert.strictEqual(viewerOps.response.status, 403);
+
+    const expiredMemberEmail = `expired-${Date.now()}@marginlift.ir`;
+    const expiredMember = await request("/api/access/members", {
+      method: "POST",
+      cookie,
+      body: { email: expiredMemberEmail, password: "expired-password-2026", role: "viewer", name: "Expired Viewer" }
+    });
+    assert.strictEqual(expiredMember.response.status, 201);
+    const testDb = JSON.parse(fs.readFileSync(process.env.MARGINLIFT_DB, "utf8"));
+    const expiredUser = testDb.users.find(item => item.email === expiredMemberEmail);
+    expiredUser.accessExpiresAt = "2020-01-01T00:00:00.000Z";
+    fs.writeFileSync(process.env.MARGINLIFT_DB, JSON.stringify(testDb), "utf8");
+    const expiredLogin = await request("/api/auth/login", {
+      method: "POST",
+      body: { email: expiredMemberEmail, password: "expired-password-2026" }
+    });
+    assert.strictEqual(expiredLogin.response.status, 403);
+    assert.strictEqual(expiredLogin.payload.error.code, "ACCESS_EXPIRED");
 
     const members = await request("/api/access/members", { cookie });
     assert.strictEqual(members.response.status, 200);

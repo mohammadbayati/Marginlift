@@ -478,6 +478,10 @@ async function login(body, context = {}) {
     if (!user || !verifyPassword(password, user.passwordHash)) {
       throw httpError(401, "INVALID_CREDENTIALS", "ایمیل یا رمز عبور درست نیست.");
     }
+    if (user.accessExpiresAt && new Date(user.accessExpiresAt).getTime() <= Date.now()) {
+      db.sessions = db.sessions.filter(item => item.userId !== user.id);
+      throw httpError(403, "ACCESS_EXPIRED", "دسترسی آزمایشی این حساب پایان یافته است. برای تمدید با تیم MarginLift تماس بگیرید.");
+    }
 
     const membership = db.memberships.find(item => item.userId === user.id);
     const organization = db.organizations.find(item => item.id === membership?.organizationId);
@@ -510,6 +514,7 @@ async function getRequestSession(req) {
   if (!session || new Date(session.expiresAt).getTime() < Date.now()) return null;
 
   const user = db.users.find(item => item.id === session.userId);
+  if (user?.accessExpiresAt && new Date(user.accessExpiresAt).getTime() <= Date.now()) return null;
   const membership = db.memberships.find(item => item.userId === user?.id);
   const organization = db.organizations.find(item => item.id === membership?.organizationId);
   if (!user || !membership || !organization) return null;
@@ -1701,7 +1706,8 @@ function publicSession(session, user, organization, role) {
     user: {
       id: user.id,
       email: user.email,
-      name: user.name
+      name: user.name,
+      accessExpiresAt: user.accessExpiresAt || null
     },
     organization: {
       id: organization.id,
@@ -1753,6 +1759,7 @@ function serveStatic(requestPath, res) {
     "/docs/investor-source-of-truth.md",
     "/docs/investor-memo.md",
     "/docs/demo-day-talk-track.md",
+    "/docs/demo-user-guide-fa.md",
     "/docs/investor-q-and-a.md",
     "/docs/submission-readiness-checklist.md",
     "/docs/30-day-validation-roadmap.md",

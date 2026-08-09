@@ -110,6 +110,16 @@ docs/competitive-benchmark-digital-marketing.md
 npm test
 ```
 
+## حساب دمو برای ارزیابی مشتری
+
+راهنمای قابل‌ارسال به ارزیاب در `docs/demo-user-guide-fa.md` قرار دارد. حساب دمو باید با نقش `viewer` و تاریخ انقضای کوتاه ساخته شود تا داده‌ها فقط قابل مشاهده باشند:
+
+```bash
+npm run demo-user -- --email=reviewer@example.com --name="مهمان دمو" --days=7
+```
+
+رمز تصادفی فقط در خروجی فرمان نمایش داده می‌شود و نباید داخل Git یا فایل راهنما ثبت شود.
+
 ## Sprint 4: زیرساخت production
 
 نسخه production اکنون از PostgreSQL به‌عنوان منبع اصلی، ذخیره رمزنگاری‌شده CSV، نقش‌های `viewer` / `analyst` / `admin` / `owner`، audit زنجیره‌ای، صف durable و metrics عملیاتی استفاده می‌کند. JSON فقط fallback توسعه محلی است.

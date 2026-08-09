@@ -300,10 +300,11 @@ function renderPilotState() {
     `<div class="workspace-step ${step.complete ? "complete" : "pending"}"><bdi class="number">${formatNumber(index + 1)}</bdi><div><strong>${escapeHtml(step.labelFa)}</strong><span>${escapeHtml(step.statusFa)}</span></div></div>`
   ).join("");
   const verifiedRandomization = experiment?.design?.randomizationEvidence?.verified === true;
+  const canAnalyze = currentSession?.role !== "viewer";
   const registerButton = document.getElementById("registerExperimentButton");
   const assignmentsButton = document.getElementById("downloadAssignmentsButton");
-  registerButton.disabled = Boolean(currentPilotState.customerAnalysis?.isDemo) || (verifiedRandomization && experiment.status === "registered");
-  assignmentsButton.disabled = !verifiedRandomization;
+  registerButton.disabled = !canAnalyze || Boolean(currentPilotState.customerAnalysis?.isDemo) || (verifiedRandomization && experiment.status === "registered");
+  assignmentsButton.disabled = !canAnalyze || !verifiedRandomization;
   if (verifiedRandomization) {
     setMessage("experimentMessage", `پایلوت ${experiment.id} پیش از اجرا قفل شده است؛ فایل تخصیص را برای اجرای کمپین دریافت کنید.`, "success");
   }
@@ -330,8 +331,8 @@ function renderPilotState() {
   const outcomeButton = document.querySelector("#outcomeUploadForm button[type='submit']");
   const outcomeInput = document.getElementById("outcomeCsvFile");
   const acceptsOutcome = Boolean(experiment?.acceptsOutcome);
-  outcomeButton.disabled = !acceptsOutcome;
-  outcomeInput.disabled = !acceptsOutcome;
+  outcomeButton.disabled = !canAnalyze || !acceptsOutcome;
+  outcomeInput.disabled = !canAnalyze || !acceptsOutcome;
   if (!outcome && !acceptsOutcome) {
     setMessage("outcomeMessage", "ابتدا فایل مشتری را در Data Onboarding وارد کنید تا Experiment Registry ساخته شود.", "error");
   } else if (!outcome) {
@@ -569,9 +570,21 @@ async function enterApp() {
     currentSession = session;
     document.getElementById("workspaceName").textContent = session.organization.name;
     document.getElementById("sidebarWorkspace").textContent = session.organization.name;
+    applyRoleAccess();
     await loadDashboard();
   } catch (error) {
     setMessage("loginMessage", error.message, "error");
+  }
+}
+
+function applyRoleAccess() {
+  const isViewer = currentSession?.role === "viewer";
+  document.querySelectorAll("#campaignUploadForm input, #campaignUploadForm button, #outcomeUploadForm input, #outcomeUploadForm button")
+    .forEach(control => { control.disabled = isViewer; });
+  document.getElementById("exportAudienceButton").disabled = isViewer;
+  if (isViewer) {
+    setMessage("uploadMessage", "این حساب برای مشاهده دمو ساخته شده است و داده‌ها را تغییر نمی‌دهد.", "");
+    setMessage("outcomeMessage", "نتیجه پایلوت نمونه در حالت فقط‌خواندنی نمایش داده می‌شود.", "");
   }
 }
 
