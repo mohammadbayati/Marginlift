@@ -9,7 +9,9 @@
 - [ ] نام حقوقی، مالک داده، کانال تماس و مسئول incident مشخص شود.
 - [ ] `SESSION_SECRET` با مقدار تصادفی حداقل ۳۲ کاراکتر ساخته و در secret manager میزبان ثبت شود.
 - [ ] `APP_ORIGIN=https://marginlift.ir` ثبت شود.
-- [ ] `MARGINLIFT_DB_PATH` به volume پایدار اشاره کند؛ production با مسیر پیش‌فرض محلی اجرا نشود.
+- [x] PostgreSQL volume پایدار باشد و health مقدار `driver: postgres` برگرداند.
+- [ ] `POSTGRES_PASSWORD` و `ARTIFACT_ENCRYPTION_KEY` تصادفی و خارج از Git نگه‌داری شوند.
+- [ ] restore آخرین dump و artifact archive در محیط جدا آزمایش شود.
 - [ ] volume پایدار برای `/app/data` ایجاد شود.
 - [ ] برنامه backup روزانه و نگهداری چند نسخه تعیین شود.
 - [ ] حساب دمو فقط در local/staging باقی بماند.

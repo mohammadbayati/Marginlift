@@ -96,8 +96,10 @@
           <a href="#uplift"><span class="nav-index">۰۴</span>اثر افزایشی</a>
           <a href="#customer360"><span class="nav-index">۰۵</span>مشتریان</a>
           <a href="#experiments"><span class="nav-index">۰۶</span>شواهد و آزمایش</a>
+          <a href="#governance"><span class="nav-index">۰۷</span>سلامت مدل</a>
           <span class="nav-group-label">عملیات</span>
-          <a href="#data"><span class="nav-index">۰۷</span>داده و پایلوت</a>
+          <a href="#operations"><span class="nav-index">۰۸</span>اعتماد و دسترسی</a>
+          <a href="#data"><span class="nav-index">۰۹</span>داده و پایلوت</a>
         </nav>
 
         <div class="sidebar-footer">
@@ -211,6 +213,48 @@
           </div>
         </section>
 
+        <section class="content-section governance-section" id="governance">
+          <div class="section-heading"><div><p class="section-kicker">Model Governance</p><h2>آیا می‌توان به تصمیم مدل اعتماد کرد؟</h2><p>بک‌تست، تغییر داده و نتیجه واقعی پایلوت جداگانه پایش می‌شوند؛ هیچ مدلی خودکار ارتقا پیدا نمی‌کند.</p></div><span class="section-tag" id="governanceClaim">در حال ارزیابی</span></div>
+          <section class="panel governance-summary" aria-label="خلاصه سلامت مدل">
+            <div><span>وضعیت بک‌تست</span><strong id="backtestStatus">—</strong><small id="backtestEvidence">—</small></div>
+            <div><span>Drift داده</span><strong id="driftStatus">—</strong><small id="driftScore">—</small></div>
+            <div><span>نتیجه پایلوت</span><strong id="outcomeMonitorStatus">—</strong><small id="outcomeMonitorNote">—</small></div>
+            <div><span>دفتر تصمیم</span><strong id="ledgerStatus">—</strong><small id="ledgerCount">—</small></div>
+          </section>
+          <div class="governance-grid">
+            <article class="panel model-registry-panel"><div class="panel-heading"><div><span class="mini-label">Champion / Challenger</span><h3>مقایسه مدل‌ها در Shadow Mode</h3></div><span class="pill" id="promotionStatus">ارتقا مسدود</span></div><div class="model-registry-table" id="modelRegistry"></div></article>
+            <article class="panel promotion-panel"><div class="panel-heading"><div><span class="mini-label">Promotion Gate</span><h3>شرایط ارتقای مدل</h3></div></div><div class="promotion-checks" id="promotionChecks"></div><p class="governance-note" id="promotionRecommendation">—</p></article>
+            <article class="panel calibration-panel"><div class="panel-heading"><div><span class="mini-label">Calibration</span><h3>پیش‌بینی در برابر نتیجه تاریخی</h3></div><span class="pill">Diagnostic</span></div><div class="calibration-chart" id="calibrationChart"></div></article>
+            <article class="panel drift-panel"><div class="panel-heading"><div><span class="mini-label">Drift Monitor</span><h3>کدام داده تغییر کرده است؟</h3></div><span class="pill" id="driftBadge">خط مبنا</span></div><div class="drift-list" id="driftFeatures"></div></article>
+          </div>
+          <section class="panel decision-ledger-panel"><div class="panel-heading"><div><span class="mini-label">Decision Ledger</span><h3>ردپای قابل ممیزی تصمیم‌ها</h3></div><span class="pill save" id="ledgerIntegrityBadge">زنجیره سالم</span></div><div class="ledger-list" id="decisionLedger"></div></section>
+        </section>
+
+        <section class="content-section operations-section" id="operations">
+          <div class="section-heading"><div><p class="section-kicker">Production Operations</p><h2>زیرساختی که بتوان آن را ممیزی کرد.</h2><p>سلامت ذخیره‌سازی، سطح دسترسی، فایل‌های رمزنگاری‌شده و کارهای پس‌زمینه در یک نمای عملیاتی دیده می‌شوند.</p></div><span class="section-tag" id="operationsRole">در حال بررسی دسترسی</span></div>
+          <section class="panel operations-summary" aria-label="خلاصه عملیات production">
+            <div><span>ذخیره‌سازی اصلی</span><strong id="opsStorage">—</strong><small id="opsStorageNote">—</small></div>
+            <div><span>فایل‌های امن</span><strong id="opsArtifacts">—</strong><small id="opsArtifactsNote">—</small></div>
+            <div><span>صف پردازش</span><strong id="opsJobs">—</strong><small id="opsJobsNote">—</small></div>
+            <div><span>ممیزی عملیات</span><strong id="opsAudit">—</strong><small id="opsAuditNote">—</small></div>
+          </section>
+          <div class="operations-grid">
+            <article class="panel access-panel"><div class="panel-heading"><div><span class="mini-label">Role-based access</span><h3>اعضای فضای کاری</h3></div><span class="pill" id="memberCount">—</span></div><div class="operations-list" id="memberList"></div></article>
+            <article class="panel audit-panel"><div class="panel-heading"><div><span class="mini-label">Immutable audit</span><h3>آخرین رویدادهای حساس</h3></div><span class="pill save" id="auditIntegrity">—</span></div><div class="operations-list" id="auditList"></div></article>
+          </div>
+          <section class="panel member-create-panel" id="memberCreatePanel">
+            <div><span class="mini-label">Workspace access</span><h3>افزودن عضو جدید</h3><p>دسترسی را با کمترین سطح لازم شروع کنید؛ نقش مالک از این مسیر واگذار نمی‌شود.</p></div>
+            <form class="member-form" id="memberCreateForm">
+              <input id="memberName" type="text" placeholder="نام عضو" aria-label="نام عضو">
+              <input id="memberEmail" type="email" placeholder="ایمیل کاری" aria-label="ایمیل کاری" required>
+              <input id="memberPassword" type="password" placeholder="رمز موقت حداقل ۱۲ کاراکتر" aria-label="رمز موقت" required minlength="12">
+              <select id="memberRole" aria-label="نقش عضو"><option value="viewer">مشاهده‌گر</option><option value="analyst">تحلیل‌گر</option><option value="admin">مدیر عملیات</option></select>
+              <button class="primary-button" type="submit">افزودن عضو</button>
+            </form>
+            <p class="auth-hint" id="memberMessage" role="status"></p>
+          </section>
+        </section>
+
         <section class="content-section data-workspace" id="data">
           <div class="section-heading"><div><p class="section-kicker">Data & Pilot</p><h2>از فایل خام تا تصمیم پایلوت</h2><p>MarginLift ابتدا نوع داده و محدودیت ادعا را تشخیص می‌دهد، سپس مسیر درست را پیشنهاد می‌کند.</p></div><span class="section-tag">CSV امن و ناشناس</span></div>
           <section class="data-panel panel">
@@ -234,7 +278,7 @@
 
           <div class="pilot-grid" id="pilotWorkspace">
             <article class="panel readiness-panel"><div class="panel-heading"><div><span class="mini-label">Data Readiness</span><h3>آیا داده آماده است؟</h3></div><span class="status-badge" id="readinessAuditStatus">در حال بررسی</span></div><div class="readiness-score"><strong class="number" id="readinessAuditScore">—</strong><span id="readinessAuditNext">—</span></div><div class="readiness-checks" id="readinessChecks"></div></article>
-            <article class="panel workspace-panel"><div class="panel-heading"><div><span class="mini-label">Pilot Workspace</span><h3>مسیر اجرای پایلوت</h3></div><span class="pill save" id="workspaceStatus">—</span></div><div class="workspace-steps" id="workspaceSteps"></div></article>
+            <article class="panel workspace-panel"><div class="panel-heading"><div><span class="mini-label">Pilot Workspace</span><h3>مسیر اجرای پایلوت</h3></div><span class="pill save" id="workspaceStatus">—</span></div><div class="workspace-steps" id="workspaceSteps"></div><div class="workspace-actions"><button class="primary-button" id="registerExperimentButton" type="button">ثبت پایلوت تصادفی</button><button class="secondary-button" id="downloadAssignmentsButton" type="button">دانلود فایل تخصیص</button></div><p class="auth-hint" id="experimentMessage" role="status">ابتدا داده مشتری را وارد و سپس assignment پایلوت را پیش از اجرا ثبت کنید.</p></article>
           </div>
 
           <section class="panel outcome-panel">

@@ -1,4 +1,21 @@
 services:
+  postgres:
+    image: public.ecr.aws/docker/library/postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: marginlift
+      POSTGRES_USER: marginlift
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    command: ["postgres", "-c", "shared_buffers=64MB", "-c", "max_connections=30"]
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U marginlift -d marginlift"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   app:
     build: .
     restart: unless-stopped
@@ -6,17 +23,25 @@ services:
       - .env
     environment:
       NODE_ENV: production
+      DATABASE_URL: postgresql://marginlift:${POSTGRES_PASSWORD}@postgres:5432/marginlift
+      DATABASE_SSL: "false"
       MARGINLIFT_DB_PATH: /app/data/db.json
+      ARTIFACT_STORAGE_PATH: /app/private/artifacts
+      MARGINLIFT_JOB_WORKER: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
     expose:
       - "3000"
     volumes:
       - ./data:/app/data
+      - artifact_data:/app/private/artifacts
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 20s
 
   caddy:
     image: public.ecr.aws/docker/library/caddy:2-alpine
@@ -35,5 +60,7 @@ services:
       - caddy_config:/config
 
 volumes:
+  postgres_data:
+  artifact_data:
   caddy_data:
   caddy_config:

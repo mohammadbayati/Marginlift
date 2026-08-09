@@ -2,6 +2,8 @@ node_modules/
 data/db.json
 data/*.tmp
 data/backups/
+data/artifacts/
+backups/
 .env
 .DS_Store
 *.log

@@ -1,16 +1,18 @@
 const fs = require("fs");
 const path = require("path");
-const { resolveDbPath } = require("../src/config");
+const { readDb } = require("../src/storage");
 
-const dbPath = resolveDbPath();
-const backupDir = process.env.MARGINLIFT_BACKUP_DIR || path.join(path.dirname(dbPath), "backups");
-const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-const targetPath = path.join(backupDir, `db-${stamp}.json`);
-
-if (!fs.existsSync(dbPath)) {
-  throw new Error(`Database file not found: ${dbPath}`);
+async function run() {
+  const backupDir = process.env.MARGINLIFT_BACKUP_DIR || path.join(__dirname, "..", "data", "backups");
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const targetPath = path.join(backupDir, `logical-state-${stamp}.json`);
+  const db = await readDb();
+  await fs.promises.mkdir(backupDir, { recursive: true });
+  await fs.promises.writeFile(targetPath, JSON.stringify(db), { encoding: "utf8", mode: 0o600 });
+  console.log(`MarginLift logical backup created at ${targetPath}`);
 }
 
-fs.mkdirSync(backupDir, { recursive: true });
-fs.copyFileSync(dbPath, targetPath);
-console.log(`MarginLift database backup created at ${targetPath}`);
+run().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});

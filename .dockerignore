@@ -5,4 +5,6 @@ node_modules
 data/*.json
 data/*.tmp
 data/backups
+data/artifacts
+backups
 *.log

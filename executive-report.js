@@ -7,6 +7,7 @@ function formatNumber(value) {
 }
 
 function formatMoney(value) {
+  if (value === null || value === undefined) return "داده موجود نیست";
   const number = Number(value || 0);
   const sign = number < 0 ? "−" : "";
   const absolute = Math.abs(number);
@@ -14,8 +15,20 @@ function formatMoney(value) {
   return `${sign}${faInteger.format(absolute)} تومان`;
 }
 
+function formatRatio(value) {
+  return value === null || value === undefined ? "داده موجود نیست" : `${faDecimal.format(value)}×`;
+}
+
 function formatPercent(value) {
   return `${faDecimal.format(Number(value || 0))}٪`;
+}
+
+function formatStatPercent(value) {
+  return value === null || value === undefined ? "محاسبه نشد" : `${faDecimal.format(Number(value) * 100)}٪`;
+}
+
+function formatPValue(value) {
+  return value === null || value === undefined ? "محاسبه نشد" : new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 4 }).format(Number(value));
 }
 
 function localizeTerms(value) {
@@ -68,10 +81,18 @@ function decisionContent(status) {
     needs_review: {
       tone: "review",
       headline: "فعلاً بودجه مشوق را افزایش ندهید.",
-      label: "بازبینی پیش از افزایش بودجه",
-      note: "سود مثبت است، اما فاصله نتیجه واقعی با برآورد اولیه برای گسترش قابل قبول نیست.",
-      gate: "پس از اصلاح سیاست هدف‌گیری و تأیید دوباره کیفیت گروه کنترل",
+      label: "اصلاح زنجیره شواهد",
+      note: "حداقل یکی از شروط Registry، تخصیص، زمان‌بندی، SRM یا قرارداد داده تأیید نشده است.",
+      gate: "پس از رفع همه ایرادهای Integrity Gate و ثبت یک پایلوت prospective",
       lock: "قفل تصمیم فعال است"
+    },
+    iterate: {
+      tone: "review",
+      headline: "پایلوت را با طراحی ثابت و نمونه کافی تکرار کنید.",
+      label: "شواهد نامطمئن؛ تکرار هدفمند",
+      note: "برآورد نقطه‌ای برای تصمیم کافی نیست و فاصله اطمینان یا guardrailها هنوز نتیجه قطعی نمی‌دهند.",
+      gate: "تکمیل حجم نمونه از پیش تعیین‌شده بدون تغییر معیار یا توقف زودهنگام",
+      lock: "بودجه گسترده بسته؛ بودجه پایلوت کنترل‌شده مجاز است"
     },
     pending: {
       tone: "pending",
@@ -88,14 +109,16 @@ function decisionContent(status) {
 function ceoSummary(status) {
   if (status === "scale") return "پایلوت اثر مالی مثبت و قابل دفاع نشان داده است. اجرای بعدی باید محدود، مرحله‌ای و فقط روی سگمنت‌های مشابه انجام شود تا سود افزایشی در مقیاس بزرگ‌تر دوباره تأیید شود.";
   if (status === "stop") return "پایلوت ارزش اقتصادی قابل دفاع ایجاد نکرده است. افزایش بودجه در این وضعیت، هزینه مشوق را بالا می‌برد بدون آنکه تغییر رفتار مشتری اثبات شده باشد.";
-  if (status === "needs_review") return "پایلوت سود مثبت داشته، اما نتیجه واقعی به‌طور معناداری از برآورد اولیه کمتر است. تصمیم درست، آزادکردن بودجه بیشتر نیست؛ ابتدا سیاست تخصیص مشوق، کیفیت داده و طراحی گروه کنترل باید بازبینی شود.";
+  if (status === "needs_review") return "زنجیره شواهد آزمایش کامل نیست و نتیجه فعلی، حتی اگر سود مثبت نشان دهد، مبنای قابل دفاعی برای افزایش بودجه نیست.";
+  if (status === "iterate") return "نتیجه فعلی نه مجوز گسترش است و نه حکم توقف قطعی. عدم‌قطعیت باید با همان معیار اصلی و حجم نمونه کافی کاهش یابد.";
   return "داده اولیه آماده است، اما تا پیش از دریافت نتیجه واقعی پایلوت هیچ عدد مالی نباید به‌عنوان اثر تأییدشده مبنای افزایش بودجه قرار گیرد.";
 }
 
 function marketingSummary(status) {
   if (status === "scale") return "پیام و سگمنت فعلی توانسته‌اند رفتار مشتری را با هزینه قابل دفاع تغییر دهند. مرحله بعد باید همان الگوی رفتاری را حفظ کند و فقط دامنه اجرا را کنترل‌شده افزایش دهد.";
   if (status === "stop") return "پیام، سگمنت یا مقدار مشوق فعلی رفتار مشتری را به‌اندازه کافی تغییر نداده است. کمپین بعدی باید با فرضیه‌ای تازه و ترجیحاً مشوق کمتر یا غیرتخفیفی طراحی شود.";
-  if (status === "needs_review") return "کمپین شکست کامل نخورده، اما برای اجرای بزرگ‌تر قابل اتکا نیست. چهار فرضیه باید جداگانه آزموده شوند: انتخاب سگمنت، مقدار مشوق، زمان‌بندی تماس و کیفیت ثبت نتیجه.";
+  if (status === "needs_review") return "سلامت اجرای آزمایش تأیید نشده است؛ ابتدا تخصیص، exposure، پنجره نتیجه و کیفیت گروه کنترل را اصلاح کنید و سپس درباره کمپین قضاوت کنید.";
+  if (status === "iterate") return "سیگنال اولیه وجود دارد، اما برای تغییر کمپین یا بودجه کافی نیست. نسخه فعلی را ثابت نگه دارید و نمونه را تا کف ثبت‌شده کامل کنید.";
   return "تیم مارکتینگ باید پیش از اجرا، تعریف موفقیت، پنجره سنجش نتیجه و گروه کنترل را نهایی کند تا نتیجه بعدی قابلیت دفاع مالی داشته باشد.";
 }
 
@@ -105,7 +128,8 @@ function riskNotes(state) {
   const outcome = state.outcome?.summary;
   if (state.readiness.status !== "ready") notes.push("قرارداد داده برای ادعای اثر افزایشی کامل نیست؛ خروجی فعلی فقط برای شناخت تاریخی قابل استفاده است.");
   if (!outcome) notes.push("نتیجه واقعی پایلوت هنوز ثبت نشده و عددهای مالی فعلی برآورد هستند.");
-  if (status === "needs_review") notes.push("فاصله منفی برآورد و واقعیت، احتمال خطا در هدف‌گیری، مقدار مشوق یا ثبت نتیجه را بالا می‌برد.");
+  if (status === "needs_review") notes.push("نقص در زنجیره شواهد، هرگونه نتیجه‌گیری بودجه‌ای را مسدود می‌کند.");
+  if (status === "iterate") notes.push("فاصله اطمینان یا guardrailها هنوز صفر یا آستانه آسیب را قطع می‌کنند؛ نتیجه قطعی نیست.");
   if (outcome?.controlUsers === 0) notes.push("بدون گروه کنترل، اثر افزایشی از خرید طبیعی مشتری جدا نمی‌شود.");
   if (outcome && (outcome.treatmentUsers < 50 || outcome.controlUsers < 50)) notes.push("حجم نمونه برای تصمیم تجاری سراسری کافی نیست و عدم‌قطعیت نتیجه بالاست.");
   return notes.length ? notes : ["ریسک اصلی پایین است؛ بااین‌حال اجرای گسترده باید مرحله‌ای، سقف‌دار و همراه با گروه کنترل باقی بماند."];
@@ -133,6 +157,13 @@ function nextActions(status) {
       { window: "۲ تا ۴ هفته", owner: "رشد و مالی", title: "بازاجرای پایلوت", detail: "پایلوت کوچک‌تر را با گروه کنترل کافی، سقف بودجه و معیار موفقیت مصوب اجرا کنید." }
     ];
   }
+  if (status === "iterate") {
+    return [
+      { window: "۴۸ ساعت", owner: "تحلیل و رشد", title: "قفل مجدد Analysis Plan", detail: "معیار اصلی، بازوها، کف نمونه و پنجره نتیجه را بدون تغییر ثبت کنید." },
+      { window: "۲ تا ۴ هفته", owner: "ارتباط با مشتری", title: "تکمیل نمونه", detail: "پایلوت را بدون peeking یا توقف زودهنگام تا کف نمونه ادامه دهید." },
+      { window: "پس از پایان پنجره", owner: "تحلیل و مالی", title: "تحلیل یک‌باره", detail: "CI، guardrail و ROI را فقط پس از بسته‌شدن پنجره دوباره محاسبه کنید." }
+    ];
+  }
   return [
     { window: "هفته اول", owner: "تیم داده", title: "تکمیل قرارداد نتیجه", detail: "شناسه مشتری، گروه تخصیص، زمان مواجهه، درآمد و هزینه واقعی را آماده کنید." },
     { window: "پیش از اجرا", owner: "مدیر رشد", title: "قفل‌کردن طراحی آزمایش", detail: "گروه کنترل، بازه سنجش و معیار موفقیت را پیش از شروع تغییرناپذیر کنید." },
@@ -146,17 +177,18 @@ function outcomeMetrics(state) {
   const predicted = Number(outcome?.predictedIncrementalProfit || snapshot.expectedIncrementalProfit || 0);
   const observed = Number(outcome?.observedIncrementalProfit ?? snapshot.expectedIncrementalProfit ?? 0);
   const gap = outcome ? observed - predicted : 0;
-  const realization = predicted > 0 ? Math.max(0, (observed / predicted) * 100) : 0;
+  const realization = predicted > 0 ? (observed / predicted) * 100 : 0;
   return { snapshot, outcome, predicted, observed, gap, realization };
 }
 
 function renderKpis(state) {
-  const { snapshot, outcome, observed, realization } = outcomeMetrics(state);
+  const { snapshot, outcome, observed } = outcomeMetrics(state);
+  const primary = state.outcome?.statistics?.primary;
   const cards = [
-    { label: "سود افزایشی ثبت‌شده", value: formatMoney(observed), note: snapshot.claimLevelFa, tone: "profit" },
-    { label: "هزینه مشوق قابل بازتخصیص", value: formatMoney(snapshot.avoidableIncentiveCost), note: "فرصت کاهش هدررفت", tone: "saving" },
-    { label: "بازده پایلوت", value: `${faDecimal.format(snapshot.pilotRoi)}×`, note: outcome ? "بر پایه هزینه واقعی" : "برآورد پیش از پایلوت", tone: "roi" },
-    { label: "تحقق نسبت به برآورد", value: outcome ? formatPercent(realization) : "در انتظار نتیجه", note: outcome ? "معیار کلیدی گسترش" : "پس از ورود نتیجه محاسبه می‌شود", tone: realization >= 50 ? "profit" : "risk" }
+    { label: outcome ? "سود افزایشی مشاهده‌شده" : "تغییر سود مشارکتی برآوردی", value: formatMoney(snapshot.expectedIncrementalProfit), note: snapshot.claimLevelFa, tone: observed < 0 ? "risk" : "profit" },
+    { label: "اثر ITT به‌ازای مشتری", value: primary?.valid ? formatMoney(primary.estimate) : "محاسبه نشد", note: state.outcome?.statistics?.estimandFa || "پس از آزمایش سالم محاسبه می‌شود", tone: primary?.ciLow > 0 ? "profit" : "risk" },
+    { label: "فاصله اطمینان ۹۵٪", value: primary?.valid ? `${formatMoney(primary.ciLow)} تا ${formatMoney(primary.ciHigh)}` : "محاسبه نشد", note: primary?.valid ? `p-value: ${formatPValue(primary.pValue)}` : "عدم‌قطعیت قابل برآورد نیست", tone: primary?.direction === "positive" ? "profit" : "risk" },
+    { label: "توان مشاهده‌شده", value: formatStatPercent(primary?.achievedPower), note: primary?.valid ? `MDE: ${formatMoney(primary.minimumDetectableEffect)}` : "حجم یا واریانس کافی نیست", tone: primary?.achievedPower >= 0.8 ? "roi" : "risk" }
   ];
   document.getElementById("reportKpis").innerHTML = cards.map(card => `
     <article class="report-kpi report-kpi--${card.tone}">
@@ -169,7 +201,7 @@ function renderKpis(state) {
 
 function renderVarianceChart(state) {
   const { outcome, predicted, observed, gap, realization } = outcomeMetrics(state);
-  const maxValue = Math.max(predicted, observed, 1);
+  const maxValue = Math.max(Math.abs(predicted), Math.abs(observed), 1);
   const rows = [
     { label: "برآورد اولیه", value: predicted, tone: "expected" },
     { label: "نتیجه واقعی", value: observed, tone: "observed" }
@@ -180,7 +212,7 @@ function renderVarianceChart(state) {
       ${rows.map(row => `
         <div class="variance-row variance-row--${row.tone}">
           <div class="variance-label"><span>${escapeHtml(row.label)}</span><strong class="number">${escapeHtml(formatMoney(row.value))}</strong></div>
-          <div class="variance-track" aria-hidden="true"><span style="--bar-size:${Math.max(5, (row.value / maxValue) * 100)}%"></span></div>
+          <div class="variance-track" aria-hidden="true"><span style="--bar-size:${Math.max(5, (Math.abs(row.value) / maxValue) * 100)}%"></span></div>
         </div>
       `).join("")}
     </div>
@@ -193,10 +225,10 @@ function renderVarianceChart(state) {
 }
 
 function renderBridgeChart(state) {
-  const { snapshot, observed, gap } = outcomeMetrics(state);
+  const { snapshot, outcome, observed, gap } = outcomeMetrics(state);
   const signals = [
-    { label: "سود واقعی پایلوت", value: observed, note: "ارزش اقتصادی ثبت‌شده", tone: "profit" },
-    { label: "بودجه قابل بازتخصیص", value: snapshot.avoidableIncentiveCost, note: "مشوق قابل حذف یا انتقال", tone: "saving" },
+    { label: outcome ? "سود مشاهده‌شده پایلوت" : "تغییر سود مشارکتی برآوردی", value: observed, note: outcome ? "هنوز اثر causal تأییدشده نیست" : "برآورد تاریخی سیاست", tone: observed < 0 ? "risk" : "profit" },
+    { label: "شکاف هزینه مشاهده‌شده", value: snapshot.avoidableIncentiveCost, note: "فرصت برآوردی؛ نیازمند اثبات", tone: snapshot.avoidableIncentiveCost < 0 ? "risk" : "saving" },
     { label: "انحراف از برآورد", value: gap, note: gap < 0 ? "ریسک مدل یا سیاست" : "فراتر از برآورد", tone: gap < 0 ? "risk" : "profit" }
   ];
   document.getElementById("bridgeChart").innerHTML = signals.map((signal, index) => `
@@ -211,22 +243,35 @@ function renderBridgeChart(state) {
   `).join("");
 }
 
-function renderEvidencePassport(state) {
-  const { outcome, predicted, observed } = outcomeMetrics(state);
+function renderEvidencePassport(state, governanceOverview) {
+  const { outcome } = outcomeMetrics(state);
+  const integrity = state.outcome?.integrity;
+  const statistics = state.outcome?.statistics;
+  const integrityCheck = key => integrity?.checks?.find(item => item.key === key);
   const readinessCheck = key => Boolean(state.readiness.checks.find(item => item.key === key)?.passed);
-  const sampleAdequate = Boolean(outcome && outcome.treatmentUsers >= 50 && outcome.controlUsers >= 50);
-  const aligned = Boolean(outcome && (predicted <= 0 || observed >= predicted * 0.5));
+  const testedGuardrails = statistics?.guardrails?.filter(item => item.status !== "unavailable") || [];
+  const guardrailsPassed = testedGuardrails.length > 0 && testedGuardrails.every(item => item.status === "pass");
+  const drift = governanceOverview?.modelGovernance?.drift;
+  const ledger = governanceOverview?.decisionLedger?.integrity;
+  const governancePassed = Boolean(ledger?.valid) && ["stable", "baseline_pending"].includes(drift?.status);
   const checks = [
-    { label: "گروه کنترل", detail: outcome ? `${formatNumber(outcome.controlUsers)} مشتری` : "در داده تاریخی موجود است", passed: readinessCheck("control") && (!outcome || outcome.controlUsers > 0) },
-    { label: "نتیجه و هزینه واقعی", detail: outcome ? "ثبت شده" : "هنوز دریافت نشده", passed: Boolean(outcome) },
+    { label: "اتصال به Experiment Registry", detail: state.experiment?.id || "ثبت نشده", passed: Boolean(state.experiment?.acceptsOutcome) },
+    { label: "تخصیص تصادفی", detail: integrityCheck("randomization")?.detailFa || "پیش از اجرا باید تأیید شود", passed: Boolean(integrityCheck("randomization")?.passed) },
+    { label: "ثبت پیش از exposure", detail: integrityCheck("preregistration")?.detailFa || "Analysis Plan باید پیش از اجرا قفل شود", passed: Boolean(integrityCheck("preregistration")?.passed) },
+    { label: "سلامت exposure", detail: integrityCheck("exposure")?.detailFa || "پس از outcome سنجیده می‌شود", passed: Boolean(integrityCheck("exposure")?.passed) },
+    { label: "بسته‌شدن پنجره نتیجه", detail: integrityCheck("outcome_window")?.detailFa || "در انتظار نتیجه", passed: Boolean(integrityCheck("outcome_window")?.passed) },
+    { label: "تعادل حجم گروه‌ها (SRM)", detail: integrityCheck("srm")?.detailFa || "در انتظار نتیجه", passed: Boolean(integrityCheck("srm")?.passed) },
+    { label: "کفایت حجم نمونه", detail: statistics ? `${formatNumber(statistics.sample.treatment)} اقدام / ${formatNumber(statistics.sample.control)} کنترل` : "در انتظار نتیجه", passed: Boolean(statistics?.sample?.adequate) },
+    { label: "فاصله اطمینان اثر", detail: statistics?.primary?.valid ? `${formatMoney(statistics.primary.ciLow)} تا ${formatMoney(statistics.primary.ciHigh)}` : "محاسبه نشد", passed: Boolean(statistics?.primary?.valid) },
+    { label: "Guardrailهای تجاری", detail: testedGuardrails.length ? testedGuardrails.map(item => `${item.labelFa}: ${item.statusFa}`).join("؛ ") : "در انتظار نتیجه", passed: guardrailsPassed },
     { label: "حاشیه سود", detail: readinessCheck("gross_margin") ? "موجود" : "ناقص", passed: readinessCheck("gross_margin") },
-    { label: "کفایت حجم نمونه", detail: outcome ? `${formatNumber(outcome.treatmentUsers)} اقدام / ${formatNumber(outcome.controlUsers)} کنترل` : "پس از اجرا سنجیده می‌شود", passed: sampleAdequate },
-    { label: "هم‌راستایی پیش‌بینی و واقعیت", detail: outcome ? (aligned ? "در محدوده قابل قبول" : "نیازمند بازبینی") : "در انتظار نتیجه", passed: aligned }
+    { label: "حاکمیت و سلامت مدل", detail: `${drift?.statusFa || "در انتظار snapshot"}؛ ${ledger?.statusFa || "دفتر تصمیم آماده نیست"}`, passed: governancePassed },
   ];
   document.getElementById("evidencePassport").innerHTML = `
     <div class="passport-summary">
       <span>آمادگی داده</span>
       <strong class="number">${formatPercent(state.readiness.score)}</strong>
+      <small>${escapeHtml(integrity?.statusFa || "Integrity Gate در انتظار outcome")}</small>
     </div>
     <div class="passport-checks">
       ${checks.map(check => `
@@ -281,9 +326,10 @@ async function downloadMarkdown() {
 
 async function initReport() {
   try {
-    const [session, state] = await Promise.all([
+    const [session, state, governance] = await Promise.all([
       fetchJson("/api/session"),
-      fetchJson("/api/pilot/workspace")
+      fetchJson("/api/pilot/workspace"),
+      fetchJson("/api/model-governance/overview")
     ]);
     const status = decisionStatus(state);
     const decision = decisionContent(status);
@@ -315,7 +361,7 @@ async function initReport() {
     renderKpis(state);
     renderVarianceChart(state);
     renderBridgeChart(state);
-    renderEvidencePassport(state);
+    renderEvidencePassport(state, governance);
     renderSteps(state);
     renderLists(state, status);
     requestAnimationFrame(() => document.documentElement.classList.add("report-ready"));

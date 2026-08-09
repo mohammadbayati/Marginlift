@@ -3,9 +3,9 @@ const fs = require("fs");
 const path = require("path");
 
 const { analyzeCampaign } = require("../src/analysis");
-const { analyzeCustomers } = require("../src/customer-analysis");
+const { analyzeCustomers, calculateRiskScore } = require("../src/customer-analysis");
 const { normalizeCampaignRows, parseCSV } = require("../src/csv");
-const { buildReadinessAudit, buildSavingsSnapshot } = require("../src/pilot");
+const { analyzeOutcomeRows, buildReadinessAudit, buildSavingsSnapshot } = require("../src/pilot");
 const { hashPassword, verifyPassword } = require("../src/auth");
 
 const csvPath = path.join(__dirname, "..", "synthetic-campaign-data.csv");
@@ -32,6 +32,13 @@ assert.strictEqual(analysis.guardrails.length, 5);
 assert.ok(analysis.guardrails.some(item => item.status === "warn"));
 assert.ok(analysis.actions.some(action => action.titleFa === "بدون پیشنهاد"));
 assert.ok(analysis.actions.some(action => action.titleFa === "مشوق قوی"));
+
+const riskInputs = { daysSinceLastPurchase: 50, orders90d: 0, revenue90d: 100000 };
+assert.strictEqual(
+  calculateRiskScore({ ...riskInputs, churned: true }),
+  calculateRiskScore({ ...riskInputs, churned: false }),
+  "برچسب outcome نباید وارد امتیاز ریسک شود"
+);
 
 const loyalSegment = analysis.segments.find(segment => segment.nameFa === "کاربران وفادار اخیر");
 const sleepingSegment = analysis.segments.find(segment => segment.nameFa === "کاربران خاموش اما قابل فعال‌سازی");
@@ -108,5 +115,66 @@ const lowConfidenceReadiness = buildReadinessAudit(lowConfidenceAnalysis, analys
 const lowConfidenceSnapshot = buildSavingsSnapshot(lowConfidenceAnalysis, analysis, lowConfidenceReadiness, null);
 assert.ok(lowConfidenceSnapshot.expectedIncrementalProfit >= 0);
 assert.strictEqual(lowConfidenceSnapshot.confidenceFa, "پایین تا متوسط");
+
+const falseReadyAnalysis = {
+  model: { unitFa: "customer_id" },
+  quality: {
+    hasControl: true,
+    hasTreatment: true,
+    hasExposure: false,
+    hasOutcome: true,
+    hasRevenue: false,
+    hasMargin: true,
+    hasIncentiveCost: false,
+    hasChannelCost: false
+  },
+  treatmentStats: [{ key: "control" }, { key: "small_discount" }],
+  summary: {},
+  finance: {}
+};
+const falseReadiness = buildReadinessAudit(falseReadyAnalysis, analysis, null);
+assert.notStrictEqual(falseReadiness.status, "ready");
+assert.ok(falseReadiness.score < 100);
+assert.ok(falseReadiness.checks.some(item => item.key === "exposure" && !item.passed));
+
+const tinyOutcome = analyzeOutcomeRows([
+  {
+    customerId: "T-1",
+    assignedGroup: "small_discount",
+    outcomeRevenue: 100000,
+    grossMarginRate: 0.35,
+    actualIncentiveCost: 1000,
+    actualChannelCost: 0
+  },
+  {
+    customerId: "C-1",
+    assignedGroup: "control",
+    outcomeRevenue: 0,
+    grossMarginRate: 0.35,
+    actualIncentiveCost: 0,
+    actualChannelCost: 0
+  }
+], { channelExport: [] });
+assert.notStrictEqual(tinyOutcome.summary.decisionStatus, "scale");
+assert.strictEqual(tinyOutcome.summary.sampleAdequate, false);
+const tinyReadiness = buildReadinessAudit(falseReadyAnalysis, analysis, tinyOutcome);
+assert.strictEqual(tinyReadiness.claimLevel, "pilot_observation");
+
+const negativeOutcome = {
+  summary: {
+    observedIncrementalProfit: -500000,
+    observedRoi: -2,
+    decisionStatus: "stop",
+    recommendationFa: "اجرای گسترده متوقف شود.",
+    evidenceStatus: "descriptive_only",
+    financeVerificationStatus: "not_verified"
+  }
+};
+const negativeReadiness = buildReadinessAudit(falseReadyAnalysis, analysis, negativeOutcome);
+const negativeSnapshot = buildSavingsSnapshot(falseReadyAnalysis, analysis, negativeReadiness, negativeOutcome);
+assert.strictEqual(negativeSnapshot.expectedIncrementalProfit, -500000);
+assert.strictEqual(negativeSnapshot.pilotRoi, -2);
+assert.notStrictEqual(negativeSnapshot.confidenceFa, "بالا");
+assert.strictEqual(negativeSnapshot.revenueAtRisk, null);
 
 console.log("analysis.test.js passed");

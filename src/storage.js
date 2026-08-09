@@ -1,73 +1,393 @@
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const { resolveDbPath } = require("./config");
 
+const CURRENT_SCHEMA_VERSION = 4;
+const databaseUrl = process.env.DATABASE_URL || "";
+const storageDriver = databaseUrl ? "postgres" : "json";
 const dbPath = resolveDbPath();
 const dataDir = path.dirname(dbPath);
 
-const initialDb = {
-  meta: {
-    version: 1,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  users: [],
-  organizations: [],
-  memberships: [],
-  sessions: [],
-  campaigns: [],
-  customerAnalyses: [],
-  outcomes: [],
-  events: []
-};
+let pool = null;
+let initialization = null;
+let jsonWriteQueue = Promise.resolve();
 
-function ensureDb() {
-  fs.mkdirSync(dataDir, { recursive: true });
-  if (!fs.existsSync(dbPath)) {
-    fs.writeFileSync(dbPath, JSON.stringify(initialDb, null, 2), "utf8");
-  }
-}
-
-function readDb() {
-  ensureDb();
-  const db = JSON.parse(fs.readFileSync(dbPath, "utf8"));
-  return normalizeDb(db);
-}
-
-function normalizeDb(db) {
-  db.meta = db.meta || {
-    version: 1,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+function createInitialDb() {
+  const now = new Date().toISOString();
+  return {
+    meta: {
+      version: CURRENT_SCHEMA_VERSION,
+      createdAt: now,
+      updatedAt: now
+    },
+    users: [],
+    organizations: [],
+    memberships: [],
+    sessions: [],
+    campaigns: [],
+    customerAnalyses: [],
+    experiments: [],
+    outcomes: [],
+    decisionLedger: [],
+    auditLog: [],
+    artifacts: [],
+    jobs: [],
+    events: []
   };
-  db.users = Array.isArray(db.users) ? db.users : [];
-  db.organizations = Array.isArray(db.organizations) ? db.organizations : [];
-  db.memberships = Array.isArray(db.memberships) ? db.memberships : [];
-  db.sessions = Array.isArray(db.sessions) ? db.sessions : [];
-  db.campaigns = Array.isArray(db.campaigns) ? db.campaigns : [];
-  db.customerAnalyses = Array.isArray(db.customerAnalyses) ? db.customerAnalyses : [];
-  db.outcomes = Array.isArray(db.outcomes) ? db.outcomes : [];
-  db.events = Array.isArray(db.events) ? db.events : [];
+}
+
+function normalizeDb(input) {
+  const db = input && typeof input === "object" ? input : createInitialDb();
+  const now = new Date().toISOString();
+  db.meta = db.meta || { createdAt: now, updatedAt: now };
+  db.meta.version = Math.max(CURRENT_SCHEMA_VERSION, Number(db.meta.version || 1));
+  db.meta.createdAt = db.meta.createdAt || now;
+  db.meta.updatedAt = db.meta.updatedAt || now;
+
+  for (const key of [
+    "users",
+    "organizations",
+    "memberships",
+    "sessions",
+    "campaigns",
+    "customerAnalyses",
+    "experiments",
+    "outcomes",
+    "decisionLedger",
+    "auditLog",
+    "artifacts",
+    "jobs",
+    "events"
+  ]) {
+    db[key] = Array.isArray(db[key]) ? db[key] : [];
+  }
   return db;
 }
 
-function writeDb(db) {
-  ensureDb();
-  db.meta.updatedAt = new Date().toISOString();
-  const tmpPath = `${dbPath}.tmp`;
-  fs.writeFileSync(tmpPath, JSON.stringify(db, null, 2), "utf8");
-  fs.renameSync(tmpPath, dbPath);
+async function initializeStorage() {
+  if (!initialization) {
+    initialization = storageDriver === "postgres" ? initializePostgres() : initializeJson();
+  }
+  return initialization;
 }
 
-function transact(mutator) {
-  const db = readDb();
-  const result = mutator(db);
-  writeDb(db);
-  return result;
+async function initializeJson() {
+  await fs.promises.mkdir(dataDir, { recursive: true });
+  try {
+    await fs.promises.access(dbPath, fs.constants.F_OK);
+  } catch (error) {
+    await writeJsonFile(createInitialDb());
+  }
+}
+
+async function initializePostgres() {
+  const { Pool } = require("pg");
+  pool = new Pool({
+    connectionString: databaseUrl,
+    max: Number(process.env.DATABASE_POOL_MAX || 10),
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000,
+    ssl: process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: true } : false
+  });
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS marginlift_state (
+        id SMALLINT PRIMARY KEY CHECK (id = 1),
+        revision BIGINT NOT NULL DEFAULT 0,
+        payload JSONB NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS marginlift_jobs (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT,
+        type TEXT NOT NULL,
+        payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+        status TEXT NOT NULL DEFAULT 'pending',
+        attempts INTEGER NOT NULL DEFAULT 0,
+        max_attempts INTEGER NOT NULL DEFAULT 3,
+        dedupe_key TEXT,
+        available_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        locked_at TIMESTAMPTZ,
+        completed_at TIMESTAMPTZ,
+        last_error TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await client.query("CREATE INDEX IF NOT EXISTS marginlift_jobs_claim_idx ON marginlift_jobs (status, available_at, created_at)");
+
+    const existing = await client.query("SELECT id FROM marginlift_state WHERE id = 1");
+    if (existing.rowCount === 0) {
+      const seed = await readLegacyJsonForMigration();
+      await client.query(
+        "INSERT INTO marginlift_state (id, payload) VALUES (1, $1::jsonb)",
+        [JSON.stringify(seed)]
+      );
+    }
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function readLegacyJsonForMigration() {
+  try {
+    const raw = await fs.promises.readFile(dbPath, "utf8");
+    return normalizeDb(JSON.parse(raw));
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+    return createInitialDb();
+  }
+}
+
+async function readDb() {
+  await initializeStorage();
+  if (storageDriver === "postgres") {
+    const result = await pool.query("SELECT payload FROM marginlift_state WHERE id = 1");
+    if (result.rowCount !== 1) throw new Error("MarginLift PostgreSQL state is missing.");
+    return normalizeDb(result.rows[0].payload);
+  }
+
+  const raw = await fs.promises.readFile(dbPath, "utf8");
+  return normalizeDb(JSON.parse(raw));
+}
+
+async function transact(mutator) {
+  await initializeStorage();
+  if (storageDriver === "postgres") return transactPostgres(mutator);
+
+  const operation = jsonWriteQueue.then(async () => {
+    const db = await readDb();
+    const result = await mutator(db);
+    await writeJsonFile(db);
+    return result;
+  });
+  jsonWriteQueue = operation.catch(() => undefined);
+  return operation;
+}
+
+async function transactPostgres(mutator) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const state = await client.query("SELECT payload FROM marginlift_state WHERE id = 1 FOR UPDATE");
+    if (state.rowCount !== 1) throw new Error("MarginLift PostgreSQL state is missing.");
+    const db = normalizeDb(state.rows[0].payload);
+    const result = await mutator(db);
+    db.meta.updatedAt = new Date().toISOString();
+    await client.query(
+      "UPDATE marginlift_state SET payload = $1::jsonb, revision = revision + 1, updated_at = NOW() WHERE id = 1",
+      [JSON.stringify(db)]
+    );
+    await client.query("COMMIT");
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function writeDb(db) {
+  await initializeStorage();
+  const normalized = normalizeDb(db);
+  normalized.meta.updatedAt = new Date().toISOString();
+  if (storageDriver === "postgres") {
+    await pool.query(
+      "UPDATE marginlift_state SET payload = $1::jsonb, revision = revision + 1, updated_at = NOW() WHERE id = 1",
+      [JSON.stringify(normalized)]
+    );
+    return;
+  }
+  await writeJsonFile(normalized);
+}
+
+async function writeJsonFile(db) {
+  await fs.promises.mkdir(dataDir, { recursive: true });
+  db.meta.updatedAt = new Date().toISOString();
+  const tmpPath = `${dbPath}.${process.pid}.tmp`;
+  await fs.promises.writeFile(tmpPath, JSON.stringify(db, null, 2), "utf8");
+  await fs.promises.rename(tmpPath, dbPath);
+}
+
+async function storageHealth() {
+  const startedAt = Date.now();
+  try {
+    await initializeStorage();
+    if (storageDriver === "postgres") await pool.query("SELECT 1");
+    else await fs.promises.access(dbPath, fs.constants.R_OK | fs.constants.W_OK);
+    return { status: "ok", driver: storageDriver, latencyMs: Date.now() - startedAt };
+  } catch (error) {
+    return { status: "error", driver: storageDriver, latencyMs: Date.now() - startedAt };
+  }
+}
+
+async function enqueueJob(input) {
+  await initializeStorage();
+  const job = {
+    id: input.id || `job_${crypto.randomUUID().replace(/-/g, "")}`,
+    organizationId: input.organizationId || null,
+    type: input.type,
+    payload: input.payload || {},
+    status: "pending",
+    attempts: 0,
+    maxAttempts: Number(input.maxAttempts || 3),
+    dedupeKey: input.dedupeKey || null,
+    availableAt: input.availableAt || new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  if (storageDriver === "postgres") {
+    const result = await pool.query(`
+      INSERT INTO marginlift_jobs (
+        id, organization_id, type, payload, status, attempts, max_attempts, dedupe_key, available_at, created_at, updated_at
+      )
+      SELECT $1, $2, $3, $4::jsonb, 'pending', 0, $5, $6, $7, NOW(), NOW()
+      WHERE $6::text IS NULL OR NOT EXISTS (
+        SELECT 1 FROM marginlift_jobs WHERE dedupe_key = $6 AND status IN ('pending', 'processing')
+      )
+      RETURNING *
+    `, [job.id, job.organizationId, job.type, JSON.stringify(job.payload), job.maxAttempts, job.dedupeKey, job.availableAt]);
+    return result.rowCount ? mapJob(result.rows[0]) : null;
+  }
+
+  return transact(db => {
+    if (job.dedupeKey && db.jobs.some(item => item.dedupeKey === job.dedupeKey && ["pending", "processing"].includes(item.status))) {
+      return null;
+    }
+    db.jobs.push(job);
+    return job;
+  });
+}
+
+async function claimJob() {
+  await initializeStorage();
+  if (storageDriver === "postgres") {
+    const result = await pool.query(`
+      WITH candidate AS (
+        SELECT id FROM marginlift_jobs
+        WHERE status = 'pending' AND available_at <= NOW()
+        ORDER BY created_at
+        FOR UPDATE SKIP LOCKED
+        LIMIT 1
+      )
+      UPDATE marginlift_jobs job
+      SET status = 'processing', attempts = attempts + 1, locked_at = NOW(), updated_at = NOW()
+      FROM candidate
+      WHERE job.id = candidate.id
+      RETURNING job.*
+    `);
+    return result.rowCount ? mapJob(result.rows[0]) : null;
+  }
+
+  return transact(db => {
+    const job = db.jobs
+      .filter(item => item.status === "pending" && new Date(item.availableAt).getTime() <= Date.now())
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))[0];
+    if (!job) return null;
+    job.status = "processing";
+    job.attempts += 1;
+    job.lockedAt = new Date().toISOString();
+    job.updatedAt = job.lockedAt;
+    return { ...job };
+  });
+}
+
+async function finishJob(id, error = null) {
+  await initializeStorage();
+  if (storageDriver === "postgres") {
+    const result = await pool.query(`
+      UPDATE marginlift_jobs
+      SET status = CASE WHEN $2::text IS NULL THEN 'completed' WHEN attempts >= max_attempts THEN 'failed' ELSE 'pending' END,
+          completed_at = CASE WHEN $2::text IS NULL OR attempts >= max_attempts THEN NOW() ELSE NULL END,
+          available_at = CASE WHEN $2::text IS NOT NULL AND attempts < max_attempts THEN NOW() + (attempts * INTERVAL '30 seconds') ELSE available_at END,
+          last_error = LEFT($2, 500), locked_at = NULL, updated_at = NOW()
+      WHERE id = $1
+      RETURNING *
+    `, [id, error ? String(error) : null]);
+    return result.rowCount ? mapJob(result.rows[0]) : null;
+  }
+
+  return transact(db => {
+    const job = db.jobs.find(item => item.id === id);
+    if (!job) return null;
+    const terminal = !error || job.attempts >= job.maxAttempts;
+    job.status = error ? (terminal ? "failed" : "pending") : "completed";
+    job.lastError = error ? String(error).slice(0, 500) : null;
+    job.lockedAt = null;
+    job.completedAt = terminal ? new Date().toISOString() : null;
+    if (error && !terminal) job.availableAt = new Date(Date.now() + job.attempts * 30000).toISOString();
+    job.updatedAt = new Date().toISOString();
+    return { ...job };
+  });
+}
+
+async function listJobs(organizationId, limit = 50) {
+  await initializeStorage();
+  if (storageDriver === "postgres") {
+    const result = await pool.query(
+      "SELECT * FROM marginlift_jobs WHERE organization_id = $1 OR organization_id IS NULL ORDER BY created_at DESC LIMIT $2",
+      [organizationId, Math.min(100, Number(limit || 50))]
+    );
+    return result.rows.map(mapJob);
+  }
+  const db = await readDb();
+  return db.jobs
+    .filter(item => item.organizationId === organizationId || item.organizationId === null)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, Math.min(100, Number(limit || 50)));
+}
+
+function mapJob(row) {
+  return {
+    id: row.id,
+    organizationId: row.organization_id,
+    type: row.type,
+    payload: row.payload,
+    status: row.status,
+    attempts: row.attempts,
+    maxAttempts: row.max_attempts,
+    dedupeKey: row.dedupe_key,
+    availableAt: row.available_at,
+    lockedAt: row.locked_at,
+    completedAt: row.completed_at,
+    lastError: row.last_error,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+async function closeStorage() {
+  if (pool) {
+    await pool.end();
+    pool = null;
+  }
+  initialization = null;
 }
 
 module.exports = {
+  CURRENT_SCHEMA_VERSION,
+  claimJob,
+  closeStorage,
+  enqueueJob,
+  finishJob,
+  initializeStorage,
+  listJobs,
+  normalizeDb,
   readDb,
+  storageDriver,
+  storageHealth,
   transact,
   writeDb
 };

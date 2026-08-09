@@ -18,7 +18,7 @@
 
 ## ترتیب cutover
 
-1. اپ را با `NODE_ENV=production`، `APP_ORIGIN=https://marginlift.ir`، `SESSION_SECRET` و `MARGINLIFT_DB_PATH` روی origin اجرا کن.
+1. اپ را با `NODE_ENV=production`، `APP_ORIGIN=https://marginlift.ir`، `SESSION_SECRET`، `POSTGRES_PASSWORD` و `ARTIFACT_ENCRYPTION_KEY` روی origin اجرا کن.
 2. از خود origin مطمئن شو `https://<origin-host>/api/health` پاسخ `200` دارد.
 3. در Cloudflare DNS، رکورد `@` را به origin اضافه کن و proxy را روشن کن.
 4. رکورد `www` را به `marginlift.ir` یا همان origin وصل کن و redirect را فعال کن.

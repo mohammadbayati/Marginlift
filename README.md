@@ -89,7 +89,7 @@ docs/competitive-benchmark-digital-marketing.md
 
 همه اعداد فرضی و مصنوعی‌اند. هدف آن‌ها storytelling مسابقه و مکالمه با اولین مشتری‌هاست، نه ادعای نتیجه واقعی مشتری.
 
-ذخیره‌سازی فعلی با JSON DB انجام می‌شود تا پایلوت سریع اجرا شود. نسخه تجاری باید به PostgreSQL یا یک دیتابیس مدیریت‌شده، backup، audit log و مدیریت دسترسی کامل وصل شود.
+در توسعه محلی از JSON DB استفاده می‌شود؛ production روی PostgreSQL، backup، audit زنجیره‌ای و کنترل دسترسی نقش‌محور اجرا می‌شود.
 
 ## Hardening
 
@@ -99,11 +99,26 @@ docs/competitive-benchmark-digital-marketing.md
 ## بازبینی راهبردی نسخه ۲
 
 - `docs/product-reassessment-2026.md`: جمع‌بندی کتاب‌ها، ممیزی محصول و محاسبات، معماری هدف و برنامه اجرایی ۱۲ هفته‌ای.
+- `docs/claim-ladder.md`: قرارداد سطح شواهد و زبان مجاز برای KPIها و تصمیم‌های مالی.
+- `docs/experiment-registry.md`: قرارداد Experiment Registry، گیت سلامت outcome، نسخه‌بندی و رفتار داده‌های قدیمی.
+- `docs/statistical-decision-engine.md`: قرارداد estimand، CI، MDE، CUPED، guardrail و قواعد Scale / Iterate / Stop.
+- `docs/model-governance.md`: بک‌تست، calibration، Champion/Challenger، drift و Decision Ledger.
 
 ## تست
 
 ```bash
 npm test
+```
+
+## Sprint 4: زیرساخت production
+
+نسخه production اکنون از PostgreSQL به‌عنوان منبع اصلی، ذخیره رمزنگاری‌شده CSV، نقش‌های `viewer` / `analyst` / `admin` / `owner`، audit زنجیره‌ای، صف durable و metrics عملیاتی استفاده می‌کند. JSON فقط fallback توسعه محلی است.
+
+راهنمای مهاجرت و استقرار:
+
+```text
+docs/sprint4-production-platform.md
+docs/vm-deployment.md
 ```
 
 ## انتشار روی marginlift.ir
@@ -116,10 +131,10 @@ npm test
 - `docs/cloudflare-cutover-runbook.md`
 - `docs/vm-deployment.md`
 
-فایل `.env.example` متغیرهای محیط را نشان می‌دهد. در production حتماً `NODE_ENV=production`، `APP_ORIGIN`، `SESSION_SECRET` و `MARGINLIFT_DB_PATH` را تنظیم کنید. برای backup دستی:
+فایل `.env.example` متغیرهای محیط را نشان می‌دهد. در production حتماً `APP_ORIGIN`، `SESSION_SECRET`، `POSTGRES_PASSWORD` و `ARTIFACT_ENCRYPTION_KEY` را تنظیم کنید. برای backup کامل VM:
 
 ```bash
-npm run backup
+/opt/marginlift/ops/vm/backup.sh
 ```
 
-این نسخه برای یک pilot service-led و یک instance طراحی شده است؛ قبل از چندمشتری یا scale افقی، JSON DB باید به PostgreSQL منتقل شود.
+این نسخه برای pilot service-led و یک instance طراحی شده است؛ قبل از scale افقی، سند JSONB تراکنشی باید به جدول‌های tenant-aware دامنه‌ای تفکیک شود.

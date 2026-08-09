@@ -126,7 +126,17 @@ function normalizeCustomerRows(rows) {
     channelCost: toNumber(row.channel_cost_toman || row.channel_cost || 0),
     churned: normalizeBoolean(row.churned || row.is_churned),
     channel: row.channel || "",
-    capacityRequired: toNumber(row.capacity_required || row.agent_minutes || 0)
+    capacityRequired: toNumber(row.capacity_required || row.agent_minutes || 0),
+    sourcePresence: {
+      customerId: hasAnyField(row, ["customer_id", "customerid", "user_id", "userid"]),
+      treatment: hasAnyField(row, ["treatment", "campaign_group", "group"]),
+      exposure: hasAnyField(row, ["exposed", "was_exposed", "treated"]),
+      outcome: hasAnyField(row, ["converted", "purchased", "returned", "outcome"]),
+      revenue: hasAnyField(row, ["outcome_revenue_toman", "outcome_revenue", "revenue"]),
+      grossMargin: hasAnyField(row, ["gross_margin_rate", "gross_margin", "margin_rate"]),
+      incentiveCost: hasAnyField(row, ["incentive_cost_toman", "incentive_cost", "offer_cost"]),
+      channelCost: hasAnyField(row, ["channel_cost_toman", "channel_cost"])
+    }
   }));
 }
 
@@ -186,6 +196,10 @@ function required(value, field, index) {
     throw new Error(`ستون ${field} در ردیف ${index + 2} خالی است.`);
   }
   return value;
+}
+
+function hasAnyField(row, fields) {
+  return fields.some(field => Object.prototype.hasOwnProperty.call(row, field));
 }
 
 module.exports = {

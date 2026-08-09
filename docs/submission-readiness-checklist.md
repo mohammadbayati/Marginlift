@@ -25,7 +25,7 @@ status: in-progress
 | [x] ورود، ثبت‌نام و session کار می‌کند | Engineering | Done | demo account فعال است |
 | [x] CSV upload و تحلیل سمت سرور کار می‌کند | Engineering | Done | تست واحد پاس شده |
 | [x] routeهای demo/sales/pilot/deck/submission سرو می‌شوند | Engineering | Done | روی پورت تست تأیید شد |
-| [ ] data store production-ready | Engineering | Blocker برای فروش جدی | فعلا JSON DB است |
+| [x] data store production-ready برای پایلوت | Engineering | PostgreSQL + backup + migration | تکمیل در Sprint 4 |
 | [ ] role-based access و audit log | Engineering | Blocker برای مشتری enterprise | activity log محصولی اضافه شد؛ audit log امنیتی هنوز production لازم دارد |
 
 ## QA & Testing
@@ -132,7 +132,7 @@ Rollback Time Estimate: کمتر از ۱۰ دقیقه برای تغییر مسی
 
 | مسئله | اثر | تصمیم |
 | --- | --- | --- |
-| دیتابیس فعلا JSON است | مانع فروش enterprise | در production باید Postgres/Supabase/managed DB شود |
+| state تجاری یک سند JSONB است | محدودیت scale افقی | پس از اثبات پایلوت به جدول‌های tenant-aware تفکیک شود |
 | market sizing دقیق ندارد | ضعف در investor deck | بعد از انتخاب بازار هدف با bottom-up تکمیل شود |
 | هنوز traction واقعی ندارد | ریسک سرمایه‌گذار | مرحله بعد باید outreach واقعی و LOI باشد |
 | activity log هنوز امنیتی نیست | ریسک enterprise | فعلا برای adoption پایلوت است؛ audit trail رسمی بعدا اضافه شود |

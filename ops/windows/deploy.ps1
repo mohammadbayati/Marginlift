@@ -44,6 +44,8 @@ try {
     --exclude=.env `
     --exclude=data/db.json `
     --exclude=data/backups `
+    --exclude=data/artifacts `
+    --exclude=backups `
     --exclude=qa-*.png `
     --exclude=.agents `
     --exclude=.impeccable `
@@ -71,7 +73,11 @@ sha256sum --check "$CHECKSUM"
 
 cd "$APP_DIR"
 cp .env /root/marginlift.env.backup
-cp data/db.json /root/marginlift-db.backup.json 2>/dev/null || true
+if docker compose -f docker-compose.production.yml ps --status running postgres 2>/dev/null | grep -q postgres; then
+  ./ops/vm/backup.sh
+else
+  cp data/db.json /root/marginlift-db.backup.json 2>/dev/null || true
+fi
 
 tar -xzf "$RELEASE" -C "$APP_DIR"
 cp /root/marginlift.env.backup "$APP_DIR/.env"
@@ -91,7 +97,13 @@ rm -f "$RELEASE" "$CHECKSUM"
   Write-Host "[6/6] Verifying production..."
   $homeResponse = Invoke-WebRequest -UseBasicParsing "https://marginlift.ir/"
   $fontResponse = Invoke-WebRequest -UseBasicParsing "https://marginlift.ir/fonts/Estedad-Variable.woff2"
-  if ($homeResponse.StatusCode -ne 200 -or $fontResponse.StatusCode -ne 200) {
+  $healthResponse = Invoke-RestMethod -UseBasicParsing "https://marginlift.ir/api/health"
+  if (
+    $homeResponse.StatusCode -ne 200 -or
+    $fontResponse.StatusCode -ne 200 -or
+    $healthResponse.data.status -ne "ok" -or
+    $healthResponse.data.storage.driver -ne "postgres"
+  ) {
     throw "Production verification failed."
   }
 

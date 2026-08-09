@@ -36,6 +36,8 @@ jobs:
             --exclude='.env' \
             --exclude='data/db.json' \
             --exclude='data/backups' \
+            --exclude='backups' \
+            --exclude='data/artifacts' \
             --exclude='qa-*.png' \
             --exclude='.agents' \
             --exclude='.impeccable' \
@@ -78,7 +80,11 @@ jobs:
 
           cd "$APP_DIR"
           cp .env /root/marginlift.env.backup
-          cp data/db.json /root/marginlift-db.backup.json 2>/dev/null || true
+          if docker compose -f docker-compose.production.yml ps --status running postgres 2>/dev/null | grep -q postgres; then
+            ./ops/vm/backup.sh
+          else
+            cp data/db.json /root/marginlift-db.backup.json 2>/dev/null || true
+          fi
 
           tar -xzf "$RELEASE" -C "$APP_DIR"
           cp /root/marginlift.env.backup "$APP_DIR/.env"
@@ -94,4 +100,5 @@ jobs:
       - name: Verify public site
         run: |
           curl --fail --retry 5 --retry-delay 5 https://marginlift.ir/ > /dev/null
+          curl --fail --retry 5 --retry-delay 5 https://marginlift.ir/api/health > /dev/null
           curl --fail --retry 5 --retry-delay 5 https://marginlift.ir/fonts/Estedad-Variable.woff2 > /dev/null

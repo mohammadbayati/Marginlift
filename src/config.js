@@ -12,8 +12,23 @@ function assertProductionConfig() {
   if (!/^https:\/\//.test(process.env.APP_ORIGIN || "")) {
     throw new Error("APP_ORIGIN must be an HTTPS origin in production.");
   }
-  if (!process.env.MARGINLIFT_DB_PATH && !process.env.MARGINLIFT_DB) {
-    throw new Error("MARGINLIFT_DB_PATH must point to persistent storage in production.");
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL must point to PostgreSQL in production.");
+  }
+  if (!/^postgres(?:ql)?:\/\//.test(process.env.DATABASE_URL)) {
+    throw new Error("DATABASE_URL must use the PostgreSQL protocol.");
+  }
+  if (!isValidEncryptionKey(process.env.ARTIFACT_ENCRYPTION_KEY || "")) {
+    throw new Error("ARTIFACT_ENCRYPTION_KEY must be 32 bytes (64 hex characters or base64). ");
+  }
+}
+
+function isValidEncryptionKey(value) {
+  if (/^[a-f0-9]{64}$/i.test(value)) return true;
+  try {
+    return Buffer.from(value, "base64").length === 32;
+  } catch (error) {
+    return false;
   }
 }
 

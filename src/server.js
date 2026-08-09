@@ -1,10 +1,14 @@
 const fs = require("fs");
 const http = require("http");
 const path = require("path");
+const crypto = require("crypto");
 const { URL } = require("url");
 
 const { analyzeCampaign } = require("./analysis");
 const { analyzeCustomers } = require("./customer-analysis");
+const { normalizeRole, requireRole } = require("./access-control");
+const { appendAudit, verifyAuditLog } = require("./audit-log");
+const { deleteArtifact, isEnabled: isArtifactStorageEnabled, persistArtifact, readArtifact } = require("./artifact-store");
 const {
   SESSION_COOKIE,
   buildSessionCookie,
@@ -16,8 +20,13 @@ const {
   verifySessionCookie
 } = require("./auth");
 const { looksLikeCustomerRows, normalizeCampaignRows, normalizeCustomerRows, normalizeOutcomeRows, parseCSV } = require("./csv");
-const { readDb, transact } = require("./storage");
+const { closeStorage, enqueueJob, initializeStorage, listJobs, readDb, storageDriver, storageHealth, transact } = require("./storage");
+const { startJobWorker } = require("./job-worker");
+const { beginRequest, getMetrics, log } = require("./observability");
 const { buildDecisionOverview } = require("./decision-engine");
+const { appendDecision, toPublicDecision, verifyDecisionLedger } = require("./decision-ledger");
+const { auditOutcomeRows, buildExperimentRecord, hashDataset, toPublicExperiment } = require("./experiment");
+const { buildModelGovernance, buildOutcomeMonitor, toPublicModelGovernance } = require("./model-governance");
 const {
   analyzeOutcomeRows,
   buildPilotReadout,
@@ -48,15 +57,27 @@ const contentTypes = {
 
 function start(port = defaultPort) {
   assertProductionConfig();
-  seedDemoAccount();
   const server = http.createServer(handleRequest);
-  server.listen(port, () => {
-    console.log(`MarginLift is running on http://localhost:${port}`);
+  server.ready = initializeStorage()
+    .then(() => seedDemoAccount())
+    .then(() => new Promise(resolve => {
+      server.jobWorker = startJobWorker();
+      server.listen(port, () => {
+        console.log(`MarginLift is running on http://localhost:${port}`);
+        resolve();
+      });
+    }));
+  server.ready.catch(error => server.emit("error", error));
+  server.on("close", () => {
+    server.jobWorker?.stop();
+    closeStorage().catch(() => undefined);
   });
   return server;
 }
 
 async function handleRequest(req, res) {
+  const finishRequest = beginRequest(req, res);
+  res.once("finish", finishRequest);
   addSecurityHeaders(res);
 
   try {
@@ -78,6 +99,12 @@ async function handleRequest(req, res) {
 
     serveStatic(url.pathname, res);
   } catch (error) {
+    log((error.status || 500) >= 500 ? "error" : "info", (error.status || 500) >= 500 ? "request_failed" : "request_rejected", {
+      requestId: req.requestId,
+      code: error.code || "INTERNAL_ERROR",
+      status: error.status || 500,
+      message: error.message
+    });
     sendJson(res, error.status || 500, {
       error: {
         code: error.code || "INTERNAL_ERROR",
@@ -90,14 +117,15 @@ async function handleRequest(req, res) {
 
 async function handleApi(req, res, url) {
   if (url.pathname === "/api/health" && (req.method === "GET" || req.method === "HEAD")) {
-    sendJson(res, 200, { data: { status: "ok" } });
+    const storage = await storageHealth();
+    sendJson(res, storage.status === "ok" ? 200 : 503, { data: { status: storage.status, storage } });
     return;
   }
 
   if (url.pathname === "/api/auth/signup" && req.method === "POST") {
     checkRateLimit(req, "signup");
     const body = await readJson(req);
-    const result = signup(body);
+    const result = await signup(body, requestContext(req));
     sendJson(res, 201, { data: result.session }, {
       "Set-Cookie": buildSessionCookie(result.session.id, Math.floor(sessionTtlMs / 1000))
     });
@@ -107,7 +135,7 @@ async function handleApi(req, res, url) {
   if (url.pathname === "/api/auth/login" && req.method === "POST") {
     checkRateLimit(req, "login");
     const body = await readJson(req);
-    const result = login(body);
+    const result = await login(body, requestContext(req));
     sendJson(res, 200, { data: result.session }, {
       "Set-Cookie": buildSessionCookie(result.session.id, Math.floor(sessionTtlMs / 1000))
     });
@@ -115,9 +143,10 @@ async function handleApi(req, res, url) {
   }
 
   if (url.pathname === "/api/auth/logout" && req.method === "POST") {
-    const session = getRequestSession(req);
+    const session = await getRequestSession(req);
     if (session) {
-      transact(db => {
+      await transact(db => {
+        appendOperationalAudit(db, requestContext(req, session), "session_logout", "session", session.session.id);
         db.sessions = db.sessions.filter(item => item.id !== session.session.id);
       });
     }
@@ -126,72 +155,172 @@ async function handleApi(req, res, url) {
   }
 
   if (url.pathname === "/api/session" && req.method === "GET") {
-    const session = getRequestSession(req);
+    const session = await getRequestSession(req);
     sendJson(res, 200, { data: session ? session.publicSession : null });
     return;
   }
 
   if (url.pathname === "/api/events" && req.method === "POST") {
     const body = await readJson(req);
-    const event = trackEvent(req, body);
+    const event = await trackEvent(req, body);
     sendJson(res, 201, { data: { id: event.id, accepted: true } });
     return;
   }
 
-  const auth = requireSession(req);
+  const auth = await requireSession(req);
+
+  if (url.pathname === "/api/access/members" && req.method === "GET") {
+    requireRole(auth, "admin");
+    sendJson(res, 200, { data: await getWorkspaceMembers(auth.organization.id) });
+    return;
+  }
+
+  if (url.pathname === "/api/access/members" && req.method === "POST") {
+    requireRole(auth, "owner");
+    const body = await readJson(req);
+    sendJson(res, 201, { data: await createWorkspaceMember(auth, body, requestContext(req, auth)) });
+    return;
+  }
+
+  const membershipRoute = url.pathname.match(/^\/api\/access\/members\/([^/]+)$/);
+  if (membershipRoute && req.method === "PATCH") {
+    requireRole(auth, "owner");
+    const body = await readJson(req);
+    sendJson(res, 200, { data: await updateWorkspaceMemberRole(auth, membershipRoute[1], body, requestContext(req, auth)) });
+    return;
+  }
+
+  if (url.pathname === "/api/audit-log" && req.method === "GET") {
+    requireRole(auth, "admin");
+    sendJson(res, 200, { data: await getOperationalAudit(auth.organization.id) });
+    return;
+  }
+
+  if (url.pathname === "/api/artifacts" && req.method === "GET") {
+    requireRole(auth, "analyst");
+    sendJson(res, 200, { data: await getArtifacts(auth.organization.id) });
+    return;
+  }
+
+  const artifactRoute = url.pathname.match(/^\/api\/artifacts\/([^/]+)(\/download)?$/);
+  if (artifactRoute && req.method === "GET" && artifactRoute[2]) {
+    requireRole(auth, "analyst");
+    await downloadArtifact(auth, artifactRoute[1], req, res);
+    return;
+  }
+
+  if (artifactRoute && req.method === "DELETE" && !artifactRoute[2]) {
+    requireRole(auth, "admin");
+    sendJson(res, 200, { data: await removeArtifact(auth, artifactRoute[1], requestContext(req, auth)) });
+    return;
+  }
+
+  if (url.pathname === "/api/ops/metrics" && req.method === "GET") {
+    requireRole(auth, "admin");
+    sendJson(res, 200, { data: { ...getMetrics(), storageDriver, artifactStorage: isArtifactStorageEnabled() } });
+    return;
+  }
+
+  if (url.pathname === "/api/ops/jobs" && req.method === "GET") {
+    requireRole(auth, "admin");
+    sendJson(res, 200, { data: await listJobs(auth.organization.id) });
+    return;
+  }
 
   if (url.pathname === "/api/campaigns/current" && req.method === "GET") {
-    sendJson(res, 200, { data: getCurrentCampaign(auth.organization.id) });
+    sendJson(res, 200, { data: await getCurrentCampaign(auth.organization.id) });
     return;
   }
 
   if (url.pathname === "/api/decision-engine/overview" && req.method === "GET") {
-    const campaign = getCurrentCampaign(auth.organization.id);
+    const campaign = await getCurrentCampaign(auth.organization.id);
     sendJson(res, 200, { data: buildDecisionOverview(campaign) });
     return;
   }
 
   if (url.pathname === "/api/customers/current" && req.method === "GET") {
-    sendJson(res, 200, { data: getCurrentCustomerAnalysis(auth.organization.id) });
+    sendJson(res, 200, { data: await getCurrentCustomerAnalysis(auth.organization.id) });
     return;
   }
 
   if (url.pathname === "/api/customers/import" && req.method === "POST") {
+    requireRole(auth, "analyst");
     const body = await readJson(req);
-    const analysis = importCustomerAnalysis(auth.organization.id, body);
+    const analysis = await importCustomerAnalysis(auth.organization.id, body, requestContext(req, auth));
     sendJson(res, 201, { data: analysis });
     return;
   }
 
   if (url.pathname === "/api/experiments/plan" && req.method === "GET") {
-    sendJson(res, 200, { data: getCurrentCustomerAnalysis(auth.organization.id).experimentPlan });
+    sendJson(res, 200, { data: (await getCurrentCustomerAnalysis(auth.organization.id)).experimentPlan });
+    return;
+  }
+
+  if (url.pathname === "/api/experiments/current" && req.method === "GET") {
+    const customerAnalysis = await getCurrentCustomerAnalysis(auth.organization.id);
+    sendJson(res, 200, { data: toPublicExperiment(await getCurrentExperiment(auth.organization.id, customerAnalysis.id)) });
+    return;
+  }
+
+  if (url.pathname === "/api/experiments/register" && req.method === "POST") {
+    requireRole(auth, "analyst");
+    const body = await readJson(req);
+    sendJson(res, 201, { data: await registerProspectiveExperiment(auth.organization.id, body, requestContext(req, auth)) });
+    return;
+  }
+
+  if (url.pathname === "/api/experiments/current/assignments.csv" && req.method === "GET") {
+    requireRole(auth, "analyst");
+    const customerAnalysis = await getCurrentCustomerAnalysis(auth.organization.id);
+    const experiment = await getCurrentExperiment(auth.organization.id, customerAnalysis.id);
+    if (!experiment || experiment.design?.randomizationEvidence?.verified !== true) {
+      throw httpError(404, "REGISTERED_EXPERIMENT_NOT_FOUND", "ابتدا پایلوت تصادفی را ثبت کنید.");
+    }
+    res.writeHead(200, {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Cache-Control": "no-store",
+      "Content-Disposition": 'attachment; filename="marginlift-experiment-assignments.csv"'
+    });
+    res.end(buildExperimentAssignmentCsv(experiment));
     return;
   }
 
   if (url.pathname === "/api/finance/summary" && req.method === "GET") {
-    sendJson(res, 200, { data: getCurrentCustomerAnalysis(auth.organization.id).finance });
+    sendJson(res, 200, { data: (await getCurrentCustomerAnalysis(auth.organization.id)).finance });
     return;
   }
 
   if (url.pathname === "/api/readiness/current" && req.method === "GET") {
-    sendJson(res, 200, { data: getCurrentPilotState(auth.organization.id).readiness });
+    sendJson(res, 200, { data: (await getCurrentPilotState(auth.organization.id)).readiness });
     return;
   }
 
   if (url.pathname === "/api/pilot/workspace" && req.method === "GET") {
-    sendJson(res, 200, { data: getCurrentPilotState(auth.organization.id) });
+    sendJson(res, 200, { data: await getCurrentPilotState(auth.organization.id) });
+    return;
+  }
+
+  if (url.pathname === "/api/model-governance/overview" && req.method === "GET") {
+    sendJson(res, 200, { data: await getModelGovernanceOverview(auth.organization.id) });
+    return;
+  }
+
+  if (url.pathname === "/api/decision-ledger" && req.method === "GET") {
+    sendJson(res, 200, { data: await getDecisionLedger(auth.organization.id) });
     return;
   }
 
   if (url.pathname === "/api/outcomes/import" && req.method === "POST") {
+    requireRole(auth, "analyst");
     const body = await readJson(req);
-    sendJson(res, 201, { data: importOutcomeAnalysis(auth.organization.id, body) });
+    sendJson(res, 201, { data: await importOutcomeAnalysis(auth.organization.id, body, requestContext(req, auth)) });
     return;
   }
 
   if (url.pathname === "/api/pilot/readout.md" && req.method === "GET") {
-    const state = getCurrentPilotState(auth.organization.id);
-    const readout = buildPilotReadout(auth.organization, state.readiness, state.savingsSnapshot, state.workspace, state.outcome);
+    const state = await getCurrentPilotState(auth.organization.id);
+    const governance = await getModelGovernanceOverview(auth.organization.id);
+    const readout = buildPilotReadout(auth.organization, state.readiness, state.savingsSnapshot, state.workspace, state.outcome, governance);
     res.writeHead(200, {
       "Content-Type": "text/markdown; charset=utf-8",
       "Cache-Control": "no-store",
@@ -202,7 +331,8 @@ async function handleApi(req, res, url) {
   }
 
   if (url.pathname === "/api/exports/audience.csv" && req.method === "GET") {
-    const analysis = getCurrentCustomerAnalysis(auth.organization.id);
+    requireRole(auth, "analyst");
+    const analysis = await getCurrentCustomerAnalysis(auth.organization.id);
     res.writeHead(200, {
       "Content-Type": "text/csv; charset=utf-8",
       "Cache-Control": "no-store",
@@ -213,13 +343,14 @@ async function handleApi(req, res, url) {
   }
 
   if (url.pathname === "/api/events/summary" && req.method === "GET") {
-    sendJson(res, 200, { data: getEventSummary(auth.organization.id) });
+    sendJson(res, 200, { data: await getEventSummary(auth.organization.id) });
     return;
   }
 
   if (url.pathname === "/api/campaigns/import" && req.method === "POST") {
+    requireRole(auth, "analyst");
     const body = await readJson(req);
-    const campaign = importCampaign(auth.organization.id, body);
+    const campaign = await importCampaign(auth.organization.id, body, requestContext(req, auth));
     sendJson(res, 201, { data: campaign });
     return;
   }
@@ -231,18 +362,19 @@ async function handleApi(req, res, url) {
   }
 
   if (url.pathname === "/api/imports/csv" && req.method === "POST") {
+    requireRole(auth, "analyst");
     const body = await readJson(req);
-    sendJson(res, 201, { data: importCsvAnalysis(auth.organization.id, body) });
+    sendJson(res, 201, { data: await importCsvAnalysis(auth.organization.id, body, requestContext(req, auth)) });
     return;
   }
 
   if (url.pathname === "/api/analyses/history" && req.method === "GET") {
-    sendJson(res, 200, { data: getAnalysisHistory(auth.organization.id) });
+    sendJson(res, 200, { data: await getAnalysisHistory(auth.organization.id) });
     return;
   }
 
   if (url.pathname === "/api/pilot/package.md" && req.method === "GET") {
-    const state = getCurrentPilotState(auth.organization.id);
+    const state = await getCurrentPilotState(auth.organization.id);
     const packageMarkdown = buildPilotPackage(auth.organization, state.campaign, state.customerAnalysis, state);
     res.writeHead(200, {
       "Content-Type": "text/markdown; charset=utf-8",
@@ -254,9 +386,9 @@ async function handleApi(req, res, url) {
   }
 
   if (url.pathname === "/api/campaigns/current/report" && req.method === "GET") {
-    const analysis = getCurrentCampaign(auth.organization.id);
+    const analysis = await getCurrentCampaign(auth.organization.id);
     const report = buildMarkdownReport(analysis, auth.organization);
-    trackEvent(req, {
+    await trackEvent(req, {
       event: "report_exported",
       properties: {
         campaign_id: analysis.id,
@@ -275,7 +407,7 @@ async function handleApi(req, res, url) {
   sendJson(res, 404, { error: { code: "NOT_FOUND", message: "مسیر API پیدا نشد." } });
 }
 
-function signup(body) {
+async function signup(body, context = {}) {
   const email = normalizeEmail(body.email);
   const submittedCompany = cleanText(body.companyName || body.company);
   const emailDomain = email.includes("@") ? email.split("@")[1].split(".")[0] : "";
@@ -323,6 +455,12 @@ function signup(body) {
       createdAt: now
     });
     db.sessions.push(session);
+    appendOperationalAudit(db, {
+      ...context,
+      organizationId: organization.id,
+      actorId: user.id,
+      actorRole: "owner"
+    }, "workspace_created", "organization", organization.id);
 
     return {
       session: publicSession(session, user, organization, "owner")
@@ -330,7 +468,7 @@ function signup(body) {
   });
 }
 
-function login(body) {
+async function login(body, context = {}) {
   const email = normalizeEmail(body.email);
   const password = String(body.password || "");
   validateEmailAndPassword(email, password);
@@ -349,6 +487,12 @@ function login(body) {
 
     const session = createSession(user.id, new Date().toISOString());
     db.sessions.push(session);
+    appendOperationalAudit(db, {
+      ...context,
+      organizationId: organization.id,
+      actorId: user.id,
+      actorRole: membership.role
+    }, "session_login", "session", session.id);
 
     return {
       session: publicSession(session, user, organization, membership.role)
@@ -356,12 +500,12 @@ function login(body) {
   });
 }
 
-function getRequestSession(req) {
+async function getRequestSession(req) {
   const cookies = parseCookies(req.headers.cookie || "");
   const sessionId = verifySessionCookie(cookies[SESSION_COOKIE]);
   if (!sessionId) return null;
 
-  const db = readDb();
+  const db = await readDb();
   const session = db.sessions.find(item => item.id === sessionId);
   if (!session || new Date(session.expiresAt).getTime() < Date.now()) return null;
 
@@ -379,16 +523,16 @@ function getRequestSession(req) {
   };
 }
 
-function requireSession(req) {
-  const session = getRequestSession(req);
+async function requireSession(req) {
+  const session = await getRequestSession(req);
   if (!session) {
     throw httpError(401, "AUTH_REQUIRED", "برای دسترسی به این بخش وارد شوید.");
   }
   return session;
 }
 
-function getCurrentCampaign(organizationId) {
-  const db = readDb();
+async function getCurrentCampaign(organizationId) {
+  const db = await readDb();
   const campaign = db.campaigns
     .filter(item => item.organizationId === organizationId)
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
@@ -408,7 +552,7 @@ function getCurrentCampaign(organizationId) {
   };
 }
 
-function importCampaign(organizationId, body) {
+async function importCampaign(organizationId, body, context = {}) {
   const name = cleanText(body.name) || "کمپین واردشده";
   const csvText = extractCsvText(body);
   if (csvText.length < 20) {
@@ -425,10 +569,22 @@ function importCampaign(organizationId, body) {
     analysis,
     createdAt: new Date().toISOString()
   };
+  const artifact = await persistCsvArtifact(organizationId, context, "campaign_csv", name, csvText, campaign.createdAt);
 
-  transact(db => {
-    db.campaigns.push(campaign);
-  });
+  try {
+    await transact(db => {
+      db.campaigns.push(campaign);
+      if (artifact) db.artifacts.push(artifact);
+      appendOperationalAudit(db, context, "campaign_imported", "campaign", campaign.id, {
+        rows: rows.length,
+        artifactId: artifact?.id || null
+      });
+    });
+  } catch (error) {
+    if (artifact) await deleteArtifact(artifact);
+    throw error;
+  }
+  await enqueueIntegrityCheck(organizationId, campaign.id);
 
   return {
     id: campaign.id,
@@ -461,24 +617,24 @@ function previewCsvImport(body) {
   };
 }
 
-function importCsvAnalysis(organizationId, body) {
+async function importCsvAnalysis(organizationId, body, context = {}) {
   const csvText = extractCsvText(body);
   const parsedRows = parseCSV(csvText);
   if (looksLikeCustomerRows(parsedRows)) {
     return {
       type: "customer",
-      analysis: importCustomerAnalysis(organizationId, body)
+      analysis: await importCustomerAnalysis(organizationId, body, context)
     };
   }
 
   return {
     type: "campaign",
-    analysis: importCampaign(organizationId, body)
+    analysis: await importCampaign(organizationId, body, context)
   };
 }
 
-function getCurrentCustomerAnalysis(organizationId) {
-  const db = readDb();
+async function getCurrentCustomerAnalysis(organizationId) {
+  const db = await readDb();
   const stored = db.customerAnalyses
     .filter(item => item.organizationId === organizationId)
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
@@ -487,6 +643,7 @@ function getCurrentCustomerAnalysis(organizationId) {
     return {
       id: stored.id,
       isDemo: false,
+      experimentId: stored.experimentId || null,
       ...stored.analysis
     };
   }
@@ -498,16 +655,20 @@ function getCurrentCustomerAnalysis(organizationId) {
   };
 }
 
-function getCurrentOutcomeAnalysis(organizationId) {
-  const db = readDb();
+async function getCurrentOutcomeAnalysis(organizationId, experimentId) {
+  if (!experimentId) return null;
+  const db = await readDb();
   const stored = db.outcomes
-    .filter(item => item.organizationId === organizationId)
+    .filter(item => item.organizationId === organizationId && item.experimentId === experimentId)
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
 
   if (stored) {
     return {
       id: stored.id,
       isDemo: false,
+      experimentId: stored.experimentId,
+      version: stored.version || 1,
+      supersedesOutcomeId: stored.supersedesOutcomeId || null,
       ...stored.analysis
     };
   }
@@ -515,16 +676,37 @@ function getCurrentOutcomeAnalysis(organizationId) {
   return null;
 }
 
-function getCurrentPilotState(organizationId) {
-  const campaign = getCurrentCampaign(organizationId);
-  const customerAnalysis = getCurrentCustomerAnalysis(organizationId);
-  const outcome = getCurrentOutcomeAnalysis(organizationId);
+async function getCurrentExperiment(organizationId, customerAnalysisId) {
+  if (!customerAnalysisId || customerAnalysisId === "demo_customer_analysis") return loadSampleExperiment();
+  const db = await readDb();
+  return db.experiments
+    .filter(item => item.organizationId === organizationId && item.customerAnalysisId === customerAnalysisId)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0] || null;
+}
+
+async function getCustomerAnalysisById(organizationId, customerAnalysisId) {
+  const db = await readDb();
+  const stored = db.customerAnalyses.find(item =>
+    item.organizationId === organizationId && item.id === customerAnalysisId
+  );
+  if (!stored) return null;
+  return { id: stored.id, isDemo: false, experimentId: stored.experimentId || null, ...stored.analysis };
+}
+
+async function getCurrentPilotState(organizationId) {
+  const [campaign, customerAnalysis] = await Promise.all([
+    getCurrentCampaign(organizationId),
+    getCurrentCustomerAnalysis(organizationId)
+  ]);
+  const experiment = await getCurrentExperiment(organizationId, customerAnalysis.id);
+  const outcome = await getCurrentOutcomeAnalysis(organizationId, experiment?.id);
   const readiness = buildReadinessAudit(customerAnalysis, campaign, outcome);
   const savingsSnapshot = buildSavingsSnapshot(customerAnalysis, campaign, readiness, outcome);
-  const workspace = buildPilotWorkspace(readiness, customerAnalysis, outcome);
+  const workspace = buildPilotWorkspace(readiness, customerAnalysis, outcome, experiment);
   return {
     campaign,
     customerAnalysis,
+    experiment: toPublicExperiment(experiment),
     outcome,
     readiness,
     savingsSnapshot,
@@ -533,7 +715,53 @@ function getCurrentPilotState(organizationId) {
   };
 }
 
-function importCustomerAnalysis(organizationId, body) {
+async function getModelGovernanceOverview(organizationId) {
+  const db = await readDb();
+  const customerRecord = db.customerAnalyses
+    .filter(item => item.organizationId === organizationId)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0] || null;
+  let governance = customerRecord?.modelGovernance || null;
+  if (!customerRecord) {
+    const sampleRows = normalizeCustomerRows(parseCSV(fs.readFileSync(sampleCustomerCsvPath, "utf8")));
+    governance = buildModelGovernance(sampleRows, null, { generatedAt: new Date(0).toISOString() });
+  }
+  const outcomeRecord = customerRecord
+    ? db.outcomes
+      .filter(item => item.organizationId === organizationId && item.customerAnalysisId === customerRecord.id)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0] || null
+    : null;
+  const ledger = getDecisionLedgerFromDb(db, organizationId);
+  return {
+    modelGovernance: toPublicModelGovernance(governance),
+    outcomeMonitor: buildOutcomeMonitor(outcomeRecord),
+    decisionLedger: ledger,
+    operatingPolicy: {
+      autoPromotion: false,
+      autoScale: false,
+      policyFa: "مدل فقط پس از پایلوت تصادفی سالم، تکرار نتیجه و تأیید انسانی ارتقا می‌یابد."
+    }
+  };
+}
+
+async function getDecisionLedger(organizationId) {
+  return getDecisionLedgerFromDb(await readDb(), organizationId);
+}
+
+function getDecisionLedgerFromDb(db, organizationId) {
+  const records = (db.decisionLedger || []).filter(item => item.organizationId === organizationId);
+  const verification = verifyDecisionLedger(records, organizationId);
+  return {
+    integrity: {
+      valid: verification.valid,
+      checked: verification.checked,
+      latestHash: verification.latestHash || null,
+      statusFa: verification.valid ? "زنجیره تصمیم سالم است" : "یکپارچگی زنجیره تصمیم مخدوش است"
+    },
+    entries: records.slice(-20).reverse().map(toPublicDecision)
+  };
+}
+
+async function importCustomerAnalysis(organizationId, body, context = {}) {
   const name = cleanText(body.name) || "تحلیل مشتری‌محور واردشده";
   const csvText = extractCsvText(body);
   if (csvText.length < 20) {
@@ -546,59 +774,300 @@ function importCustomerAnalysis(organizationId, body) {
   }
 
   const rows = normalizeCustomerRows(parsedRows);
+  const previousRecord = (await readDb()).customerAnalyses
+    .filter(item => item.organizationId === organizationId)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0] || null;
+  const modelGovernance = buildModelGovernance(rows, previousRecord?.modelGovernance || null);
   const analysis = analyzeCustomers(rows, { name });
+  const pilotPopulation = analysis.pilotPopulation || [];
+  delete analysis.pilotPopulation;
+  const createdAt = new Date().toISOString();
   const record = {
     id: createId("cus"),
     organizationId,
     name,
     rowCount: rows.length,
+    pilotPopulation,
+    modelGovernance,
     analysis,
-    createdAt: new Date().toISOString()
+    createdAt
   };
-
-  transact(db => {
-    db.customerAnalyses.push(record);
+  const experiment = buildExperimentRecord({
+    id: createId("exp"),
+    organizationId,
+    customerAnalysisId: record.id,
+    name: `${name} / Experiment Registry`,
+    rows,
+    csvText,
+    assignmentMethod: body.assignmentMethod,
+    outcomeWindowDays: body.outcomeWindowDays,
+    analysisPlan: analysis.experimentPlan,
+    createdAt
   });
+  record.experimentId = experiment.id;
+  const artifact = await persistCsvArtifact(organizationId, context, "customer_csv", name, csvText, createdAt);
+
+  try {
+    await transact(db => {
+      db.customerAnalyses.push(record);
+      db.experiments.push(experiment);
+      if (artifact) db.artifacts.push(artifact);
+      appendDecision(db, {
+      id: createId("led"),
+      organizationId,
+      eventType: "model_evaluation_completed",
+      entityType: "customer_analysis",
+      entityId: record.id,
+      decision: "shadow_evaluation",
+      decisionFa: "ارزیابی آفلاین ثبت شد؛ Champion حفظ شد",
+      rationaleFa: modelGovernance.registry.promotionGate.recommendationFa,
+      evidence: {
+        rows: rows.length,
+        backtestStatus: modelGovernance.backtest.status,
+        driftStatus: modelGovernance.drift.status,
+        claimLevel: modelGovernance.claimLevel
+      },
+      createdAt
+      });
+      appendOperationalAudit(db, context, "customer_analysis_imported", "customer_analysis", record.id, {
+        rows: rows.length,
+        experimentId: experiment.id,
+        artifactId: artifact?.id || null
+      });
+    });
+  } catch (error) {
+    if (artifact) await deleteArtifact(artifact);
+    throw error;
+  }
+  await enqueueIntegrityCheck(organizationId, record.id);
 
   return {
     id: record.id,
     isDemo: false,
+    experimentId: experiment.id,
+    experiment: toPublicExperiment(experiment),
+    modelGovernance: toPublicModelGovernance(modelGovernance),
     ...analysis
   };
 }
 
-function importOutcomeAnalysis(organizationId, body) {
+async function registerProspectiveExperiment(organizationId, body, context = {}) {
+  const customerAnalysis = await getCurrentCustomerAnalysis(organizationId);
+  if (customerAnalysis.isDemo) {
+    throw httpError(409, "CUSTOMER_DATA_REQUIRED", "ابتدا CSV مشتری واقعی را وارد کنید.");
+  }
+  const db = await readDb();
+  const current = await getCurrentExperiment(organizationId, customerAnalysis.id);
+  const hasOpenRegisteredExperiment = current?.status === "registered" &&
+    current.design?.randomizationEvidence?.verified === true &&
+    !db.outcomes.some(item => item.experimentId === current.id);
+  if (hasOpenRegisteredExperiment) {
+    throw httpError(409, "ACTIVE_EXPERIMENT_EXISTS", "یک پایلوت ثبت‌شده فعال است؛ assignment همان پایلوت را دانلود کنید.");
+  }
+
+  const storedCustomerAnalysis = db.customerAnalyses.find(item =>
+    item.organizationId === organizationId && item.id === customerAnalysis.id
+  );
+  const eligible = (storedCustomerAnalysis?.pilotPopulation?.length
+    ? storedCustomerAnalysis.pilotPopulation
+    : (customerAnalysis.channelExport || []).map(item => ({
+      customerId: item.customer_id,
+      recommendedAction: item.recommended_action,
+      baselineRevenue: item.clv_toman,
+      eligible: item.recommended_action !== "control"
+    })))
+    .filter(item => item.customerId && item.recommendedAction && item.eligible);
+  if (eligible.length < 2) {
+    throw httpError(422, "INSUFFICIENT_ELIGIBLE_AUDIENCE", "برای ساخت holdout حداقل دو مشتری واجد شرایط لازم است.");
+  }
+
+  const holdoutRate = normalizeHoldoutRate(body.holdoutRate);
+  const seed = crypto.randomBytes(32).toString("hex");
+  const ranked = eligible
+    .map(item => ({
+      ...item,
+      allocationScore: crypto.createHash("sha256").update(`${seed}:${item.customerId}`).digest("hex")
+    }))
+    .sort((left, right) => left.allocationScore.localeCompare(right.allocationScore));
+  const controlCount = Math.max(1, Math.min(ranked.length - 1, Math.round(ranked.length * holdoutRate)));
+  const controlIds = new Set(ranked.slice(0, controlCount).map(item => item.customerId));
+  const baselineByCustomer = new Map((current?.assignments || []).map(item => [item.customerId, item.baselineRevenue]));
+  const rows = ranked.map(item => ({
+    customerId: item.customerId,
+    treatment: controlIds.has(item.customerId) ? "control" : item.recommendedAction,
+    exposed: false,
+    revenue90d: item.baselineRevenue ?? baselineByCustomer.get(item.customerId) ?? null
+  }));
+  const createdAt = new Date().toISOString();
+  const populationHash = hashDataset(ranked.map(item => item.customerId).sort().join("\n"));
+  const seedHash = `sha256:${crypto.createHash("sha256").update(seed).digest("hex")}`;
+  const assignmentCsv = buildAssignmentSourceCsv(rows);
+  const experiment = buildExperimentRecord({
+    id: createId("exp"),
+    organizationId,
+    customerAnalysisId: customerAnalysis.id,
+    name: cleanText(body.name) || `${customerAnalysis.name} / پایلوت prospective`,
+    rows,
+    csvText: assignmentCsv,
+    assignmentMethod: "deterministic_hash",
+    randomizationSeed: seed,
+    randomizationEvidence: {
+      verified: true,
+      source: "server_generated",
+      algorithm: "sha256_ranked_holdout_v1",
+      seedHash,
+      populationHash,
+      generatedAt: createdAt,
+      holdoutRate
+    },
+    outcomeWindowDays: body.outcomeWindowDays,
+    analysisPlan: customerAnalysis.experimentPlan,
+    createdAt
+  });
+  experiment.status = "registered";
+
+  await transact(state => {
+    state.experiments.push(experiment);
+    const storedAnalysis = state.customerAnalyses.find(item => item.id === customerAnalysis.id && item.organizationId === organizationId);
+    if (storedAnalysis) storedAnalysis.experimentId = experiment.id;
+    appendDecision(state, {
+      id: createId("led"),
+      organizationId,
+      eventType: "experiment_registered",
+      entityType: "experiment",
+      entityId: experiment.id,
+      decision: "analysis_plan_locked",
+      decisionFa: "پایلوت prospective ثبت و Analysis Plan قفل شد",
+      rationaleFa: "assignment تصادفی سمت سرور تولید شد و تا outcome قابل ممیزی است.",
+      evidence: {
+        assignmentRows: rows.length,
+        controlRows: controlCount,
+        holdoutRate,
+        populationHash
+      },
+      createdAt
+    });
+    appendOperationalAudit(state, context, "experiment_registered", "experiment", experiment.id, {
+      assignmentRows: rows.length,
+      controlRows: controlCount
+    });
+  });
+  await enqueueIntegrityCheck(organizationId, experiment.id);
+  return toPublicExperiment(experiment);
+}
+
+async function importOutcomeAnalysis(organizationId, body, context = {}) {
   const name = cleanText(body.name) || "نتیجه پایلوت واردشده";
   const csvText = extractCsvText(body);
   if (csvText.length < 20) {
     throw httpError(400, "CSV_REQUIRED", "فایل outcome معتبر ارسال نشده است.");
   }
 
+  const experimentId = cleanText(body.experimentId);
+  if (!experimentId) {
+    throw httpError(400, "EXPERIMENT_ID_REQUIRED", "ابتدا داده مشتری را وارد کنید تا Experiment Registry ساخته شود.");
+  }
+  const db = await readDb();
+  const experiment = db.experiments.find(item => item.organizationId === organizationId && item.id === experimentId);
+  if (!experiment) {
+    throw httpError(404, "EXPERIMENT_NOT_FOUND", "آزمایش انتخاب‌شده پیدا نشد؛ داده مشتری را دوباره وارد کنید.");
+  }
+  const customerAnalysis = await getCustomerAnalysisById(organizationId, experiment.customerAnalysisId);
+  if (!customerAnalysis) {
+    throw httpError(409, "EXPERIMENT_ANALYSIS_MISSING", "تحلیل مبنای این آزمایش در دسترس نیست.");
+  }
   const rows = normalizeOutcomeRows(parseCSV(csvText));
-  const customerAnalysis = getCurrentCustomerAnalysis(organizationId);
-  const analysis = analyzeOutcomeRows(rows, customerAnalysis);
+  const integrity = auditOutcomeRows(experiment, rows);
+  if (integrity.fatal) {
+    throw httpError(422, "OUTCOME_INTEGRITY_REJECTED", integrity.fatalIssues[0].messageFa);
+  }
+  const analysis = analyzeOutcomeRows(rows, customerAnalysis, integrity, experiment);
+  const priorOutcomes = db.outcomes
+    .filter(item => item.organizationId === organizationId && item.experimentId === experiment.id)
+    .sort((a, b) => Number(b.version || 1) - Number(a.version || 1));
+  const previousOutcome = priorOutcomes[0] || null;
+  const version = Number(previousOutcome?.version || 0) + 1;
+  const outcomeDatasetHash = hashDataset(csvText);
+  analysis.provenance = {
+    experimentId: experiment.id,
+    customerAnalysisId: experiment.customerAnalysisId,
+    assignmentDatasetHash: experiment.dataset.hash,
+    outcomeDatasetHash,
+    assignmentSchemaVersion: experiment.dataset.schemaVersion,
+    outcomeSchemaVersion: "pilot-outcome-v1",
+    outcomeVersion: version
+  };
   const record = {
     id: createId("out"),
     organizationId,
+    experimentId: experiment.id,
+    customerAnalysisId: experiment.customerAnalysisId,
+    assignmentDatasetHash: experiment.dataset.hash,
+    outcomeDatasetHash,
+    version,
+    supersedesOutcomeId: previousOutcome?.id || null,
     name,
     rowCount: rows.length,
     analysis,
     createdAt: new Date().toISOString()
   };
+  const artifact = await persistCsvArtifact(organizationId, context, "outcome_csv", name, csvText, record.createdAt);
 
-  transact(db => {
-    db.outcomes.push(record);
-  });
+  try {
+    await transact(db => {
+      db.outcomes.push(record);
+      if (artifact) db.artifacts.push(artifact);
+      const storedExperiment = db.experiments.find(item => item.id === experiment.id);
+      if (storedExperiment) {
+        storedExperiment.status = "outcome_received";
+        storedExperiment.latestOutcomeId = record.id;
+        storedExperiment.latestOutcomeVersion = version;
+        storedExperiment.updatedAt = record.createdAt;
+      }
+      appendDecision(db, {
+      id: createId("led"),
+      organizationId,
+      eventType: "outcome_evaluated",
+      entityType: "outcome",
+      entityId: record.id,
+      decision: analysis.summary.decisionStatus,
+      decisionFa: analysis.summary.recommendationFa,
+      rationaleFa: analysis.summary.decisionRationaleFa,
+      evidence: {
+        experimentId: experiment.id,
+        outcomeVersion: version,
+        evidenceStatus: analysis.summary.evidenceStatus,
+        pValue: analysis.summary.pValue,
+        ciLow: analysis.summary.primaryCiLow,
+        ciHigh: analysis.summary.primaryCiHigh
+      },
+      createdAt: record.createdAt
+      });
+      appendOperationalAudit(db, context, "outcome_imported", "outcome", record.id, {
+        rows: rows.length,
+        experimentId: experiment.id,
+        version,
+        artifactId: artifact?.id || null
+      });
+    });
+  } catch (error) {
+    if (artifact) await deleteArtifact(artifact);
+    throw error;
+  }
+  await enqueueIntegrityCheck(organizationId, record.id);
 
   return {
     id: record.id,
     isDemo: false,
+    experimentId: experiment.id,
+    version,
+    supersedesOutcomeId: record.supersedesOutcomeId,
     ...analysis
   };
 }
 
-function getAnalysisHistory(organizationId) {
-  const db = readDb();
+async function getAnalysisHistory(organizationId) {
+  const db = await readDb();
   const campaigns = db.campaigns
     .filter(item => item.organizationId === organizationId)
     .map(item => ({
@@ -606,6 +1075,8 @@ function getAnalysisHistory(organizationId) {
       type: "campaign",
       typeFa: "کمپین سگمنتی",
       name: item.name,
+      experimentId: item.experimentId || null,
+      version: item.version || 1,
       rowCount: item.rowCount,
       createdAt: item.createdAt,
       headlineFa: `${formatMoney(item.analysis?.campaign?.nextSavings || 0)} صرفه‌جویی پیشنهادی`
@@ -638,10 +1109,207 @@ function getAnalysisHistory(organizationId) {
     .slice(0, 12);
 }
 
-function trackEvent(req, body) {
+async function getWorkspaceMembers(organizationId) {
+  const db = await readDb();
+  return db.memberships
+    .filter(item => item.organizationId === organizationId)
+    .map(membership => {
+      const user = db.users.find(item => item.id === membership.userId);
+      return {
+        id: membership.id,
+        userId: membership.userId,
+        email: user?.email || "",
+        name: user?.name || "",
+        role: membership.role,
+        createdAt: membership.createdAt
+      };
+    });
+}
+
+async function createWorkspaceMember(auth, body, context) {
+  const email = normalizeEmail(body.email);
+  const password = String(body.password || "");
+  const role = normalizeRole(body.role || "viewer");
+  validateEmailAndPassword(email, password);
+  if (password.length < 12) {
+    throw httpError(400, "WEAK_TEMPORARY_PASSWORD", "رمز عبور عضو جدید باید حداقل ۱۲ کاراکتر باشد.");
+  }
+
+  return transact(db => {
+    if (db.users.some(item => item.email === email)) {
+      throw httpError(409, "MEMBER_EMAIL_EXISTS", "این ایمیل از قبل در سیستم ثبت شده است.");
+    }
+    const now = new Date().toISOString();
+    const user = {
+      id: createId("usr"),
+      email,
+      name: cleanText(body.name) || email.split("@")[0],
+      passwordHash: hashPassword(password),
+      createdAt: now,
+      updatedAt: now
+    };
+    const membership = {
+      id: createId("mem"),
+      organizationId: auth.organization.id,
+      userId: user.id,
+      role,
+      createdAt: now
+    };
+    db.users.push(user);
+    db.memberships.push(membership);
+    appendOperationalAudit(db, context, "workspace_member_created", "membership", membership.id, { role });
+    return { id: membership.id, userId: user.id, email, name: user.name, role, createdAt: now };
+  });
+}
+
+async function updateWorkspaceMemberRole(auth, membershipId, body, context) {
+  const role = normalizeRole(body.role || "");
+  return transact(db => {
+    const membership = db.memberships.find(item =>
+      item.id === membershipId && item.organizationId === auth.organization.id
+    );
+    if (!membership) throw httpError(404, "MEMBERSHIP_NOT_FOUND", "عضو فضای کاری پیدا نشد.");
+    if (membership.userId === auth.user.id) {
+      throw httpError(409, "SELF_ROLE_CHANGE_BLOCKED", "برای جلوگیری از قفل‌شدن فضای کاری، نقش خودتان را تغییر ندهید.");
+    }
+    if (membership.role === "owner") {
+      throw httpError(409, "OWNER_ROLE_PROTECTED", "نقش مالک از این مسیر قابل تغییر نیست.");
+    }
+    const previousRole = membership.role;
+    membership.role = role;
+    membership.updatedAt = new Date().toISOString();
+    appendOperationalAudit(db, context, "workspace_member_role_changed", "membership", membership.id, {
+      previousRole,
+      role
+    });
+    return { id: membership.id, userId: membership.userId, role, updatedAt: membership.updatedAt };
+  });
+}
+
+async function getOperationalAudit(organizationId) {
+  const db = await readDb();
+  const records = (db.auditLog || []).filter(item => item.organizationId === organizationId);
+  const integrity = verifyAuditLog(records, organizationId);
+  return {
+    integrity,
+    entries: records.slice(-100).reverse().map(item => ({
+      id: item.id,
+      actorId: item.actorId,
+      actorRole: item.actorRole,
+      action: item.action,
+      targetType: item.targetType,
+      targetId: item.targetId,
+      status: item.status,
+      requestId: item.requestId,
+      metadata: item.metadata,
+      createdAt: item.createdAt,
+      hash: item.hash
+    }))
+  };
+}
+
+async function getArtifacts(organizationId) {
+  const db = await readDb();
+  return (db.artifacts || [])
+    .filter(item => item.organizationId === organizationId)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .map(publicArtifact);
+}
+
+async function downloadArtifact(auth, artifactId, req, res) {
+  const db = await readDb();
+  const artifact = db.artifacts.find(item => item.id === artifactId && item.organizationId === auth.organization.id);
+  if (!artifact) throw httpError(404, "ARTIFACT_NOT_FOUND", "فایل داده پیدا نشد.");
+  const content = await readArtifact(artifact);
+  await transact(state => {
+    appendOperationalAudit(state, requestContext(req, auth), "artifact_downloaded", "artifact", artifact.id);
+  });
+  res.writeHead(200, {
+    "Content-Type": "text/csv; charset=utf-8",
+    "Cache-Control": "no-store",
+    "Content-Disposition": `attachment; filename="marginlift-${artifact.type}.csv"`
+  });
+  res.end(content);
+}
+
+async function removeArtifact(auth, artifactId, context) {
+  let artifact;
+  await transact(db => {
+    artifact = db.artifacts.find(item => item.id === artifactId && item.organizationId === auth.organization.id);
+    if (!artifact) throw httpError(404, "ARTIFACT_NOT_FOUND", "فایل داده پیدا نشد.");
+    db.artifacts = db.artifacts.filter(item => item.id !== artifact.id);
+    appendOperationalAudit(db, context, "artifact_deleted", "artifact", artifact.id, {
+      type: artifact.type,
+      sha256: artifact.sha256
+    });
+  });
+  await deleteArtifact(artifact);
+  return { id: artifact.id, deleted: true };
+}
+
+function publicArtifact(item) {
+  return {
+    id: item.id,
+    type: item.type,
+    name: item.name,
+    sha256: item.sha256,
+    sizeBytes: item.sizeBytes,
+    encryption: item.encryption,
+    keyVersion: item.keyVersion,
+    createdBy: item.createdBy,
+    createdAt: item.createdAt
+  };
+}
+
+async function persistCsvArtifact(organizationId, context, type, name, csvText, createdAt) {
+  return persistArtifact({
+    id: createId("art"),
+    organizationId,
+    type,
+    name: `${name}.csv`,
+    content: csvText,
+    createdBy: context.actorId,
+    createdAt
+  });
+}
+
+async function enqueueIntegrityCheck(organizationId, entityId) {
+  await enqueueJob({
+    organizationId,
+    type: "evidence_integrity_check",
+    payload: { entityId },
+    dedupeKey: `evidence_integrity_check:${organizationId}:${entityId}`
+  });
+}
+
+function requestContext(req, auth = null) {
+  return {
+    organizationId: auth?.organization?.id || null,
+    actorId: auth?.user?.id || null,
+    actorRole: auth?.membership?.role || null,
+    requestId: req?.requestId || null
+  };
+}
+
+function appendOperationalAudit(db, context, action, targetType, targetId, metadata = {}) {
+  return appendAudit(db, {
+    id: createId("aud"),
+    organizationId: context.organizationId,
+    actorId: context.actorId,
+    actorRole: context.actorRole,
+    requestId: context.requestId,
+    action,
+    targetType,
+    targetId,
+    metadata,
+    createdAt: new Date().toISOString()
+  });
+}
+
+async function trackEvent(req, body) {
   const eventName = cleanEventName(body.event || body.name);
   const properties = cleanProperties(body.properties || {});
-  const session = getRequestSession(req);
+  const session = await getRequestSession(req);
   const event = {
     id: createId("evt"),
     event: eventName,
@@ -652,7 +1320,7 @@ function trackEvent(req, body) {
     createdAt: new Date().toISOString()
   };
 
-  transact(db => {
+  await transact(db => {
     db.events.push(event);
     if (db.events.length > 1000) {
       db.events = db.events.slice(-1000);
@@ -688,8 +1356,8 @@ function cleanProperties(value) {
   return properties;
 }
 
-function getEventSummary(organizationId) {
-  const db = readDb();
+async function getEventSummary(organizationId) {
+  const db = await readDb();
   const organizationEvents = db.events
     .filter(event => event.organizationId === organizationId)
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -799,6 +1467,23 @@ function loadSampleCustomerAnalysis() {
   return analyzeCustomers(rows, { name: "تحلیل مشتری‌محور نمونه" });
 }
 
+function loadSampleExperiment() {
+  const csvText = fs.readFileSync(sampleCustomerCsvPath, "utf8");
+  const rows = normalizeCustomerRows(parseCSV(csvText));
+  const experiment = buildExperimentRecord({
+    id: "demo_experiment",
+    organizationId: null,
+    customerAnalysisId: "demo_customer_analysis",
+    name: "Experiment نمونه نمایشی",
+    rows,
+    csvText,
+    assignmentMethod: "observed_historical",
+    createdAt: new Date(0).toISOString()
+  });
+  experiment.status = "demo_only";
+  return experiment;
+}
+
 function buildAudienceCsv(rows) {
   const headers = [
     "customer_id",
@@ -815,6 +1500,41 @@ function buildAudienceCsv(rows) {
     lines.push(headers.map(header => csvCell(row[header])).join(","));
   });
   return `${lines.join("\n")}\n`;
+}
+
+function buildAssignmentSourceCsv(rows) {
+  const headers = ["customer_id", "treatment", "exposed", "revenue_90d_toman"];
+  const lines = [headers.join(",")];
+  rows.forEach(row => {
+    lines.push([
+      row.customerId,
+      row.treatment,
+      row.exposed,
+      row.revenue90d
+    ].map(csvCell).join(","));
+  });
+  return `${lines.join("\n")}\n`;
+}
+
+function buildExperimentAssignmentCsv(experiment) {
+  const headers = ["experiment_id", "customer_id", "assigned_group", "exposed_at", "analysis_plan_version"];
+  const planVersion = experiment.design?.analysisPlan?.version || "analysis-plan-v1";
+  const lines = [headers.join(",")];
+  (experiment.assignments || []).forEach(item => {
+    lines.push([
+      experiment.id,
+      item.customerId,
+      item.assignedGroup,
+      "",
+      planVersion
+    ].map(csvCell).join(","));
+  });
+  return `${lines.join("\n")}\n`;
+}
+
+function normalizeHoldoutRate(value) {
+  const parsed = Number(value);
+  return parsed >= 0.1 && parsed <= 0.5 ? parsed : 0.2;
 }
 
 function buildPilotPackage(organization, campaignAnalysis, customerAnalysis, pilotState = {}) {
@@ -850,9 +1570,9 @@ function buildPilotPackage(organization, campaignAnalysis, customerAnalysis, pil
     "## خروجی مورد انتظار",
     "",
     `- مشتریان قابل اقدام: ${formatNumber(customerSummary.targetableCustomers || 0)}`,
-    `- سود افزایشی مورد انتظار: ${formatMoney(customerSummary.expectedIncrementalProfit || 0)}`,
-    `- هزینه قابل جلوگیری: ${formatMoney(finance.avoidableIncentiveCost || 0)}`,
-    `- ROI پایلوت: ${formatNumber(finance.projectedRoi || 0)}x`,
+    `- سود افزایشی برآوردی: ${formatMoney(customerSummary.expectedIncrementalProfit || 0)} (${finance.claimLevelFa || "برآورد مشاهده‌ای"})`,
+    `- مشوق ثبت‌شده قابل بررسی: ${formatMoney(finance.avoidableIncentiveCost || 0)}`,
+    `- ROI برآورد تاریخی: ${formatNumber(finance.projectedRoi || 0)}x؛ مبنای تصمیم مقیاس نیست`,
     `- صرفه‌جویی سگمنتی baseline: ${formatMoney(campaign.nextSavings || 0)}`,
     `- تصمیم فعلی: ${snapshot.decisionFa || "طراحی پایلوت"}`,
     "",
@@ -931,9 +1651,9 @@ function extractCsvText(body) {
   return "";
 }
 
-function seedDemoAccount() {
+async function seedDemoAccount() {
   if (isProduction) return;
-  transact(db => {
+  await transact(db => {
     const email = "growth@example.com";
     if (db.users.some(user => user.email === email)) return;
 
@@ -1043,6 +1763,7 @@ function serveStatic(requestPath, res) {
     "/docs/product-hardening-2.md",
     "/docs/product-reassessment-2026.md",
     "/docs/retention-decision-contract.md",
+    "/docs/model-governance.md",
     "/docs/uplift-modeling-kaggle-review.md",
     "/docs/vm-deployment.md",
     "/vm-deployment.html"

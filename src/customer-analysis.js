@@ -31,6 +31,16 @@ function analyzeCustomers(rows, options = {}) {
   const finance = buildFinanceSummary(customers, targetable);
   const experimentPlan = buildExperimentPlan(rows, controlStats, bestTreatment);
   const channelExport = buildChannelExport(targetable);
+  const recommendationByCustomer = new Map(customers.map(customer => [customer.customerId, customer]));
+  const pilotPopulation = rows.map(row => {
+    const customer = recommendationByCustomer.get(row.customerId);
+    return {
+      customerId: row.customerId,
+      recommendedAction: customer?.recommendedAction || "control",
+      baselineRevenue: row.revenue90d,
+      eligible: customer?.recommendedAction !== "control"
+    };
+  });
 
   return {
     name: options.name || "تحلیل مشتری‌محور نگهداشت",
@@ -38,10 +48,10 @@ function analyzeCustomers(rows, options = {}) {
     rowCount: rows.length,
     quality,
     model: {
-      name: "Transparent Segment T-Learner",
+      name: "Transparent Difference-in-Means Baseline",
       statusFa: quality.hasControl ? "آماده پایلوت" : "نیازمند کنترل",
       unitFa: "customer_id",
-      noteFa: "نسخه اولیه اثر اقدام را از اختلاف treatment/control می‌گیرد و برای هر مشتری با ریسک و CLV وزن‌دهی می‌کند."
+      noteFa: "نسخه اولیه، اختلاف مشاهده‌شده treatment و control را به‌عنوان baseline تشخیصی استفاده می‌کند؛ این مدل T-Learner یا اثبات causal نیست."
     },
     summary: {
       customers: rows.length,
@@ -57,7 +67,8 @@ function analyzeCustomers(rows, options = {}) {
     customers: prioritizedCustomers.slice(0, 30),
     customer360: prioritizedCustomers.slice(0, 8),
     experimentPlan,
-    channelExport
+    channelExport,
+    pilotPopulation
   };
 }
 
@@ -100,7 +111,7 @@ function chooseBestTreatment(treatmentStats, controlStats) {
 
 function scoreCustomer(row, treatmentStats, controlStats) {
   const riskScore = calculateRiskScore(row);
-  const clv = Math.round(row.revenue90d * row.grossMarginRate * 1.8);
+  const clv = Math.round(row.revenue90d * row.grossMarginRate);
   const viableTreatments = treatmentStats
     .filter(item => item.key !== "control")
     .map(item => {
@@ -134,6 +145,9 @@ function scoreCustomer(row, treatmentStats, controlStats) {
     recommendedActionFa: recommended.actionFa,
     upliftScore: recommended.upliftScore,
     expectedIncrementalProfit: recommended.expectedIncrementalProfit,
+    recommendedCost: recommended.cost || 0,
+    observedIncentiveCost: row.incentiveCost,
+    observedChannelCost: row.channelCost,
     reactionTypeFa: classifyReactionType(riskScore, recommended),
     reasonFa: buildCustomerReason(row, riskScore, clv, recommended)
   };
@@ -142,23 +156,25 @@ function scoreCustomer(row, treatmentStats, controlStats) {
 function calculateRiskScore(row) {
   const recency = Math.min(45, row.daysSinceLastPurchase * 0.65);
   const inactivity = row.orders90d <= 0 ? 25 : row.orders90d === 1 ? 14 : 4;
-  const churn = row.churned ? 25 : 0;
   const lowValueSignal = row.revenue90d <= 0 ? 8 : 0;
-  return Math.max(0, Math.min(100, Math.round(recency + inactivity + churn + lowValueSignal)));
+  return Math.max(0, Math.min(100, Math.round(recency + inactivity + lowValueSignal)));
 }
 
 function buildFinanceSummary(customers, targetable) {
   const expectedIncrementalProfit = targetable.reduce((sum, customer) => sum + customer.expectedIncrementalProfit, 0);
   const avoidableIncentiveCost = customers
     .filter(customer => customer.recommendedAction === "control")
-    .reduce((sum, customer) => sum + Math.max(0, customer.clv * 0.04), 0);
-  const estimatedSpend = targetable.reduce((sum, customer) => sum + Math.max(0, customer.clv * 0.03), 0);
+    .reduce((sum, customer) => sum + Math.max(0, customer.observedIncentiveCost), 0);
+  const estimatedSpend = targetable.reduce((sum, customer) => sum + Math.max(0, customer.recommendedCost), 0);
   return {
     expectedIncrementalProfit: Math.round(expectedIncrementalProfit),
     avoidableIncentiveCost: Math.round(avoidableIncentiveCost),
     estimatedSpend: Math.round(estimatedSpend),
     projectedRoi: estimatedSpend > 0 ? roundOne(expectedIncrementalProfit / estimatedSpend) : 0,
-    paybackFa: expectedIncrementalProfit > 0 ? "کمتر از یک چرخه کمپین" : "نیازمند داده بیشتر"
+    paybackFa: expectedIncrementalProfit > 0 ? "برآورد تاریخی؛ نیازمند پایلوت" : "نیازمند داده بیشتر",
+    claimLevel: "observational_estimate",
+    claimLevelFa: "برآورد مشاهده‌ای",
+    basisFa: "هزینه مشوق ثبت‌شده و اختلاف مشاهده‌شده treatment/control"
   };
 }
 
@@ -199,21 +215,42 @@ function buildChannelExport(customers) {
 function evaluateCustomerDataQuality(rows) {
   const issues = [];
   const hasControl = rows.some(row => row.treatment === "control");
-  const hasOutcome = rows.some(row => row.converted || row.outcomeRevenue > 0);
-  const hasMargin = rows.every(row => row.grossMarginRate > 0 && row.grossMarginRate <= 1);
+  const hasOutcome = rows.every(row => sourceFieldPresent(row, "outcome", "converted"));
+  const hasObservedOutcome = rows.some(row => row.converted || row.outcomeRevenue > 0);
+  const hasMargin = rows.every(row =>
+    sourceFieldPresent(row, "grossMargin", "grossMarginRate") &&
+    row.grossMarginRate > 0 &&
+    row.grossMarginRate <= 1
+  );
   const uniqueCustomers = new Set(rows.map(row => row.customerId));
+  const hasTreatment = rows.every(row => sourceFieldPresent(row, "treatment", "treatment"));
+  const hasExposure = rows.every(row => sourceFieldPresent(row, "exposure", "exposed"));
+  const hasRevenue = rows.every(row => sourceFieldPresent(row, "revenue", "outcomeRevenue"));
+  const hasIncentiveCost = rows.every(row => sourceFieldPresent(row, "incentiveCost", "incentiveCost"));
+  const hasChannelCost = rows.every(row => sourceFieldPresent(row, "channelCost", "channelCost"));
   if (!hasControl) issues.push("گروه کنترل در داده مشتری‌محور وجود ندارد.");
-  if (!hasOutcome) issues.push("هیچ outcome قابل سنجشی در داده دیده نشد.");
+  if (!hasOutcome) issues.push("ستون outcome قابل سنجش در داده وجود ندارد.");
   if (uniqueCustomers.size !== rows.length) issues.push("customer_id تکراری وجود دارد؛ برای نسخه رویدادی باید aggregation مشخص شود.");
   if (!hasMargin) issues.push("حاشیه سود باید بین صفر و یک باشد.");
   return {
     score: Math.max(0, 100 - issues.length * 25),
     labelFa: issues.length ? "نیازمند اصلاح" : "آماده تحلیل",
     hasControl,
+    hasTreatment,
+    hasExposure,
     hasOutcome,
+    hasObservedOutcome,
+    hasRevenue,
     hasMargin,
+    hasIncentiveCost,
+    hasChannelCost,
     issues
   };
+}
+
+function sourceFieldPresent(row, sourceKey, normalizedKey) {
+  if (row.sourcePresence) return Boolean(row.sourcePresence[sourceKey]);
+  return Object.prototype.hasOwnProperty.call(row, normalizedKey);
 }
 
 function estimateSampleSize(baselineRate, mde) {
@@ -245,7 +282,7 @@ function buildCustomerReason(row, riskScore, clv, action) {
   if (action.key === "control") {
     return "اثر افزایشی یا ریسک اقتصادی برای خرج‌کردن کافی نیست؛ مشتری در کنترل یا مراقبت کم‌هزینه بماند.";
   }
-  return `ریسک ${riskBand(riskScore)}، CLV ${Math.round(clv).toLocaleString("fa-IR")} تومان و uplift ${action.upliftScore.toLocaleString("fa-IR")} واحدی، این اقدام را توجیه می‌کند.`;
+  return `ریسک ${riskBand(riskScore)}، ارزش مشارکتی ۹۰روزه ${Math.round(clv).toLocaleString("fa-IR")} تومان و uplift مشاهده‌شده ${action.upliftScore.toLocaleString("fa-IR")} واحدی، این اقدام را برای آزمایش پیشنهاد می‌کند.`;
 }
 
 function roundOne(value) {
@@ -253,5 +290,8 @@ function roundOne(value) {
 }
 
 module.exports = {
-  analyzeCustomers
+  analyzeCustomers,
+  buildTreatmentStats,
+  calculateRiskScore,
+  scoreCustomer
 };

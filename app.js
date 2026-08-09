@@ -6,6 +6,9 @@ let currentOverview = null;
 let currentCustomerAnalysis = null;
 let currentHistory = [];
 let currentPilotState = null;
+let currentGovernance = null;
+let currentSession = null;
+let currentOperations = null;
 const MAX_IMPORT_FILE_BYTES = 1800000;
 
 function formatNumber(value) {
@@ -23,8 +26,24 @@ function formatMoney(value) {
   return `${moneyFa.format(Math.round(number))} تومان`;
 }
 
+function formatOptionalMoney(value) {
+  return value === null || value === undefined ? "داده موجود نیست" : formatMoney(value);
+}
+
+function formatOptionalRatio(value) {
+  return value === null || value === undefined ? "داده موجود نیست" : `${formatNumber(value)}×`;
+}
+
 function formatPercent(value) {
   return `${formatNumber(value)}٪`;
+}
+
+function formatStatPercent(value) {
+  return value === null || value === undefined ? "محاسبه نشد" : `${new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 1 }).format(Number(value) * 100)}٪`;
+}
+
+function formatPValue(value) {
+  return value === null || value === undefined ? "محاسبه نشد" : new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 4 }).format(Number(value));
 }
 
 function escapeHtml(value) {
@@ -231,18 +250,18 @@ function renderCustomerProduct() {
     <div><strong>${escapeHtml(customer.customerId)}</strong><span>${escapeHtml(customer.segmentFa)}</span></div>
     <div class="customer-score"><bdi class="number">${formatNumber(customer.riskScore)}</bdi><span>ریسک ${escapeHtml(customer.riskBandFa)}</span></div>
     <dl>
-      <div><dt>ارزش</dt><dd>${formatMoney(customer.clv)}</dd></div>
+      <div><dt>ارزش مشارکتی ۹۰روزه</dt><dd>${formatMoney(customer.clv)}</dd></div>
       <div><dt>اقدام</dt><dd>${escapeHtml(customer.recommendedActionFa)}</dd></div>
-      <div><dt>سود افزایشی</dt><dd>${formatMoney(customer.expectedIncrementalProfit)}</dd></div>
+      <div><dt>سود افزایشی برآوردی</dt><dd>${formatMoney(customer.expectedIncrementalProfit)}</dd></div>
     </dl>
     <p>${escapeHtml(customer.reasonFa)}</p>
   </article>`).join("");
 
   document.getElementById("financeSummary").innerHTML = [
-    ["مشتریان قابل اقدام", formatNumber(summary.targetableCustomers), "بر اساس سود افزایشی مثبت"],
-    ["سود افزایشی مورد انتظار", formatMoney(finance.expectedIncrementalProfit), "پس از کسر هزینه اقدام"],
-    ["هزینه قابل جلوگیری", formatMoney(finance.avoidableIncentiveCost), "عدم تخفیف به مشتریان کم‌اثر"],
-    ["ROI پایلوت", `${formatNumber(finance.projectedRoi)}×`, finance.paybackFa]
+    ["مشتریان پیشنهادی برای آزمایش", formatNumber(summary.targetableCustomers), "برآورد مشاهده‌ای؛ نه فرمان اجرا"],
+    ["سود افزایشی برآوردی", formatMoney(finance.expectedIncrementalProfit), finance.claimLevelFa],
+    ["مشوق ثبت‌شده قابل بررسی", formatMoney(finance.avoidableIncentiveCost), "هزینه واقعی مشتریانی که No Action گرفته‌اند"],
+    ["ROI برآورد تاریخی", `${formatNumber(finance.projectedRoi)}×`, finance.paybackFa]
   ].map(item => `<div class="finance-stat"><span>${item[0]}</span><strong class="number">${item[1]}</strong><small>${item[2]}</small></div>`).join("");
 
   document.getElementById("experimentHypothesis").textContent = experiment.hypothesisFa;
@@ -258,14 +277,15 @@ function renderCustomerProduct() {
 
 function renderPilotState() {
   if (!currentPilotState) return;
-  const { readiness, savingsSnapshot: snapshot, workspace, outcome } = currentPilotState;
+  const { readiness, savingsSnapshot: snapshot, workspace, outcome, experiment } = currentPilotState;
+  const metrics = snapshot.metrics || {};
 
   document.getElementById("snapshotEvidence").textContent = snapshot.evidenceTagFa;
   document.getElementById("savingsSnapshot").innerHTML = [
-    ["هزینه مشوق قابل حذف", formatMoney(snapshot.avoidableIncentiveCost), snapshot.claimLevelFa],
-    ["سود افزایشی", formatMoney(snapshot.expectedIncrementalProfit), snapshot.decisionFa],
-    ["درآمد در معرض ریسک", formatMoney(snapshot.revenueAtRisk), "برای گفت‌وگوی CMO/CFO"],
-    ["ROI پایلوت", `${formatNumber(snapshot.pilotRoi)}×`, `اعتماد: ${snapshot.confidenceFa}`]
+    [metrics.avoidableIncentiveCost?.labelFa || "شکاف هزینه مشاهده‌شده", formatOptionalMoney(snapshot.avoidableIncentiveCost), metrics.avoidableIncentiveCost?.noteFa || snapshot.claimLevelFa],
+    [metrics.expectedIncrementalProfit?.labelFa || "سود افزایشی", formatOptionalMoney(snapshot.expectedIncrementalProfit), metrics.expectedIncrementalProfit?.noteFa || snapshot.decisionFa],
+    [metrics.revenueAtRisk?.labelFa || "درآمد در معرض ریسک", formatOptionalMoney(snapshot.revenueAtRisk), metrics.revenueAtRisk?.noteFa || "نیازمند قرارداد مالی"],
+    [metrics.pilotRoi?.labelFa || "ROI پایلوت", formatOptionalRatio(snapshot.pilotRoi), `${metrics.pilotRoi?.noteFa || ""} اعتماد: ${snapshot.confidenceFa}`.trim()]
   ].map(item => `<div class="snapshot-stat"><span>${item[0]}</span><strong class="number">${item[1]}</strong><small>${escapeHtml(item[2])}</small></div>`).join("");
 
   document.getElementById("readinessAuditStatus").textContent = readiness.statusFa;
@@ -279,13 +299,44 @@ function renderPilotState() {
   document.getElementById("workspaceSteps").innerHTML = workspace.steps.map((step, index) =>
     `<div class="workspace-step ${step.complete ? "complete" : "pending"}"><bdi class="number">${formatNumber(index + 1)}</bdi><div><strong>${escapeHtml(step.labelFa)}</strong><span>${escapeHtml(step.statusFa)}</span></div></div>`
   ).join("");
+  const verifiedRandomization = experiment?.design?.randomizationEvidence?.verified === true;
+  const registerButton = document.getElementById("registerExperimentButton");
+  const assignmentsButton = document.getElementById("downloadAssignmentsButton");
+  registerButton.disabled = Boolean(currentPilotState.customerAnalysis?.isDemo) || (verifiedRandomization && experiment.status === "registered");
+  assignmentsButton.disabled = !verifiedRandomization;
+  if (verifiedRandomization) {
+    setMessage("experimentMessage", `پایلوت ${experiment.id} پیش از اجرا قفل شده است؛ فایل تخصیص را برای اجرای کمپین دریافت کنید.`, "success");
+  }
 
+  const integrity = outcome?.integrity;
+  const statistics = outcome?.statistics;
+  const srmCheck = integrity?.checks?.find(item => item.key === "srm");
   document.getElementById("outcomeReadout").innerHTML = outcome ? [
+    ["شناسه آزمایش", outcome.experimentId || experiment?.id || "نامشخص"],
+    ["سلامت نتیجه", integrity?.statusFa || "نیازمند ممیزی"],
+    ["کنترل SRM", srmCheck?.detailFa || "هنوز محاسبه نشده"],
     ["تصمیم", outcome.summary.recommendationFa],
+    ["علت تصمیم", outcome.summary.decisionRationaleFa || "در انتظار تحلیل"],
+    ["اثر ITT به‌ازای مشتری", formatOptionalMoney(outcome.summary.primaryEstimatePerCustomer)],
+    ["فاصله اطمینان ۹۵٪", outcome.summary.primaryCiLow === null ? "محاسبه نشد" : `${formatMoney(outcome.summary.primaryCiLow)} تا ${formatMoney(outcome.summary.primaryCiHigh)}`],
+    ["p-value", formatPValue(outcome.summary.pValue)],
+    ["توان مشاهده‌شده", formatStatPercent(outcome.summary.achievedPower)],
+    ["روش تحلیل", statistics?.methodFa || "در انتظار تحلیل"],
     ["سود افزایشی مشاهده‌شده", formatMoney(outcome.summary.observedIncrementalProfit)],
     ["شکاف پیش‌بینی/واقعیت", formatMoney(outcome.summary.predictionGap)],
     ["ROI مشاهده‌شده", `${formatNumber(outcome.summary.observedRoi)}×`]
   ].map(item => `<div><span>${item[0]}</span><strong>${escapeHtml(item[1])}</strong></div>`).join("") : `<div class="empty-history"><strong>هنوز outcome وارد نشده است.</strong><span>بعد از بسته‌شدن پنجره ۳۰ روزه، فایل synthetic-outcome-data.csv یا خروجی واقعی کمپین را وارد کنید.</span></div>`;
+
+  const outcomeButton = document.querySelector("#outcomeUploadForm button[type='submit']");
+  const outcomeInput = document.getElementById("outcomeCsvFile");
+  const acceptsOutcome = Boolean(experiment?.acceptsOutcome);
+  outcomeButton.disabled = !acceptsOutcome;
+  outcomeInput.disabled = !acceptsOutcome;
+  if (!outcome && !acceptsOutcome) {
+    setMessage("outcomeMessage", "ابتدا فایل مشتری را در Data Onboarding وارد کنید تا Experiment Registry ساخته شود.", "error");
+  } else if (!outcome) {
+    setMessage("outcomeMessage", `نتیجه فقط به آزمایش ${experiment.id} متصل خواهد شد.`, "");
+  }
 }
 
 function renderHistory() {
@@ -299,6 +350,106 @@ function renderHistory() {
     <div><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.typeFa)} / ${formatNumber(item.rowCount)} ردیف</span></div>
     <div><bdi>${escapeHtml(item.headlineFa)}</bdi><time>${new Date(item.createdAt).toLocaleDateString("fa-IR")}</time></div>
   </article>`).join("");
+}
+
+function renderModelGovernance() {
+  const governance = currentGovernance?.modelGovernance;
+  if (!governance) return;
+  const backtest = governance.backtest;
+  const drift = governance.drift;
+  const outcome = currentGovernance.outcomeMonitor;
+  const ledger = currentGovernance.decisionLedger;
+  const gate = governance.registry.promotionGate;
+
+  document.getElementById("governanceClaim").textContent = governance.claimLevelFa;
+  document.getElementById("backtestStatus").textContent = backtest.statusFa;
+  document.getElementById("backtestEvidence").textContent = `${formatNumber(backtest.folds)} fold / ${backtest.evidenceLevelFa}`;
+  document.getElementById("driftStatus").textContent = drift.statusFa;
+  document.getElementById("driftScore").textContent = drift.score === null ? drift.summaryFa : `امتیاز پایداری ${formatNumber(drift.score)} از ۱۰۰`;
+  document.getElementById("outcomeMonitorStatus").textContent = outcome.statusFa;
+  document.getElementById("outcomeMonitorNote").textContent = outcome.summaryFa;
+  document.getElementById("ledgerStatus").textContent = ledger.integrity.statusFa;
+  document.getElementById("ledgerCount").textContent = `${formatNumber(ledger.integrity.checked)} تصمیم بررسی شد`;
+  document.getElementById("promotionStatus").textContent = gate.statusFa;
+  document.getElementById("promotionRecommendation").textContent = gate.recommendationFa;
+  document.getElementById("driftBadge").textContent = drift.statusFa;
+  document.getElementById("ledgerIntegrityBadge").textContent = ledger.integrity.statusFa;
+
+  document.getElementById("modelRegistry").innerHTML = backtest.candidates.map(candidate => {
+    const metrics = candidate.metrics;
+    return `<div class="registry-row">
+      <div><span>${candidate.role === "champion" ? "Champion فعال" : "Challenger در سایه"}</span><strong>${escapeHtml(candidate.nameFa)}</strong><small>${escapeHtml(candidate.statusFa)}</small></div>
+      <div><span>خطای calibration</span><strong class="number">${metrics ? formatMoney(metrics.calibrationMae) : "محاسبه نشد"}</strong></div>
+      <div><span>ارزش policy / مشتری</span><strong class="number">${metrics ? formatMoney(metrics.policyValuePerCustomer) : "محاسبه نشد"}</strong></div>
+      <div><span>سهم هدف‌گیری</span><strong class="number">${metrics ? formatStatPercent(metrics.positiveTargetRate) : "محاسبه نشد"}</strong></div>
+    </div>`;
+  }).join("");
+
+  document.getElementById("promotionChecks").innerHTML = gate.checks.map(check => `<div class="promotion-check ${check.passed ? "passed" : "blocked"}"><span>${check.passed ? "✓" : "!"}</span><div><strong>${escapeHtml(check.labelFa)}</strong><small>${escapeHtml(check.detailFa)}</small></div></div>`).join("");
+
+  const champion = backtest.candidates.find(item => item.role === "champion");
+  const bins = champion?.calibrationBins || [];
+  const calibrationMax = Math.max(1, ...bins.flatMap(bin => [Math.abs(bin.predictedMean), Math.abs(bin.observedMean)]));
+  document.getElementById("calibrationChart").innerHTML = bins.length ? bins.map(bin => `<div class="calibration-row">
+    <div><strong>${escapeHtml(bin.labelFa)}</strong><small>${formatNumber(bin.count)} مشتری</small></div>
+    <div class="calibration-series"><span>پیش‌بینی</span><div class="calibration-track"><i style="width:${Math.max(3, Math.abs(bin.predictedMean) / calibrationMax * 100)}%"></i></div><bdi>${formatMoney(bin.predictedMean)}</bdi></div>
+    <div class="calibration-series observed"><span>مشاهده</span><div class="calibration-track"><i class="${bin.observedMean < 0 ? "negative" : ""}" style="width:${Math.max(3, Math.abs(bin.observedMean) / calibrationMax * 100)}%"></i></div><bdi>${formatMoney(bin.observedMean)}</bdi></div>
+  </div>`).join("") : `<div class="governance-empty"><strong>Calibration هنوز قابل محاسبه نیست.</strong><span>حداقل ۴۰ ردیف و ۱۰ مشاهده در هر بازوی کنترل و اقدام لازم است.</span></div>`;
+
+  document.getElementById("driftFeatures").innerHTML = drift.features.length ? drift.features.slice(0, 6).map(feature => `<div class="drift-row"><span class="drift-dot ${feature.status}"></span><div><strong>${escapeHtml(feature.labelFa)}</strong><small>${escapeHtml(feature.statusFa)} / ${feature.method.toUpperCase()}</small></div><bdi class="number">${formatPValue(feature.value)}</bdi></div>`).join("") : `<div class="governance-empty"><strong>خط مبنا ثبت شد.</strong><span>با ورود فایل بعدی، تغییر توزیع featureها نمایش داده می‌شود.</span></div>`;
+
+  document.getElementById("decisionLedger").innerHTML = ledger.entries.length ? ledger.entries.map(entry => `<div class="ledger-row"><span class="ledger-mark"></span><div><strong>${escapeHtml(entry.decisionFa)}</strong><small>${escapeHtml(entry.rationaleFa)}</small></div><div class="ledger-meta"><time>${new Date(entry.createdAt).toLocaleDateString("fa-IR")}</time><bdi title="${escapeHtml(entry.hash)}">${escapeHtml(entry.hash.slice(0, 19))}…</bdi></div></div>`).join("") : `<div class="governance-empty"><strong>هنوز تصمیمی ثبت نشده است.</strong><span>اولین import داده، زنجیره تصمیم را آغاز می‌کند.</span></div>`;
+}
+
+function renderOperations() {
+  const role = currentSession?.role || "viewer";
+  const roleLabels = { owner: "مالک", admin: "مدیر عملیات", analyst: "تحلیل‌گر", viewer: "مشاهده‌گر" };
+  document.getElementById("operationsRole").textContent = `دسترسی: ${roleLabels[role] || role}`;
+  const canOperate = ["owner", "admin"].includes(role);
+  document.getElementById("memberCreatePanel").hidden = role !== "owner";
+
+  if (!currentOperations) {
+    document.getElementById("opsStorage").textContent = "دسترسی محدود";
+    document.getElementById("opsStorageNote").textContent = "جزئیات عملیات برای مدیر فضای کاری نمایش داده می‌شود.";
+    document.getElementById("opsArtifacts").textContent = role === "viewer" ? "فقط خواندن" : "دسترسی تحلیل‌گر";
+    document.getElementById("opsArtifactsNote").textContent = "سطح دسترسی فعلی بر اساس کمترین مجوز لازم تنظیم شده است.";
+    document.getElementById("opsJobs").textContent = "پنهان";
+    document.getElementById("opsJobsNote").textContent = "صف پردازش فقط برای مدیر عملیات قابل مشاهده است.";
+    document.getElementById("opsAudit").textContent = "پنهان";
+    document.getElementById("opsAuditNote").textContent = "دفتر ممیزی فقط برای مدیر عملیات قابل مشاهده است.";
+    document.getElementById("memberList").innerHTML = `<div class="operations-empty"><strong>نمای مدیریتی محدود است.</strong><span>برای مشاهده اعضا و audit به نقش مدیر عملیات نیاز دارید.</span></div>`;
+    document.getElementById("auditList").innerHTML = `<div class="operations-empty"><strong>اصل حداقل دسترسی فعال است.</strong><span>اطلاعات حساس عملیاتی برای این نقش نمایش داده نمی‌شود.</span></div>`;
+    return;
+  }
+
+  const { metrics, jobs, audit, members, artifacts } = currentOperations;
+  const pendingJobs = jobs.filter(item => ["pending", "processing"].includes(item.status)).length;
+  document.getElementById("opsStorage").textContent = metrics.storageDriver === "postgres" ? "PostgreSQL" : "JSON محلی";
+  document.getElementById("opsStorageNote").textContent = metrics.storageDriver === "postgres" ? "منبع اصلی production و آماده پاسخ" : "فقط برای توسعه محلی";
+  document.getElementById("opsArtifacts").textContent = metrics.artifactStorage ? `${formatNumber(artifacts.length)} فایل رمزنگاری‌شده` : "ذخیره‌سازی غیرفعال";
+  document.getElementById("opsArtifactsNote").textContent = metrics.artifactStorage ? "AES-256-GCM با کلید خارج از دیتابیس" : "در توسعه، CSV خام پس از تحلیل نگه‌داری نمی‌شود.";
+  document.getElementById("opsJobs").textContent = pendingJobs ? `${formatNumber(pendingJobs)} کار در جریان` : "صف خالی";
+  document.getElementById("opsJobsNote").textContent = `${formatNumber(jobs.filter(item => item.status === "completed").length)} کار کامل شده است.`;
+  document.getElementById("opsAudit").textContent = audit.integrity.valid ? "زنجیره سالم" : "نیازمند بررسی";
+  document.getElementById("opsAuditNote").textContent = `${formatNumber(audit.integrity.checked)} رویداد با hash بررسی شد.`;
+  document.getElementById("memberCount").textContent = `${formatNumber(members.length)} عضو`;
+  document.getElementById("auditIntegrity").textContent = audit.integrity.valid ? "یکپارچگی تأیید شد" : "یکپارچگی مخدوش";
+  document.getElementById("memberList").innerHTML = members.map(member => `<div class="operation-row"><span class="operation-avatar">${escapeHtml((member.name || member.email).slice(0, 1).toUpperCase())}</span><div><strong>${escapeHtml(member.name || member.email)}</strong><small>${escapeHtml(member.email)}</small></div><bdi>${escapeHtml(roleLabels[member.role] || member.role)}</bdi></div>`).join("");
+  document.getElementById("auditList").innerHTML = audit.entries.slice(0, 6).map(entry => `<div class="operation-row audit-row"><span class="operation-state"></span><div><strong>${escapeHtml(entry.action.replaceAll("_", " "))}</strong><small>${new Date(entry.createdAt).toLocaleString("fa-IR")}</small></div><bdi>${escapeHtml(entry.actorRole)}</bdi></div>`).join("") || `<div class="operations-empty"><strong>هنوز رویدادی ثبت نشده است.</strong><span>اولین عملیات حساس اینجا ثبت می‌شود.</span></div>`;
+  document.getElementById("operations").dataset.operational = String(canOperate);
+}
+
+async function loadOperationsData() {
+  const role = currentSession?.role;
+  if (!["owner", "admin"].includes(role)) return null;
+  const [metrics, jobs, audit, members, artifacts] = await Promise.all([
+    apiRequest("/api/ops/metrics"),
+    apiRequest("/api/ops/jobs"),
+    apiRequest("/api/audit-log"),
+    apiRequest("/api/access/members"),
+    apiRequest("/api/artifacts")
+  ]);
+  return { metrics, jobs, audit, members, artifacts };
 }
 
 function renderStages() {
@@ -346,22 +497,28 @@ function renderDashboard() {
 }
 
 async function loadDashboard() {
-  const [analysis, overview, customerAnalysis, history, pilotState] = await Promise.all([
+  const [analysis, overview, customerAnalysis, history, pilotState, governance, operations] = await Promise.all([
     apiRequest("/api/campaigns/current"),
     apiRequest("/api/decision-engine/overview"),
     apiRequest("/api/customers/current"),
     apiRequest("/api/analyses/history"),
-    apiRequest("/api/pilot/workspace")
+    apiRequest("/api/pilot/workspace"),
+    apiRequest("/api/model-governance/overview"),
+    loadOperationsData()
   ]);
   currentAnalysis = analysis;
   currentOverview = overview;
   currentCustomerAnalysis = customerAnalysis;
   currentHistory = history;
   currentPilotState = pilotState;
+  currentGovernance = governance;
+  currentOperations = operations;
   renderDashboard();
   renderCustomerProduct();
   renderPilotState();
   renderHistory();
+  renderModelGovernance();
+  renderOperations();
   window.MarginLiftMotion?.refresh(document.getElementById("appShell"));
 }
 
@@ -409,6 +566,7 @@ async function enterApp() {
   window.scrollTo({ top: 0, behavior: "instant" });
   try {
     const session = await apiRequest("/api/session");
+    currentSession = session;
     document.getElementById("workspaceName").textContent = session.organization.name;
     document.getElementById("sidebarWorkspace").textContent = session.organization.name;
     await loadDashboard();
@@ -442,7 +600,12 @@ function setupUpload() {
     setButtonBusy(submitButton, true, "در حال تحلیل...");
     setMessage("uploadMessage", "در حال تحلیل فایل...", "");
     try {
-      const result = await apiRequest("/api/imports/csv", { method: "POST", body: JSON.stringify({ name: document.getElementById("campaignUploadName").value, csvText: await file.text() }) });
+      const result = await apiRequest("/api/imports/csv", { method: "POST", body: JSON.stringify({
+        name: document.getElementById("campaignUploadName").value,
+        csvText: await file.text(),
+        assignmentMethod: "observed_historical",
+        outcomeWindowDays: 30
+      }) });
       await loadDashboard();
       setMessage("uploadMessage", result.type === "customer" ? "Customer 360 و برنامه پایلوت ساخته شد." : "صف تصمیم سگمنتی ساخته شد.", "success");
     } catch (error) {
@@ -461,9 +624,17 @@ function setupUpload() {
     setButtonBusy(submitButton, true, "در حال مقایسه...");
     setMessage("outcomeMessage", "در حال مقایسه outcome با پیش‌بینی...", "");
     try {
-      const result = await apiRequest("/api/outcomes/import", { method: "POST", body: JSON.stringify({ name: document.getElementById("outcomeUploadName").value, csvText: await file.text() }) });
+      const experimentId = currentPilotState?.experiment?.id;
+      if (!experimentId || !currentPilotState.experiment.acceptsOutcome) {
+        throw new Error("ابتدا فایل مشتری را وارد کنید تا Experiment Registry ساخته شود.");
+      }
+      const result = await apiRequest("/api/outcomes/import", { method: "POST", body: JSON.stringify({
+        name: document.getElementById("outcomeUploadName").value,
+        csvText: await file.text(),
+        experimentId
+      }) });
       await loadDashboard();
-      setMessage("outcomeMessage", result.summary.recommendationFa, result.summary.decisionStatus === "needs_review" ? "error" : "success");
+      setMessage("outcomeMessage", `${result.integrity.statusFa}؛ ${result.summary.recommendationFa}`, result.integrity.decisionEligible ? "success" : "error");
     } catch (error) {
       setMessage("outcomeMessage", error.message, "error");
     } finally {
@@ -473,6 +644,27 @@ function setupUpload() {
 }
 
 function setupActions() {
+  document.getElementById("memberCreateForm").addEventListener("submit", async event => {
+    event.preventDefault();
+    const button = event.currentTarget.querySelector("button[type='submit']");
+    setButtonBusy(button, true, "در حال افزودن...");
+    try {
+      await apiRequest("/api/access/members", { method: "POST", body: JSON.stringify({
+        name: document.getElementById("memberName").value,
+        email: document.getElementById("memberEmail").value,
+        password: document.getElementById("memberPassword").value,
+        role: document.getElementById("memberRole").value
+      }) });
+      event.currentTarget.reset();
+      currentOperations = await loadOperationsData();
+      renderOperations();
+      setMessage("memberMessage", "عضو جدید با سطح دسترسی انتخاب‌شده اضافه شد.", "success");
+    } catch (error) {
+      setMessage("memberMessage", error.message, "error");
+    } finally {
+      setButtonBusy(button, false);
+    }
+  });
   document.getElementById("logoutButton").addEventListener("click", async () => {
     await apiRequest("/api/auth/logout", { method: "POST", body: "{}" });
     window.location.reload();
@@ -491,6 +683,31 @@ function setupActions() {
   });
   document.getElementById("downloadReadoutButton").addEventListener("click", async () => {
     window.open("/executive-report.html", "_blank", "noopener");
+  });
+  document.getElementById("registerExperimentButton").addEventListener("click", async event => {
+    const button = event.currentTarget;
+    setButtonBusy(button, true, "در حال ساخت assignment...");
+    try {
+      const experiment = await apiRequest("/api/experiments/register", {
+        method: "POST",
+        body: JSON.stringify({ holdoutRate: 0.2, outcomeWindowDays: 30 })
+      });
+      await loadDashboard();
+      setMessage("experimentMessage", `پایلوت ${experiment.id} ثبت و Analysis Plan قفل شد.`, "success");
+    } catch (error) {
+      setMessage("experimentMessage", error.message, "error");
+    } finally {
+      setButtonBusy(button, false);
+      renderPilotState();
+    }
+  });
+  document.getElementById("downloadAssignmentsButton").addEventListener("click", async () => {
+    const response = await fetch("/api/experiments/current/assignments.csv", { credentials: "same-origin" });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      return setMessage("experimentMessage", payload.error?.message || "فایل تخصیص آماده نشد.", "error");
+    }
+    downloadBlob(await response.blob(), "marginlift-experiment-assignments.csv");
   });
 }
 

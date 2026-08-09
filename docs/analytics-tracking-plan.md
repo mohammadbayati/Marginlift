@@ -28,7 +28,7 @@
 ## Data Safety
 
 - IP، user agent کامل، ایمیل مقصد یا داده شخصی کمپین ذخیره نمی‌شود.
-- eventها فقط در JSON DB محلی ذخیره می‌شوند.
+- eventها در توسعه داخل JSON DB و در production داخل state تراکنشی PostgreSQL ذخیره می‌شوند.
 - در نسخه production باید consent، retention policy و حذف داده اضافه شود.
 
 ## Production Next Steps
