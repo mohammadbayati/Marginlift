@@ -26,7 +26,8 @@ try {
   npm test
   Assert-NativeCommand "Tests"
 
-  $changes = git status --porcelain
+  # Sales deliverables are excluded from the production archive and may be open in Word.
+  $changes = git status --porcelain -- . ':(exclude)business/**'
   Assert-NativeCommand "Git status"
   if ($changes) {
     throw "The repository has uncommitted changes. Commit them before deployment."
