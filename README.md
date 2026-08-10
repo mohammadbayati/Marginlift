@@ -110,9 +110,95 @@ docs/competitive-benchmark-digital-marketing.md
 npm test
 ```
 
+## Churn & Retention Decisioning
+
+نسخه MVP نگهداشت اکنون configuration-driven است. موتور داده، baseline و سیاست شواهد میان مشتریان مشترک می‌ماند و تفاوت هر کسب‌وکار در `Customer Configuration` ذخیره می‌شود. دو نقطه شروع فعلی:
+
+- `generic_ecommerce`: سفارش تکرارشونده فروشگاه اینترنتی
+- `super_app_packages`: خرید مجدد خدمات و بسته در سوپراپ
+
+رابط محصول از بخش «حفظ مشتری» امکان انتخاب پکیج، تنظیم آستانه‌های چرخه، ورود CSV و مشاهده وضعیت چرخه و صف اقدام را می‌دهد. APIهای عمومی این لایه:
+
+- `GET /api/retention/configuration`
+- `PATCH /api/retention/configuration`
+- `GET /api/retention/workspace`
+- `POST /api/retention/import`
+
+ریسک بالا به‌تنهایی مجوز مشوق نیست. تمام خروجی‌های این Workspace تا پیش از holdout با برچسب برآورد تاریخی نمایش داده می‌شوند.
+
+فاز بنیان سرویس Churn شامل تعریف بازار، قرارداد point-in-time و ممیز آمادگی داده است:
+
+- `docs/churn-service-foundation.md`
+- `docs/churn-data-contract.md`
+- `docs/churn-mom-test-discovery.md`
+- `docs/churn-validation-and-build-gates.md`
+- `docs/churn-data-cleaning-policy.md`
+- `docs/churn-gate-status.md`
+- `docs/churn-discovery-scorecard.csv`
+- `docs/churn-database-blueprint.md`
+- `docs/churn-positioning-and-motion-guardrails.md`
+- `docs/churn-commercial-case.sample.json`
+- `synthetic-churn-events.csv`
+
+بسته اختصاصی جلسه کشف Channel Retention با تیم آپ در مسیر زیر قرار دارد:
+
+- `docs/ap-channel-retention-discovery/README-fa.md`
+- `docs/ap-channel-retention-product-roadmap.md`
+
+ممیزی یک فایل رویدادی:
+
+```bash
+npm run churn:audit -- synthetic-churn-events.csv
+```
+
+ساخت Value Case سه‌سناریویی با فرض‌های آشکار:
+
+```bash
+npm run churn:forecast -- docs/churn-commercial-case.sample.json
+```
+
+ممیزی اختصاصی خرید مجدد بسته اینترنت:
+
+```bash
+npm run retention:audit -- synthetic-package-transactions.csv \
+  --interventions synthetic-package-interventions.csv
+```
+
+برای خروجی ماشین‌خوان، `--json` را به انتهای دستور اضافه کنید. فایل‌های مصنوعی فقط برای بررسی قرارداد هستند و proof بازار یا مدل محسوب نمی‌شوند.
+
+ساخت dataset نقطه‌درزمان برای Survival، با cut-off صریح:
+
+```bash
+npm run retention:dataset -- synthetic-package-transactions.csv \
+  --cutoff 2026-02-01T00:00:00Z \
+  --output data/channel-retention-dataset.json
+```
+
+این خروجی شامل reconciliation، ردیف‌های حذف‌شده، episodeهای مشاهده‌شده یا censored و snapshotهای قابل امتیازدهی است. وجود dataset به معنی عبور Model Gate نیست.
+
+ساخت Kaplan–Meier baseline:
+
+```bash
+npm run retention:baseline -- data/channel-retention-dataset.json \
+  --min-group-size 2 \
+  --output data/survival-baseline.json
+```
+
+عدد `2` فقط برای فایل مصنوعی کوچک است. مقدار پیش‌فرض محصول `30` episode در هر گروه است و پس از مشاهده داده واقعی با تحلیل توان و پایداری بازبینی می‌شود.
+
+آماده‌سازی محیط مدل و آموزش candidate آفلاین:
+
+```bash
+python -m pip install -r requirements-ml.txt
+npm run retention:model -- data/channel-retention-dataset.json \
+  --output-dir data/models/channel-retention
+```
+
+اگر نمونه حداقل اولیه را نداشته باشد، worker فقط Model Card با وضعیت `insufficient_sample` می‌سازد و artifact مدل تولید نمی‌کند. عبور آفلاین فقط مجوز Shadow Mode است.
+
 ## حساب دمو برای ارزیابی مشتری
 
-راهنمای قابل‌ارسال به ارزیاب در `docs/demo-user-guide-fa.md` قرار دارد. حساب دمو باید با نقش `viewer` و تاریخ انقضای کوتاه ساخته شود تا داده‌ها فقط قابل مشاهده باشند:
+راهنمای قابل‌ارسال به ارزیاب در `docs/demo-user-guide-fa.txt` قرار دارد. حساب دمو باید با نقش `viewer` و تاریخ انقضای کوتاه ساخته شود تا داده‌ها فقط قابل مشاهده باشند:
 
 ```bash
 npm run demo-user -- --email=reviewer@example.com --name="مهمان دمو" --days=7

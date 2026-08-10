@@ -9,10 +9,25 @@ let currentPilotState = null;
 let currentGovernance = null;
 let currentSession = null;
 let currentOperations = null;
+let currentRetentionWorkspace = null;
+let currentRetentionShadow = null;
+let retentionPresets = [];
+let retentionCsvText = "";
+let retentionPreview = null;
 const MAX_IMPORT_FILE_BYTES = 1800000;
 
 function formatNumber(value) {
   return fa.format(Number(value || 0));
+}
+
+function toPersianDigits(value) {
+  return String(value ?? "").replace(/\d/g, digit => "۰۱۲۳۴۵۶۷۸۹"[Number(digit)]);
+}
+
+function toLatinDigits(value) {
+  return String(value ?? "")
+    .replace(/[۰-۹]/g, digit => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
+    .replace(/[٠-٩]/g, digit => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)));
 }
 
 function formatMoney(value) {
@@ -497,15 +512,97 @@ function renderDashboard() {
   document.getElementById("contractStatus").textContent = `${currentOverview.contract.churnDefinitionFa} / ${currentOverview.contract.primaryKpiFa}`;
 }
 
+function renderRetentionWorkspace() {
+  if (!currentRetentionWorkspace) return;
+  const { configuration, workspace, stale, analysis } = currentRetentionWorkspace;
+  const presetSelect = document.getElementById("retentionPreset");
+  if (!presetSelect.options.length) {
+    presetSelect.innerHTML = retentionPresets.map(item => `<option value="${escapeHtml(item.key)}">${escapeHtml(item.nameFa)}</option>`).join("");
+  }
+  presetSelect.value = configuration.presetKey;
+  document.getElementById("retentionPurchaseObject").value = configuration.display.purchaseObjectFa;
+  document.getElementById("retentionChannel").value = configuration.display.channelFa;
+  document.getElementById("retentionLapsedDays").value = configuration.lifecycle.lapsedAfterDays;
+  document.getElementById("retentionDormantDays").value = configuration.lifecycle.dormantAfterDays;
+  document.getElementById("retentionLostDays").value = configuration.lifecycle.lostAfterDays;
+  document.getElementById("retentionMinPurchases").value = configuration.lifecycle.minHistoricalPurchases;
+
+  document.getElementById("retentionStatus").textContent = workspace.statusFa;
+  document.getElementById("retentionHeadline").textContent = toPersianDigits(workspace.headlineFa);
+  document.getElementById("retentionNextAction").textContent = toPersianDigits(workspace.nextActionFa);
+  document.getElementById("retentionEvidenceBadge").textContent = workspace.evidenceLevel === "no_evidence" ? "بدون شواهد" : "برآورد تاریخی";
+  document.getElementById("retentionProof").textContent = toPersianDigits(stale ? "تعریف چرخه تغییر کرده" : (workspace.evidenceLabelFa || "هنوز تحلیلی ثبت نشده است"));
+
+  const metrics = [
+    ["واحد مشتری قابل بررسی", workspace.metrics.units],
+    ["دارای سابقه کافی", workspace.metrics.eligibleUnits],
+    ["میانه خرید مجدد", workspace.metrics.medianRepurchaseDays === null ? "محاسبه نشد" : `${formatNumber(workspace.metrics.medianRepurchaseDays)} روز`],
+    ["در صف اقدام", workspace.metrics.queueSize]
+  ];
+  document.getElementById("retentionMetrics").innerHTML = metrics.map(([label, value]) => `<div><span>${escapeHtml(label)}</span><strong class="number">${escapeHtml(typeof value === "number" ? formatNumber(value) : value)}</strong></div>`).join("");
+
+  document.getElementById("retentionStateBars").innerHTML = workspace.states.map(state => `<div class="retention-state-row">
+    <div><span>${escapeHtml(state.labelFa)}</span><strong class="number">${formatNumber(state.count)}</strong></div>
+    <div class="retention-state-track" aria-label="${escapeHtml(state.labelFa)} ${formatStatPercent(state.share)}"><span style="width:${Math.max(0, Math.min(100, state.share * 100))}%"></span></div>
+    <bdi class="number">${formatStatPercent(state.share)}</bdi>
+  </div>`).join("");
+
+  const modelCardContainer = document.getElementById("retentionModelCard");
+  const modelCard = analysis?.baseline?.modelCard;
+  const leakageAudit = analysis?.baseline?.leakageAudit;
+  modelCardContainer.hidden = !modelCard;
+  modelCardContainer.innerHTML = modelCard ? `<div class="retention-subheading"><div><span class="mini-label">شناسنامه مدل</span><h3>${escapeHtml(modelCard.modelNameFa)}</h3></div><span class="pill ${leakageAudit?.passed ? "save" : "warn"}">${escapeHtml(leakageAudit?.statusFa || "در انتظار ممیزی")}</span></div>
+    <div class="retention-model-facts">
+      <div><span>سطح شواهد</span><strong>${escapeHtml(modelCard.evidenceLabelFa)}</strong></div>
+      <div><span>مجوز استفاده</span><strong>${escapeHtml(modelCard.decisionPermissionFa)}</strong></div>
+      <div><span>تاریخ برش</span><strong class="number"><bdi>${toPersianDigits(String(modelCard.cutoffAt || "").slice(0, 10))}</bdi></strong></div>
+      <div><span>نسخه مدل</span><strong><bdi>${escapeHtml(modelCard.modelVersion)}</bdi></strong></div>
+    </div>` : "";
+
+  document.getElementById("retentionQueueRows").innerHTML = workspace.queue.length
+    ? workspace.queue.map(item => `<tr>
+      <td><bdi>${escapeHtml(item.customerIdHash)}</bdi></td>
+      <td><span class="queue-state queue-state-${escapeHtml(item.state)}">${escapeHtml(item.stateFa)}</span></td>
+      <td><bdi class="number">${formatNumber(item.daysFromDue)} روز</bdi></td>
+      <td><bdi class="number">${formatNumber(item.purchaseCount)}</bdi></td>
+      <td><strong>${escapeHtml(item.recommendedActionFa)}</strong></td>
+      <td><span class="queue-state ${item.incentiveAllowed ? "queue-state-due" : ""}">${item.incentiveAllowed ? "مجاز" : "غیرمجاز"}</span></td>
+      <td>${escapeHtml(item.decisionReasonFa)}</td>
+    </tr>`).join("")
+    : `<tr><td colspan="7" class="retention-empty">پس از ورود داده، مشتریان واجد شرایط اینجا نمایش داده می‌شوند.</td></tr>`;
+}
+
+function renderRetentionShadow() {
+  const latest = currentRetentionShadow?.latestRun;
+  const status = document.getElementById("retentionShadowStatus");
+  const summary = document.getElementById("retentionShadowSummary");
+  if (!latest) {
+    status.textContent = "هنوز اجرا نشده";
+    status.className = "pill";
+    summary.innerHTML = "<p>صف تصمیم را با ظرفیت واقعی CRM بررسی کنید؛ این مرحله هیچ پیام یا مشوقی ارسال نمی‌کند.</p>";
+    return;
+  }
+  status.textContent = latest.statusFa;
+  status.className = `pill ${latest.status === "ready" ? "save" : "warn"}`;
+  summary.innerHTML = `<div class="retention-shadow-metrics">
+    <div><span>مخاطب انتخاب‌شده</span><strong class="number">${formatNumber(latest.summary.selectedCustomers)}</strong></div>
+    <div><span>خارج از ظرفیت</span><strong class="number">${formatNumber(latest.summary.overflowCustomers)}</strong></div>
+    <div><span>هم‌پوشانی مشتری</span><strong class="number">${formatNumber(latest.summary.duplicateCustomers)}</strong></div>
+  </div>`;
+}
+
 async function loadDashboard() {
-  const [analysis, overview, customerAnalysis, history, pilotState, governance, operations] = await Promise.all([
+  const [analysis, overview, customerAnalysis, history, pilotState, governance, operations, retentionWorkspace, retentionConfiguration, retentionShadow] = await Promise.all([
     apiRequest("/api/campaigns/current"),
     apiRequest("/api/decision-engine/overview"),
     apiRequest("/api/customers/current"),
     apiRequest("/api/analyses/history"),
     apiRequest("/api/pilot/workspace"),
     apiRequest("/api/model-governance/overview"),
-    loadOperationsData()
+    loadOperationsData(),
+    apiRequest("/api/retention/workspace"),
+    apiRequest("/api/retention/configuration"),
+    apiRequest("/api/retention/shadow-workspace")
   ]);
   currentAnalysis = analysis;
   currentOverview = overview;
@@ -514,12 +611,17 @@ async function loadDashboard() {
   currentPilotState = pilotState;
   currentGovernance = governance;
   currentOperations = operations;
+  currentRetentionWorkspace = retentionWorkspace;
+  currentRetentionShadow = retentionShadow;
+  retentionPresets = retentionConfiguration.presets;
   renderDashboard();
   renderCustomerProduct();
   renderPilotState();
   renderHistory();
   renderModelGovernance();
   renderOperations();
+  renderRetentionWorkspace();
+  renderRetentionShadow();
   window.MarginLiftMotion?.refresh(document.getElementById("appShell"));
 }
 
@@ -582,10 +684,230 @@ function applyRoleAccess() {
   document.querySelectorAll("#campaignUploadForm input, #campaignUploadForm button, #outcomeUploadForm input, #outcomeUploadForm button")
     .forEach(control => { control.disabled = isViewer; });
   document.getElementById("exportAudienceButton").disabled = isViewer;
+  document.getElementById("retentionAudienceButton").disabled = isViewer;
+  document.getElementById("retentionReadoutButton").disabled = isViewer;
+  document.getElementById("retentionReadoutRole").disabled = isViewer;
+  document.querySelectorAll("#retentionShadowForm input, #retentionShadowForm button, #retentionExperimentBriefButton, #retentionDemoPreset, #retentionDemoResetButton, #retentionBaselineRate, #retentionMde, #retentionOutcomeWindow, #retentionHoldoutRate")
+    .forEach(control => { control.disabled = isViewer; });
+  document.querySelectorAll("#retentionConfigForm input, #retentionConfigForm select, #retentionConfigForm button, #retentionUploadForm input, #retentionUploadForm select, #retentionUploadForm button")
+    .forEach(control => { control.disabled = isViewer; });
   if (isViewer) {
     setMessage("uploadMessage", "این حساب برای مشاهده دمو ساخته شده است و داده‌ها را تغییر نمی‌دهد.", "");
     setMessage("outcomeMessage", "نتیجه پایلوت نمونه در حالت فقط‌خواندنی نمایش داده می‌شود.", "");
   }
+}
+
+function setupRetentionWorkspace() {
+  const cutoff = document.getElementById("retentionCutoff");
+  cutoff.value = toPersianDigits(new Date().toISOString().slice(0, 10));
+
+  document.getElementById("retentionPreset").addEventListener("change", event => {
+    const preset = retentionPresets.find(item => item.key === event.target.value);
+    if (!preset) return;
+    document.getElementById("retentionPurchaseObject").value = preset.purchaseObjectFa;
+    document.getElementById("retentionChannel").value = preset.channelFa;
+    document.getElementById("retentionLapsedDays").value = preset.lifecycle.lapsedAfterDays;
+    document.getElementById("retentionDormantDays").value = preset.lifecycle.dormantAfterDays;
+    document.getElementById("retentionLostDays").value = preset.lifecycle.lostAfterDays;
+    document.getElementById("retentionMinPurchases").value = preset.lifecycle.minHistoricalPurchases;
+  });
+
+  document.getElementById("retentionCsvFile").addEventListener("change", async event => {
+    const file = event.target.files[0];
+    retentionCsvText = "";
+    retentionPreview = null;
+    document.getElementById("retentionFilePreview").hidden = true;
+    if (file?.name === "synthetic-package-transactions.csv") cutoff.value = "۲۰۲۶-۰۲-۰۱";
+    if (file?.name === "synthetic-ecommerce-transactions.csv") cutoff.value = "۲۰۲۵-۱۲-۰۱";
+    if (!file) return;
+    if (fileIsTooLarge(file)) return showFileSizeError("retentionUploadMessage");
+    try {
+      retentionCsvText = await file.text();
+      await refreshRetentionPreview();
+    } catch (error) {
+      setMessage("retentionUploadMessage", error.message, "error");
+    }
+  });
+
+  document.getElementById("retentionConfigForm").addEventListener("submit", async event => {
+    event.preventDefault();
+    const button = event.currentTarget.querySelector("button[type='submit']");
+    setButtonBusy(button, true, "در حال ذخیره...");
+    try {
+      await apiRequest("/api/retention/configuration", { method: "PATCH", body: JSON.stringify({
+        presetKey: document.getElementById("retentionPreset").value,
+        display: {
+          purchaseObjectFa: document.getElementById("retentionPurchaseObject").value,
+          channelFa: document.getElementById("retentionChannel").value
+        },
+        lifecycle: {
+          lapsedAfterDays: Number(document.getElementById("retentionLapsedDays").value),
+          dormantAfterDays: Number(document.getElementById("retentionDormantDays").value),
+          lostAfterDays: Number(document.getElementById("retentionLostDays").value),
+          minHistoricalPurchases: Number(document.getElementById("retentionMinPurchases").value)
+        }
+      }) });
+      await loadDashboard();
+      setMessage("retentionConfigMessage", "تعریف چرخه ذخیره شد. در صورت تغییر، داده را دوباره تحلیل کنید.", "success");
+      if (retentionCsvText) await refreshRetentionPreview();
+    } catch (error) {
+      setMessage("retentionConfigMessage", error.message, "error");
+    } finally {
+      setButtonBusy(button, false);
+    }
+  });
+
+  document.getElementById("retentionUploadForm").addEventListener("submit", async event => {
+    event.preventDefault();
+    const button = event.currentTarget.querySelector("button[type='submit']");
+    const file = document.getElementById("retentionCsvFile").files[0];
+    if (!file) return setMessage("retentionUploadMessage", "یک فایل تراکنش CSV انتخاب کنید.", "error");
+    if (fileIsTooLarge(file)) return showFileSizeError("retentionUploadMessage");
+    if (!retentionPreview?.readyForImport) return setMessage("retentionUploadMessage", "ابتدا نگاشت ستون‌های ضروری یا مشکل حریم خصوصی را اصلاح کنید.", "error");
+    setButtonBusy(button, true, "در حال ساخت خط مبنا...");
+    try {
+      const result = await apiRequest("/api/retention/import", { method: "POST", body: JSON.stringify({
+        name: document.getElementById("retentionAnalysisName").value,
+        cutoff: toLatinDigits(document.getElementById("retentionCutoff").value),
+        csvText: retentionCsvText || await file.text(),
+        mapping: collectRetentionMapping()
+      }) });
+      await loadDashboard();
+      const kind = result.readiness.status === "needs_data_fix" ? "error" : "success";
+      setMessage("retentionUploadMessage", toPersianDigits(`${result.readiness.statusFa}؛ ${result.workspace.nextActionFa}`), kind);
+    } catch (error) {
+      setMessage("retentionUploadMessage", error.message, "error");
+    } finally {
+      setButtonBusy(button, false);
+    }
+  });
+
+  document.getElementById("retentionAudienceButton").addEventListener("click", async () => {
+    const response = await fetch("/api/retention/audience.csv", { credentials: "same-origin" });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      return setMessage("retentionUploadMessage", payload.error?.message || "خروجی CRM آماده نشد.", "error");
+    }
+    downloadBlob(await response.blob(), "marginlift-retention-audience.csv");
+  });
+
+  document.getElementById("retentionReadoutButton").addEventListener("click", async () => {
+    const role = document.getElementById("retentionReadoutRole").value;
+    const response = await fetch(`/api/retention/readout.md?role=${encodeURIComponent(role)}`, { credentials: "same-origin" });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      return setMessage("retentionUploadMessage", payload.error?.message || "گزارش آماده نشد.", "error");
+    }
+    downloadBlob(await response.blob(), `marginlift-retention-${role}-readout.md`);
+  });
+
+  document.getElementById("retentionShadowForm").addEventListener("submit", async event => {
+    event.preventDefault();
+    const button = event.currentTarget.querySelector("button[type='submit']");
+    setButtonBusy(button, true, "در حال اجرای سایه...");
+    try {
+      const run = await apiRequest("/api/retention/shadow-runs", {
+        method: "POST",
+        body: JSON.stringify({ capacity: Number(document.getElementById("retentionShadowCapacity").value) })
+      });
+      await loadDashboard();
+      setMessage("retentionShadowMessage", `${run.statusFa}؛ هیچ اقدام زنده‌ای ارسال نشد.`, run.status === "ready" ? "success" : "error");
+    } catch (error) {
+      setMessage("retentionShadowMessage", error.message, "error");
+    } finally {
+      setButtonBusy(button, false);
+    }
+  });
+
+  document.getElementById("retentionExperimentBriefButton").addEventListener("click", async () => {
+    const query = new URLSearchParams({
+      baselineRate: String(Number(document.getElementById("retentionBaselineRate").value) / 100),
+      minimumDetectableEffect: String(Number(document.getElementById("retentionMde").value) / 100),
+      outcomeWindowDays: document.getElementById("retentionOutcomeWindow").value,
+      holdoutRate: String(Number(document.getElementById("retentionHoldoutRate").value) / 100)
+    });
+    const response = await fetch(`/api/retention/experiment-brief.md?${query}`, { credentials: "same-origin" });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      return setMessage("retentionShadowMessage", payload.error?.message || "طرح آزمایش آماده نشد.", "error");
+    }
+    downloadBlob(await response.blob(), "marginlift-retention-experiment-brief.md");
+  });
+
+  document.getElementById("retentionDemoResetButton").addEventListener("click", async event => {
+    const button = event.currentTarget;
+    setButtonBusy(button, true, "در حال بارگذاری...");
+    try {
+      const result = await apiRequest("/api/retention/demo/reset", {
+        method: "POST",
+        body: JSON.stringify({ presetKey: document.getElementById("retentionDemoPreset").value })
+      });
+      retentionCsvText = "";
+      retentionPreview = null;
+      document.getElementById("retentionCsvFile").value = "";
+      document.getElementById("retentionFilePreview").hidden = true;
+      await loadDashboard();
+      setMessage("retentionShadowMessage", `${result.name} بارگذاری شد؛ داده قبلی حذف نشده است.`, "success");
+    } catch (error) {
+      setMessage("retentionShadowMessage", error.message, "error");
+    } finally {
+      setButtonBusy(button, false);
+    }
+  });
+}
+
+async function refreshRetentionPreview() {
+  if (!retentionCsvText) return;
+  const previewContainer = document.getElementById("retentionFilePreview");
+  const importButton = document.getElementById("retentionImportButton");
+  previewContainer.hidden = false;
+  importButton.disabled = true;
+  setMessage("retentionUploadMessage", "در حال تشخیص قرارداد داده و ستون‌ها...", "");
+  retentionPreview = await apiRequest("/api/retention/preview", {
+    method: "POST",
+    body: JSON.stringify({
+      csvText: retentionCsvText,
+      cutoff: toLatinDigits(document.getElementById("retentionCutoff").value),
+      mapping: collectRetentionMapping()
+    })
+  });
+  renderRetentionPreview(retentionPreview);
+  importButton.disabled = !retentionPreview.readyForImport;
+  const messageKind = retentionPreview.readyForImport ? "success" : "error";
+  setMessage("retentionUploadMessage", toPersianDigits(retentionPreview.nextActionFa), messageKind);
+}
+
+function collectRetentionMapping() {
+  return [...document.querySelectorAll("[data-retention-mapping]")].reduce((mapping, select) => {
+    mapping[select.dataset.retentionMapping] = select.value;
+    return mapping;
+  }, {});
+}
+
+function renderRetentionPreview(preview) {
+  const summary = document.getElementById("retentionPreviewSummary");
+  const privacyClass = preview.privacy.blocked ? "is-blocked" : "is-ready";
+  summary.innerHTML = `<div><span>ردیف خوانده‌شده</span><strong class="number">${formatNumber(preview.rowCount)}</strong></div>
+    <div><span>ستون شناسایی‌شده</span><strong class="number">${formatNumber(preview.columns.length)}</strong></div>
+    <div class="${privacyClass}"><span>حریم خصوصی</span><strong>${escapeHtml(preview.privacy.statusFa)}</strong></div>`;
+
+  const mappingStatus = document.getElementById("retentionMappingStatus");
+  mappingStatus.textContent = preview.readyForImport ? "آماده ورود" : "نیازمند اصلاح";
+  mappingStatus.className = `pill ${preview.readyForImport ? "save" : "warn"}`;
+
+  const emptyOption = `<option value="">ستونی انتخاب نشده</option>`;
+  const columnOptions = preview.columns.map(column => `<option value="${escapeHtml(column)}">${escapeHtml(column)}</option>`).join("");
+  document.getElementById("retentionMappingFields").innerHTML = preview.fields.map(field => `<label class="retention-mapping-field ${field.required ? "is-required" : ""}">
+    <span><strong>${escapeHtml(field.labelFa)}</strong><small>${field.required ? "ضروری" : "اختیاری"}</small></span>
+    <select data-retention-mapping="${escapeHtml(field.key)}" aria-label="ستون ${escapeHtml(field.labelFa)}">${emptyOption}${columnOptions}</select>
+  </label>`).join("");
+
+  preview.fields.forEach(field => {
+    const select = document.querySelector(`[data-retention-mapping="${field.key}"]`);
+    if (!select) return;
+    select.value = field.column || "";
+    select.addEventListener("change", () => refreshRetentionPreview().catch(error => setMessage("retentionUploadMessage", error.message, "error")));
+  });
 }
 
 function setupUpload() {
@@ -729,6 +1051,7 @@ async function init() {
   setupNavigation();
   setupUpload();
   setupActions();
+  setupRetentionWorkspace();
   try {
     const session = await apiRequest("/api/session");
     if (session) await enterApp();

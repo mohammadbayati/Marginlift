@@ -47,6 +47,7 @@ try {
     --exclude=data/artifacts `
     --exclude=backups `
     --exclude=qa-*.png `
+    --exclude=business `
     --exclude=.agents `
     --exclude=.impeccable `
     --exclude=skills-lock.json `

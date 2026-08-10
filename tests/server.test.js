@@ -56,7 +56,7 @@ async function run() {
     const healthHead = await request("/api/health", { method: "HEAD" });
     assert.strictEqual(healthHead.response.status, 200);
 
-    for (const page of ["/", "/login", "/signup", "/sales.html", "/styles-v2.css", "/styles-v3.css", "/executive-report-v3.css", "/motion.js", "/executive-report.html", "/executive-report.js", "/privacy.html", "/terms.html", "/security.html", "/pilot-data-request.html", "/vm-deployment.html", "/docs/vm-deployment.md", "/docs/model-governance.md", "/docs/demo-user-guide-fa.md"]) {
+    for (const page of ["/", "/login", "/signup", "/sales.html", "/styles-v2.css", "/styles-v3.css", "/executive-report-v3.css", "/motion.js", "/executive-report.html", "/executive-report.js", "/privacy.html", "/terms.html", "/security.html", "/pilot-data-request.html", "/vm-deployment.html", "/synthetic-ecommerce-transactions.csv", "/synthetic-subscription-transactions.csv", "/docs/vm-deployment.md", "/docs/model-governance.md", "/docs/demo-user-guide-fa.md"]) {
       const pageResponse = await request(page);
       assert.strictEqual(pageResponse.response.status, 200, `${page} should be public`);
     }
@@ -209,6 +209,99 @@ async function run() {
     assert.ok(customers.payload.data.summary.targetableCustomers >= 1);
     assert.strictEqual(customers.payload.data.model.unitFa, "customer_id");
 
+    const retentionConfiguration = await request("/api/retention/configuration", { cookie });
+    assert.strictEqual(retentionConfiguration.response.status, 200);
+    assert.strictEqual(retentionConfiguration.payload.data.configuration.presetKey, "super_app_packages");
+    assert.ok(retentionConfiguration.payload.data.presets.length >= 2);
+
+    const retentionConfigurationUpdate = await request("/api/retention/configuration", {
+      method: "PATCH",
+      cookie,
+      body: {
+        presetKey: "super_app_packages",
+        display: { purchaseObjectFa: "بسته اینترنت آزمایشی" },
+        readiness: { minimumHistoryDays: 30, minimumCustomers: 10, minimumRepeatCustomers: 5 }
+      }
+    });
+    assert.strictEqual(retentionConfigurationUpdate.response.status, 200);
+    assert.strictEqual(retentionConfigurationUpdate.payload.data.configuration.display.purchaseObjectFa, "بسته اینترنت آزمایشی");
+
+    const retentionCsv = fs.readFileSync(path.join(__dirname, "..", "synthetic-package-transactions.csv"), "utf8");
+    const retentionPreview = await request("/api/retention/preview", {
+      method: "POST",
+      cookie,
+      body: { csvText: retentionCsv, cutoff: "2026-02-01T00:00:00Z" }
+    });
+    assert.strictEqual(retentionPreview.response.status, 200);
+    assert.strictEqual(retentionPreview.payload.data.readyForImport, true);
+    assert.strictEqual(retentionPreview.payload.data.mapping.customerId, "customer_id_hash");
+    assert.strictEqual(retentionPreview.payload.data.privacy.blocked, false);
+
+    const piiRetentionPreview = await request("/api/retention/preview", {
+      method: "POST",
+      cookie,
+      body: { csvText: "customer_id_hash,transaction_id,purchased_at,paid_amount,email\nhash_1,txn_1,2026-01-01,100000,person@example.com" }
+    });
+    assert.strictEqual(piiRetentionPreview.response.status, 200);
+    assert.strictEqual(piiRetentionPreview.payload.data.readyForImport, false);
+    assert.strictEqual(piiRetentionPreview.payload.data.privacy.blocked, true);
+
+    const retentionImport = await request("/api/retention/import", {
+      method: "POST",
+      cookie,
+      body: { name: "تحلیل نگهداشت تست", csvText: retentionCsv, cutoff: "2026-02-01T00:00:00Z" }
+    });
+    assert.strictEqual(retentionImport.response.status, 201);
+    assert.strictEqual(retentionImport.payload.data.workspace.evidenceLevel, "observational_baseline");
+    assert.ok(retentionImport.payload.data.workspace.queue.every(item => item.incentiveAllowed === false));
+
+    const retentionWorkspace = await request("/api/retention/workspace", { cookie });
+    assert.strictEqual(retentionWorkspace.response.status, 200);
+    assert.strictEqual(retentionWorkspace.payload.data.stale, false);
+    assert.strictEqual(retentionWorkspace.payload.data.analysis.name, "تحلیل نگهداشت تست");
+    assert.strictEqual(retentionWorkspace.payload.data.analysis.baseline.leakageAudit.passed, true);
+    assert.strictEqual(retentionWorkspace.payload.data.analysis.baseline.modelCard.decisionPermission, "shadow_only");
+
+    const retentionAudience = await request("/api/retention/audience.csv", { cookie });
+    assert.strictEqual(retentionAudience.response.status, 200);
+    assert.match(String(retentionAudience.payload), /customer_id_hash,state,days_from_due/);
+    assert.match(String(retentionAudience.payload), /observational_baseline/);
+    assert.match(String(retentionAudience.payload), /false/);
+
+    for (const role of ["executive", "crm", "finance", "data"]) {
+      const readout = await request(`/api/retention/readout.md?role=${role}`, { cookie });
+      assert.strictEqual(readout.response.status, 200);
+      assert.match(String(readout.payload), /مرز ادعا/);
+      assert.match(String(readout.payload), /holdout/);
+    }
+
+    const shadowRun = await request("/api/retention/shadow-runs", {
+      method: "POST",
+      cookie,
+      body: { capacity: 3 }
+    });
+    assert.strictEqual(shadowRun.response.status, 201);
+    assert.strictEqual(shadowRun.payload.data.liveActionAllowed, false);
+    assert.ok(shadowRun.payload.data.summary.selectedCustomers <= 3);
+
+    const shadowWorkspace = await request("/api/retention/shadow-workspace", { cookie });
+    assert.strictEqual(shadowWorkspace.response.status, 200);
+    assert.strictEqual(shadowWorkspace.payload.data.latestRun.id, shadowRun.payload.data.id);
+
+    const retentionBrief = await request("/api/retention/experiment-brief.md?baselineRate=0.2&minimumDetectableEffect=0.03&outcomeWindowDays=30&holdoutRate=0.2", { cookie });
+    assert.strictEqual(retentionBrief.response.status, 200);
+    assert.match(String(retentionBrief.payload), /Intention-To-Treat/);
+    assert.match(String(retentionBrief.payload), /مرز ادعا/);
+
+    const demoScenario = await request("/api/retention/demo/reset", {
+      method: "POST",
+      cookie,
+      body: { presetKey: "subscription_services" }
+    });
+    assert.strictEqual(demoScenario.response.status, 201);
+    assert.strictEqual(demoScenario.payload.data.isDemoScenario, true);
+    assert.strictEqual(demoScenario.payload.data.configuration.presetKey, "subscription_services");
+
     const experiment = await request("/api/experiments/plan", { cookie });
     assert.strictEqual(experiment.response.status, 200);
     assert.ok(experiment.payload.data.sampleSize.perGroup >= 50);
@@ -250,12 +343,13 @@ async function run() {
 
     const storedArtifacts = await request("/api/artifacts", { cookie });
     assert.strictEqual(storedArtifacts.response.status, 200);
-    assert.strictEqual(storedArtifacts.payload.data.length, 1);
-    assert.strictEqual(storedArtifacts.payload.data[0].encryption, "aes-256-gcm");
-    const artifactDownload = await request(`/api/artifacts/${storedArtifacts.payload.data[0].id}/download`, { cookie });
+    assert.ok(storedArtifacts.payload.data.length >= 2);
+    const customerArtifact = storedArtifacts.payload.data.find(item => item.type === "customer_csv");
+    assert.strictEqual(customerArtifact.encryption, "aes-256-gcm");
+    const artifactDownload = await request(`/api/artifacts/${customerArtifact.id}/download`, { cookie });
     assert.strictEqual(artifactDownload.response.status, 200);
     assert.ok(String(artifactDownload.payload).includes("customer_id"));
-    const artifactDelete = await request(`/api/artifacts/${storedArtifacts.payload.data[0].id}`, {
+    const artifactDelete = await request(`/api/artifacts/${customerArtifact.id}`, {
       method: "DELETE",
       cookie
     });

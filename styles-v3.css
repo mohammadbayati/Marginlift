@@ -1207,3 +1207,124 @@ button[aria-busy="true"]::before, .is-busy::before {
 .workspace-actions > button {
   flex: 1 1 180px;
 }
+
+/* Retention Workspace: one core with customer-specific business language. */
+.retention-setup-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr); gap: 10px; align-items: start; }
+.retention-config-panel, .retention-import-panel, .retention-analysis-panel, .retention-queue-panel { padding: 22px; }
+.retention-config-form, .retention-upload-form { display: grid; gap: 12px; }
+.retention-config-form label, .retention-upload-form label { position: relative; display: grid; gap: 6px; color: var(--ink-soft); font-size: .69rem; font-weight: 750; }
+.retention-config-form input, .retention-config-form select, .retention-upload-form input { width: 100%; min-height: 46px; padding-inline: 12px; border: 1px solid var(--line-strong); border-radius: var(--radius-md); color: var(--ink); background: #fff; }
+.retention-config-form input:focus, .retention-config-form select:focus, .retention-upload-form input:focus { border-color: var(--decision); outline: 0; box-shadow: var(--focus); }
+.retention-config-form label > span { position: absolute; inset-inline-end: 12px; inset-block-end: 12px; color: var(--muted); font-size: .61rem; font-weight: 600; pointer-events: none; }
+.retention-config-form label:has(> span) input { padding-inline-end: 76px; }
+.retention-horizon-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.retention-upload-form input[type="file"] { direction: ltr; padding: 8px; text-align: left; font-family: Arial, sans-serif; font-size: .74rem; }
+.retention-upload-form input[type="file"]::file-selector-button { min-height: 30px; margin-inline-end: 9px; padding-inline: 10px; border: 0; border-radius: var(--radius-sm); background: var(--surface-subtle); cursor: pointer; }
+.retention-upload-form .retention-date-input { direction: ltr; text-align: left; font-family: "MarginLift Numerals", var(--font-fa); }
+.retention-upload-form .auth-hint a { color: var(--decision); font-weight: 750; }
+.retention-file-preview { padding-block: 14px 4px; border-block-start: 1px solid var(--line); }
+.retention-preview-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--line); }
+.retention-preview-summary > div { min-width: 0; padding: 11px 12px; background: #fff; }
+.retention-preview-summary span, .retention-preview-summary strong { display: block; }
+.retention-preview-summary span { color: var(--muted); font-size: .61rem; }
+.retention-preview-summary strong { margin-block-start: 4px; color: var(--ink); font-size: .73rem; overflow-wrap: anywhere; }
+.retention-preview-summary .is-ready strong { color: var(--profit-deep); }
+.retention-preview-summary .is-blocked strong { color: var(--danger); }
+.retention-mapping-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-block: 16px 10px; }
+.retention-mapping-heading strong, .retention-mapping-heading span { display: block; }
+.retention-mapping-heading > div > strong { color: var(--ink); font-size: .76rem; }
+.retention-mapping-heading > div > span { margin-block-start: 3px; color: var(--muted); font-size: .61rem; line-height: 1.7; }
+.retention-mapping-fields { display: grid; grid-template-columns: 1fr; gap: 0; max-height: 310px; padding-inline-end: 3px; overflow-x: hidden; overflow-y: auto; }
+.retention-mapping-field { display: grid; grid-template-columns: minmax(125px, .82fr) minmax(160px, 1.18fr); gap: 12px; align-items: center; min-width: 0; padding-block: 7px; border-block-end: 1px solid var(--line); }
+.retention-mapping-field > span { min-width: 0; }
+.retention-mapping-field strong, .retention-mapping-field small { display: block; }
+.retention-mapping-field strong { color: var(--ink-soft); font-size: .64rem; overflow-wrap: anywhere; }
+.retention-mapping-field small { margin-block-start: 2px; color: var(--muted); font-size: .56rem; }
+.retention-mapping-field.is-required small { color: var(--danger); }
+.retention-mapping-field select { min-width: 0; min-height: 38px; padding-inline: 8px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: #fff; color: var(--ink); direction: ltr; text-align: left; font-family: Arial, sans-serif; font-size: .66rem; }
+.retention-analysis-panel { margin-block-start: 10px; overflow: hidden; }
+.retention-decision-line { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding-block-end: 20px; border-block-end: 1px solid var(--line); }
+.retention-decision-line > div { max-width: 780px; }
+.retention-decision-line h3 { margin-block: 6px 7px; font-size: 1.2rem; line-height: 1.55; }
+.retention-decision-line p { margin: 0; color: var(--muted); font-size: .74rem; line-height: 1.8; }
+.retention-proof { max-width: 260px; padding: 8px 11px; border-inline-start: 3px solid var(--profit); color: var(--profit-deep); background: var(--profit-soft); font-size: .66rem; font-weight: 750; line-height: 1.7; }
+.retention-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-block-end: 1px solid var(--line); }
+.retention-metrics > div { min-width: 0; padding: 20px 16px; }
+.retention-metrics > div + div { border-inline-start: 1px solid var(--line); }
+.retention-metrics span, .retention-metrics strong { display: block; }
+.retention-metrics span { color: var(--muted); font-size: .65rem; }
+.retention-metrics strong { margin-block-start: 7px; color: var(--ink); font-size: 1.15rem; line-height: 1.4; overflow-wrap: anywhere; }
+.retention-lifecycle { padding-block-start: 22px; }
+.retention-subheading { display: flex; align-items: baseline; justify-content: space-between; gap: 18px; margin-block-end: 16px; }
+.retention-subheading h3 { margin: 0; font-size: .9rem; }
+.retention-subheading span { color: var(--muted); font-size: .64rem; }
+.retention-state-bars { display: grid; gap: 11px; }
+.retention-state-row { display: grid; grid-template-columns: 130px minmax(120px, 1fr) 54px; gap: 12px; align-items: center; }
+.retention-state-row > div:first-child { display: flex; justify-content: space-between; gap: 8px; font-size: .66rem; }
+.retention-state-row > div:first-child strong { color: var(--ink); }
+.retention-state-row > bdi { color: var(--muted); font-size: .63rem; text-align: left; }
+.retention-state-track { height: 8px; overflow: hidden; border-radius: 4px; background: var(--surface-strong); }
+.retention-state-track span { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--profit); transition: width var(--motion-slow) var(--ease-standard); }
+.retention-state-row:nth-child(2) .retention-state-track span { background: var(--decision); }
+.retention-state-row:nth-child(3) .retention-state-track span { background: #d28a18; }
+.retention-state-row:nth-child(4) .retention-state-track span { background: var(--danger); }
+.retention-state-row:nth-child(5) .retention-state-track span { background: #68717d; }
+.retention-model-card { margin-block-start: 22px; padding-block-start: 20px; border-block-start: 1px solid var(--line); }
+.retention-model-card .retention-subheading { align-items: center; }
+.retention-model-card .retention-subheading h3 { margin-block-start: 4px; }
+.retention-model-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--line); }
+.retention-model-facts > div { min-width: 0; padding: 13px 12px; background: #fff; }
+.retention-model-facts span, .retention-model-facts strong { display: block; }
+.retention-model-facts span { color: var(--muted); font-size: .6rem; }
+.retention-model-facts strong { margin-block-start: 5px; color: var(--ink-soft); font-size: .67rem; line-height: 1.7; overflow-wrap: anywhere; }
+.retention-queue-panel { margin-block-start: 10px; }
+.retention-queue-panel .decision-table { min-width: 900px; }
+.retention-export-tools { display: flex; align-items: center; justify-content: flex-end; gap: 7px; flex-wrap: wrap; }
+.retention-export-tools select { min-height: 36px; padding-inline: 9px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); color: var(--ink-soft); background: #fff; font-family: var(--font-fa); font-size: .63rem; }
+.retention-export-tools .secondary-button { min-height: 36px; padding-inline: 10px; font-size: .62rem; }
+.retention-shadow-panel { margin-block-start: 10px; padding: 22px; }
+.retention-shadow-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, .55fr); gap: 20px; align-items: center; padding-block: 16px 20px; border-block-end: 1px solid var(--line); }
+.retention-shadow-summary p { max-width: 720px; margin: 0; color: var(--muted); font-size: .71rem; line-height: 1.85; }
+.retention-shadow-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--line); }
+.retention-shadow-metrics > div { min-width: 0; padding: 12px; background: #fff; }
+.retention-shadow-metrics span, .retention-shadow-metrics strong { display: block; }
+.retention-shadow-metrics span { color: var(--muted); font-size: .58rem; }
+.retention-shadow-metrics strong { margin-block-start: 5px; color: var(--ink); font-size: .85rem; overflow-wrap: anywhere; }
+.retention-shadow-controls { display: grid; grid-template-columns: minmax(150px, 1fr) auto; gap: 8px; align-items: end; }
+.retention-shadow-controls label, .retention-experiment-tools label { position: relative; display: grid; gap: 5px; color: var(--ink-soft); font-size: .61rem; font-weight: 750; }
+.retention-shadow-controls input, .retention-experiment-tools input, .retention-demo-tools select { width: 100%; min-height: 40px; padding-inline: 10px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); color: var(--ink); background: #fff; }
+.retention-shadow-controls label > span, .retention-experiment-tools label > span { position: absolute; inset-inline-end: 10px; inset-block-end: 11px; color: var(--muted); font-size: .55rem; pointer-events: none; }
+.retention-shadow-controls label input, .retention-experiment-tools label input { padding-inline-end: 58px; }
+.retention-experiment-tools { display: grid; grid-template-columns: minmax(190px, 1fr) repeat(4, minmax(100px, .55fr)) auto; gap: 8px; align-items: end; padding-block: 18px; border-block-end: 1px solid var(--line); }
+.retention-experiment-tools > div strong { display: block; margin-block-start: 4px; color: var(--ink); font-size: .7rem; }
+.retention-demo-tools { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding-block-start: 16px; }
+.retention-demo-tools > span { margin-inline-end: auto; color: var(--muted); font-size: .62rem; line-height: 1.7; }
+.retention-demo-tools select { width: auto; min-width: 170px; font-family: var(--font-fa); font-size: .62rem; }
+.queue-state { display: inline-block; padding: 4px 7px; border-radius: var(--radius-sm); color: var(--ink-soft); background: var(--surface-subtle); font-size: .63rem; font-weight: 750; white-space: nowrap; }
+.queue-state-due { color: var(--decision); background: var(--decision-soft); }
+.queue-state-lapsed { color: var(--warning); background: var(--warning-soft); }
+.queue-state-dormant { color: var(--danger); background: var(--danger-soft); }
+.retention-empty { padding-block: 30px !important; color: var(--muted); text-align: center; }
+
+@media (max-width: 1180px) {
+  .retention-setup-grid { grid-template-columns: 1fr; }
+  .retention-experiment-tools { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .retention-experiment-tools > div { grid-column: 1 / -1; }
+}
+
+@media (max-width: 720px) {
+  .retention-horizon-fields, .retention-metrics, .retention-model-facts { grid-template-columns: 1fr; }
+  .retention-preview-summary, .retention-mapping-fields { grid-template-columns: 1fr; }
+  .retention-mapping-field { grid-template-columns: minmax(100px, .8fr) minmax(120px, 1.2fr); }
+  .retention-metrics > div + div { border-inline-start: 0; border-block-start: 1px solid var(--line); }
+  .retention-decision-line, .retention-subheading { align-items: flex-start; flex-direction: column; }
+  .retention-queue-panel .panel-heading { align-items: flex-start; flex-direction: column; }
+  .retention-export-tools { width: 100%; justify-content: flex-start; }
+  .retention-shadow-layout, .retention-shadow-controls, .retention-experiment-tools { grid-template-columns: 1fr; }
+  .retention-shadow-metrics { grid-template-columns: 1fr; }
+  .retention-demo-tools { align-items: stretch; flex-direction: column; }
+  .retention-demo-tools > span { margin-inline-end: 0; }
+  .retention-demo-tools select { width: 100%; }
+  .retention-proof { max-width: none; }
+  .retention-state-row { grid-template-columns: 100px minmax(90px, 1fr) 48px; gap: 8px; }
+}

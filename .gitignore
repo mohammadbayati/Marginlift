@@ -1,4 +1,12 @@
 node_modules/
+data/channel-retention-dataset*.json
+data/survival-baseline*.json
+data/models/
+data/model-test-artifacts/
+data/python-write-test.txt
+tmp*/
+__pycache__/
+*.pyc
 data/db.json
 data/*.tmp
 data/backups/
@@ -7,6 +15,7 @@ backups/
 .env
 .DS_Store
 *.log
+~$*
 qa-*.png
 .agents/
 .impeccable/

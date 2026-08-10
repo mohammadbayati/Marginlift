@@ -23,12 +23,14 @@ async function run() {
   const { readDb, transact } = require("../src/storage");
   const normalized = await readDb();
 
-  assert.strictEqual(normalized.meta.version, 4);
+  assert.strictEqual(normalized.meta.version, 6);
   assert.deepStrictEqual(normalized.experiments, []);
   assert.strictEqual(normalized.customerAnalyses[0].id, "customer_legacy");
   assert.strictEqual(normalized.outcomes[0].id, "outcome_legacy");
   assert.deepStrictEqual(normalized.events, []);
   assert.deepStrictEqual(normalized.decisionLedger, []);
+  assert.deepStrictEqual(normalized.retentionAnalyses, []);
+  assert.deepStrictEqual(normalized.retentionShadowRuns, []);
 
   await transact(db => {
     db.experiments.push({ id: "exp_migrated", organizationId: "org_legacy" });

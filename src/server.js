@@ -28,6 +28,15 @@ const { appendDecision, toPublicDecision, verifyDecisionLedger } = require("./de
 const { auditOutcomeRows, buildExperimentRecord, hashDataset, toPublicExperiment } = require("./experiment");
 const { buildModelGovernance, buildOutcomeMonitor, toPublicModelGovernance } = require("./model-governance");
 const {
+  analyzeRetentionRows,
+  buildRetentionWorkspace,
+  getRetentionPreset,
+  listRetentionPresets,
+  normalizeRetentionConfig,
+  previewRetentionRows
+} = require("./retention-product");
+const { buildRetentionExperimentBrief, buildRetentionShadowRun } = require("./retention-shadow");
+const {
   analyzeOutcomeRows,
   buildPilotReadout,
   buildPilotWorkspace,
@@ -40,6 +49,11 @@ const publicRoot = path.join(__dirname, "..");
 const sampleCsvPath = path.join(publicRoot, "synthetic-campaign-data.csv");
 const sampleCustomerCsvPath = path.join(publicRoot, "synthetic-customer-events.csv");
 const sampleOutcomeCsvPath = path.join(publicRoot, "synthetic-outcome-data.csv");
+const retentionDemoScenarios = Object.freeze({
+  generic_ecommerce: { file: path.join(publicRoot, "synthetic-ecommerce-transactions.csv"), cutoff: "2025-12-01", name: "سناریوی نمایشی فروشگاه اینترنتی" },
+  super_app_packages: { file: path.join(publicRoot, "synthetic-package-transactions.csv"), cutoff: "2026-02-01", name: "سناریوی نمایشی خرید بسته اینترنت" },
+  subscription_services: { file: path.join(publicRoot, "synthetic-subscription-transactions.csv"), cutoff: "2026-05-01", name: "سناریوی نمایشی تمدید اشتراک" }
+});
 const sessionTtlMs = 1000 * 60 * 60 * 24 * 7;
 const authAttempts = new Map();
 
@@ -49,6 +63,7 @@ const contentTypes = {
   ".js": "application/javascript; charset=utf-8",
   ".csv": "text/csv; charset=utf-8",
   ".md": "text/markdown; charset=utf-8",
+  ".txt": "text/markdown; charset=utf-8",
   ".json": "application/json; charset=utf-8",
   ".svg": "image/svg+xml",
   ".png": "image/png",
@@ -251,6 +266,103 @@ async function handleApi(req, res, url) {
     return;
   }
 
+  if (url.pathname === "/api/retention/configuration" && req.method === "GET") {
+    sendJson(res, 200, { data: await getRetentionConfiguration(auth.organization.id) });
+    return;
+  }
+
+  if (url.pathname === "/api/retention/configuration" && req.method === "PATCH") {
+    requireRole(auth, "admin");
+    const body = await readJson(req);
+    sendJson(res, 200, { data: await updateRetentionConfiguration(auth, body, requestContext(req, auth)) });
+    return;
+  }
+
+  if (url.pathname === "/api/retention/workspace" && req.method === "GET") {
+    sendJson(res, 200, { data: await getRetentionWorkspace(auth.organization.id) });
+    return;
+  }
+
+  if (url.pathname === "/api/retention/preview" && req.method === "POST") {
+    requireRole(auth, "analyst");
+    const body = await readJson(req);
+    sendJson(res, 200, { data: await previewRetentionImport(auth.organization.id, body) });
+    return;
+  }
+
+  if (url.pathname === "/api/retention/import" && req.method === "POST") {
+    requireRole(auth, "analyst");
+    const body = await readJson(req);
+    sendJson(res, 201, { data: await importRetentionAnalysis(auth.organization.id, body, requestContext(req, auth)) });
+    return;
+  }
+
+  if (url.pathname === "/api/retention/audience.csv" && req.method === "GET") {
+    requireRole(auth, "analyst");
+    const record = await getLatestRetentionRecord(auth.organization.id);
+    if (!record) throw httpError(404, "RETENTION_ANALYSIS_NOT_FOUND", "ابتدا داده نگهداشت را تحلیل کنید.");
+    res.writeHead(200, {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Cache-Control": "no-store",
+      "Content-Disposition": 'attachment; filename="marginlift-retention-audience.csv"'
+    });
+    res.end(buildRetentionAudienceCsv(record));
+    return;
+  }
+
+  if (url.pathname === "/api/retention/readout.md" && req.method === "GET") {
+    requireRole(auth, "analyst");
+    const record = await getLatestRetentionRecord(auth.organization.id);
+    if (!record) throw httpError(404, "RETENTION_ANALYSIS_NOT_FOUND", "ابتدا داده نگهداشت را تحلیل کنید.");
+    const role = normalizeRetentionReadoutRole(url.searchParams.get("role"));
+    res.writeHead(200, {
+      "Content-Type": "text/markdown; charset=utf-8",
+      "Cache-Control": "no-store",
+      "Content-Disposition": `attachment; filename="marginlift-retention-${role}-readout.md"`
+    });
+    res.end(buildRetentionRoleReadout(auth.organization, record, role));
+    return;
+  }
+
+  if (url.pathname === "/api/retention/shadow-runs" && req.method === "POST") {
+    requireRole(auth, "analyst");
+    const body = await readJson(req);
+    sendJson(res, 201, { data: await createRetentionShadowRun(auth.organization.id, body, requestContext(req, auth)) });
+    return;
+  }
+
+  if (url.pathname === "/api/retention/shadow-workspace" && req.method === "GET") {
+    sendJson(res, 200, { data: await getRetentionShadowWorkspace(auth.organization.id) });
+    return;
+  }
+
+  if (url.pathname === "/api/retention/experiment-brief.md" && req.method === "GET") {
+    requireRole(auth, "analyst");
+    const record = await getLatestRetentionRecord(auth.organization.id);
+    if (!record) throw httpError(404, "RETENTION_ANALYSIS_NOT_FOUND", "ابتدا داده نگهداشت را تحلیل کنید.");
+    const shadow = (await getRetentionShadowWorkspace(auth.organization.id)).latestRun;
+    const brief = buildRetentionExperimentBrief(auth.organization, record, shadow, {
+      baselineRate: url.searchParams.get("baselineRate"),
+      minimumDetectableEffect: url.searchParams.get("minimumDetectableEffect"),
+      outcomeWindowDays: url.searchParams.get("outcomeWindowDays"),
+      holdoutRate: url.searchParams.get("holdoutRate")
+    });
+    res.writeHead(200, {
+      "Content-Type": "text/markdown; charset=utf-8",
+      "Cache-Control": "no-store",
+      "Content-Disposition": 'attachment; filename="marginlift-retention-experiment-brief.md"'
+    });
+    res.end(brief);
+    return;
+  }
+
+  if (url.pathname === "/api/retention/demo/reset" && req.method === "POST") {
+    requireRole(auth, "analyst");
+    const body = await readJson(req);
+    sendJson(res, 201, { data: await loadRetentionDemoScenario(auth, body, requestContext(req, auth)) });
+    return;
+  }
+
   if (url.pathname === "/api/experiments/plan" && req.method === "GET") {
     sendJson(res, 200, { data: (await getCurrentCustomerAnalysis(auth.organization.id)).experimentPlan });
     return;
@@ -432,6 +544,7 @@ async function signup(body, context = {}) {
       id: createId("org"),
       name: companyName,
       plan: "pilot",
+      retentionConfig: getRetentionPreset("generic_ecommerce"),
       createdAt: now,
       updatedAt: now
     };
@@ -658,6 +771,360 @@ async function getCurrentCustomerAnalysis(organizationId) {
     isDemo: true,
     ...loadSampleCustomerAnalysis()
   };
+}
+
+async function getRetentionConfiguration(organizationId) {
+  const db = await readDb();
+  const organization = db.organizations.find(item => item.id === organizationId);
+  const configuration = normalizeRetentionConfig(organization?.retentionConfig || getRetentionPreset());
+  return { configuration, presets: listRetentionPresets() };
+}
+
+async function updateRetentionConfiguration(auth, body, context = {}) {
+  const current = (await getRetentionConfiguration(auth.organization.id)).configuration;
+  const changesPreset = body.presetKey && body.presetKey !== current.presetKey;
+  const candidate = changesPreset ? body : {
+    ...current,
+    ...body,
+    display: { ...current.display, ...(body.display || {}) },
+    mapping: { ...current.mapping, ...(body.mapping || {}) },
+    defaults: { ...current.defaults, ...(body.defaults || {}) },
+    lifecycle: { ...current.lifecycle, ...(body.lifecycle || {}) },
+    readiness: { ...current.readiness, ...(body.readiness || {}) }
+  };
+  let configuration;
+  try {
+    configuration = normalizeRetentionConfig(candidate, candidate.presetKey);
+  } catch (error) {
+    throw httpError(400, "INVALID_RETENTION_CONFIGURATION", error.message);
+  }
+
+  await transact(db => {
+    const organization = db.organizations.find(item => item.id === auth.organization.id);
+    if (!organization) throw httpError(404, "WORKSPACE_NOT_FOUND", "فضای کاری پیدا نشد.");
+    organization.retentionConfig = configuration;
+    organization.updatedAt = new Date().toISOString();
+    appendOperationalAudit(db, context, "retention_configuration_updated", "organization", organization.id, {
+      presetKey: configuration.presetKey,
+      lifecycle: configuration.lifecycle
+    });
+  });
+  return { configuration, presets: listRetentionPresets() };
+}
+
+async function getRetentionWorkspace(organizationId) {
+  const db = await readDb();
+  const organization = db.organizations.find(item => item.id === organizationId);
+  const configuration = normalizeRetentionConfig(organization?.retentionConfig || getRetentionPreset());
+  const record = db.retentionAnalyses
+    .filter(item => item.organizationId === organizationId)
+    .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))[0] || null;
+  const configurationHash = hashRetentionConfiguration(configuration);
+
+  if (!record) {
+    return {
+      configuration,
+      analysis: null,
+      stale: false,
+      workspace: buildRetentionWorkspace(configuration)
+    };
+  }
+
+  const stale = record.configurationHash !== configurationHash;
+  return {
+    configuration,
+    analysis: {
+      id: record.id,
+      name: record.name,
+      rowCount: record.rowCount,
+      cutoffAt: record.cutoffAt,
+      readiness: record.readiness,
+      baseline: record.baseline,
+      createdAt: record.createdAt
+    },
+    stale,
+    workspace: stale ? {
+      ...record.workspace,
+      status: "configuration_changed",
+      statusFa: "نیازمند تحلیل مجدد",
+      nextActionFa: "تنظیمات چرخه مشتری تغییر کرده است؛ فایل را دوباره تحلیل کنید."
+    } : record.workspace
+  };
+}
+
+async function importRetentionAnalysis(organizationId, body, context = {}) {
+  const csvText = extractCsvText(body);
+  if (csvText.length < 20) throw httpError(400, "CSV_REQUIRED", "فایل تراکنش معتبر ارسال نشده است.");
+  const rows = parseCSV(csvText);
+  const currentConfiguration = (await getRetentionConfiguration(organizationId)).configuration;
+  const preview = previewRetentionRows(rows, currentConfiguration, body.mapping || {}, { cutoff: body.cutoff });
+  if (!preview.readyForImport) {
+    const message = preview.privacy.blocked
+      ? preview.nextActionFa
+      : `نگاشت ستون‌های الزامی کامل نیست: ${preview.missingRequired.join("، ")}`;
+    throw httpError(400, "RETENTION_MAPPING_REQUIRED", message);
+  }
+  const configuration = normalizeRetentionConfig({
+    ...currentConfiguration,
+    mapping: preview.mapping
+  }, currentConfiguration.presetKey);
+  let result;
+  try {
+    result = analyzeRetentionRows(rows, configuration, { cutoff: body.cutoff });
+  } catch (error) {
+    throw httpError(400, "RETENTION_ANALYSIS_FAILED", error.message);
+  }
+
+  const createdAt = new Date().toISOString();
+  const record = {
+    id: createId("ret"),
+    organizationId,
+    name: cleanText(body.name) || `تحلیل نگهداشت ${configuration.display.purchaseObjectFa}`,
+    source: body.source === "demo_scenario" ? "demo_scenario" : "customer_upload",
+    isDemoScenario: body.source === "demo_scenario",
+    rowCount: rows.length,
+    cutoffAt: result.cutoffAt,
+    configurationHash: hashRetentionConfiguration(configuration),
+    configurationSnapshot: configuration,
+    readiness: result.readiness,
+    baseline: result.baseline ? {
+      baselineVersion: result.baseline.baselineVersion,
+      evidenceLevel: result.baseline.evidenceLevel,
+      overall: result.baseline.overall,
+      diagnostics: result.baseline.diagnostics,
+      leakageAudit: result.baseline.leakageAudit,
+      modelCard: result.baseline.modelCard,
+      caveatsFa: result.baseline.caveatsFa
+    } : null,
+    decisionQueue: result.decisionQueue,
+    workspace: result.workspace,
+    createdAt
+  };
+  const artifact = await persistCsvArtifact(organizationId, context, "retention_transactions_csv", record.name, csvText, createdAt);
+
+  try {
+    await transact(db => {
+      const organization = db.organizations.find(item => item.id === organizationId);
+      if (!organization) throw httpError(404, "WORKSPACE_NOT_FOUND", "فضای کاری پیدا نشد.");
+      organization.retentionConfig = configuration;
+      organization.updatedAt = createdAt;
+      db.retentionAnalyses.push(record);
+      if (artifact) db.artifacts.push(artifact);
+      appendOperationalAudit(db, context, "retention_analysis_imported", "retention_analysis", record.id, {
+        rows: rows.length,
+        readinessStatus: result.readiness.status,
+        configurationHash: record.configurationHash,
+        mapping: configuration.mapping,
+        artifactId: artifact?.id || null
+      });
+    });
+  } catch (error) {
+    if (artifact) await deleteArtifact(artifact);
+    throw error;
+  }
+
+  return {
+    id: record.id,
+    name: record.name,
+    source: record.source,
+    isDemoScenario: record.isDemoScenario,
+    rowCount: record.rowCount,
+    cutoffAt: record.cutoffAt,
+    readiness: record.readiness,
+    baseline: record.baseline,
+    workspace: record.workspace,
+    configuration,
+    onboarding: {
+      columns: preview.columns,
+      mapping: preview.mapping,
+      privacy: preview.privacy
+    }
+  };
+}
+
+async function createRetentionShadowRun(organizationId, body, context = {}) {
+  const record = await getLatestRetentionRecord(organizationId);
+  if (!record) throw httpError(404, "RETENTION_ANALYSIS_NOT_FOUND", "ابتدا داده نگهداشت را تحلیل کنید.");
+  let run;
+  try {
+    run = buildRetentionShadowRun(record, {
+      name: cleanText(body.name),
+      capacity: body.capacity,
+      excludedCustomerIds: Array.isArray(body.excludedCustomerIds) ? body.excludedCustomerIds : []
+    });
+  } catch (error) {
+    throw httpError(400, "RETENTION_SHADOW_FAILED", error.message);
+  }
+  const stored = { ...run, organizationId };
+  await transact(db => {
+    db.retentionShadowRuns.push(stored);
+    appendOperationalAudit(db, context, "retention_shadow_run_created", "retention_shadow_run", run.id, {
+      analysisId: run.analysisId,
+      selectedCustomers: run.summary.selectedCustomers,
+      liveActionAllowed: false
+    });
+  });
+  return run;
+}
+
+async function getRetentionShadowWorkspace(organizationId) {
+  const db = await readDb();
+  const runs = db.retentionShadowRuns
+    .filter(item => item.organizationId === organizationId)
+    .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt));
+  return {
+    latestRun: runs[0] || null,
+    recentRuns: runs.slice(0, 5).map(run => ({
+      id: run.id,
+      name: run.name,
+      status: run.status,
+      statusFa: run.statusFa,
+      selectedCustomers: run.summary.selectedCustomers,
+      createdAt: run.createdAt
+    }))
+  };
+}
+
+async function loadRetentionDemoScenario(auth, body, context = {}) {
+  const presetKey = retentionDemoScenarios[body.presetKey] ? body.presetKey : "generic_ecommerce";
+  const scenario = retentionDemoScenarios[presetKey];
+  await updateRetentionConfiguration(auth, {
+    presetKey,
+    readiness: { minimumHistoryDays: 30, minimumCustomers: 5, minimumRepeatCustomers: 5 }
+  }, context);
+  const csvText = await fs.promises.readFile(scenario.file, "utf8");
+  return importRetentionAnalysis(auth.organization.id, {
+    name: scenario.name,
+    csvText,
+    cutoff: scenario.cutoff,
+    source: "demo_scenario"
+  }, context);
+}
+
+async function getLatestRetentionRecord(organizationId) {
+  const db = await readDb();
+  return db.retentionAnalyses
+    .filter(item => item.organizationId === organizationId)
+    .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))[0] || null;
+}
+
+function buildRetentionAudienceCsv(record) {
+  const queue = record.decisionQueue || record.workspace?.queue || [];
+  const datasetVersion = record.baseline?.modelCard?.datasetVersion || "";
+  const modelVersion = record.baseline?.modelCard?.modelVersion || record.baseline?.baselineVersion || "";
+  const headers = [
+    "customer_id_hash", "state", "days_from_due", "purchase_count", "average_contribution_margin",
+    "recommended_action", "incentive_allowed", "evidence_level", "decision_reason_fa", "policy_version",
+    "dataset_version", "model_version", "analysis_id"
+  ];
+  const rows = queue.map(item => [
+    item.customerIdHash,
+    item.state,
+    item.daysFromDue,
+    item.purchaseCount,
+    item.averageContributionMargin ?? "",
+    item.recommendedAction,
+    item.incentiveAllowed ? "true" : "false",
+    "observational_baseline",
+    item.decisionReasonFa,
+    item.policyVersion || record.workspace?.policyVersion || "",
+    datasetVersion,
+    modelVersion,
+    record.id
+  ]);
+  return `\uFEFF${[headers, ...rows].map(row => row.map(csvCell).join(",")).join("\n")}\n`;
+}
+
+function normalizeRetentionReadoutRole(value) {
+  const role = String(value || "executive").trim().toLowerCase();
+  return ["executive", "crm", "finance", "data"].includes(role) ? role : "executive";
+}
+
+function buildRetentionRoleReadout(organization, record, role) {
+  const workspace = record.workspace || {};
+  const readiness = record.readiness || {};
+  const baseline = record.baseline || {};
+  const queue = record.decisionQueue || workspace.queue || [];
+  const roleLabel = ({ executive: "مدیریت ارشد", crm: "CRM و رشد", finance: "مدیریت مالی", data: "داده و تحلیل" })[role];
+  const common = [
+    `# گزارش نگهداشت MarginLift برای ${organization.name}`,
+    "",
+    `**مخاطب:** ${roleLabel}`,
+    `**نام تحلیل:** ${record.name}`,
+    `**سطح شواهد:** ${baseline.modelCard?.evidenceLabelFa || "برآورد تاریخی"}`,
+    `**مجوز استفاده:** ${baseline.modelCard?.decisionPermissionFa || "فقط تحلیل؛ اقدام خودکار مجاز نیست"}`,
+    ""
+  ];
+  const roleContent = {
+    executive: [
+      "## تصمیم مدیریتی",
+      "",
+      workspace.headlineFa || "خط مبنای نگهداشت ساخته شده است.",
+      "",
+      `- مشتریان قابل بررسی: ${formatNumber(workspace.metrics?.units)}`,
+      `- مشتریان در صف اقدام: ${formatNumber(queue.length)}`,
+      `- میانه خرید مجدد: ${workspace.metrics?.medianRepurchaseDays === null ? "محاسبه نشد" : `${formatNumber(workspace.metrics?.medianRepurchaseDays)} روز`}`,
+      `- اقدام بعدی: ${workspace.nextActionFa || "بازبینی داده"}`
+    ],
+    crm: [
+      "## خروجی اجرایی CRM",
+      "",
+      ...summarizeRetentionActions(queue).map(item => `- ${item.labelFa}: ${formatNumber(item.count)} مشتری`),
+      "",
+      "مشوق برای هیچ ردیفی صرفاً براساس ریسک مجاز نشده است. فایل مخاطبان باید پیش از اجرا با exclusionهای CRM تطبیق داده شود."
+    ],
+    finance: [
+      "## برداشت مالی",
+      "",
+      `- ردیف دارای داده سود مشارکتی: ${formatNumber(queue.filter(item => Number.isFinite(item.averageContributionMargin)).length)}`,
+      "- صرفه‌جویی یا سود افزایشی تأییدشده: هنوز موجود نیست.",
+      "- آزادسازی بودجه مشوق: فقط پس از پایلوت کنترل‌شده و تطبیق هزینه واقعی مجاز است.",
+      "",
+      "این گزارش Value Case قطعی نیست و نباید مبنای ثبت منفعت مالی قرار بگیرد."
+    ],
+    data: [
+      "## وضعیت داده و مدل",
+      "",
+      `- امتیاز آمادگی: ${formatNumber(readiness.score)}٪`,
+      `- ردیف تراکنش: ${formatNumber(readiness.summary?.transactionRows)}`,
+      `- مشتری یکتا: ${formatNumber(readiness.summary?.uniqueCustomers)}`,
+      `- پوشش تاریخی: ${formatNumber(readiness.summary?.coverageDays)} روز`,
+      `- نسخه دیتاست: ${baseline.modelCard?.datasetVersion || "موجود نیست"}`,
+      `- نسخه مدل: ${baseline.modelCard?.modelVersion || baseline.baselineVersion || "موجود نیست"}`,
+      `- کنترل leakage: ${baseline.leakageAudit?.statusFa || "اجرا نشده"}`,
+      "",
+      "### کنترل‌های آمادگی",
+      "",
+      ...(readiness.checks || []).map(check => `- ${check.passed ? "پاس" : "نیازمند اصلاح"}: ${check.labelFa} — ${check.detailFa}`)
+    ]
+  }[role];
+  return [...common, ...roleContent, "", "## مرز ادعا", "", "این خروجی تاریخی است؛ کاهش ریزش یا سود افزایشی فقط پس از holdout سالم قابل تأیید است.", ""].join("\n");
+}
+
+function summarizeRetentionActions(queue) {
+  const counts = new Map();
+  queue.forEach(item => {
+    const current = counts.get(item.recommendedAction) || { labelFa: item.recommendedActionFa, count: 0 };
+    current.count += 1;
+    counts.set(item.recommendedAction, current);
+  });
+  return [...counts.values()].sort((left, right) => right.count - left.count);
+}
+
+async function previewRetentionImport(organizationId, body) {
+  const csvText = extractCsvText(body);
+  if (csvText.length < 20) throw httpError(400, "CSV_REQUIRED", "فایل تراکنش معتبر ارسال نشده است.");
+  const rows = parseCSV(csvText);
+  const configuration = (await getRetentionConfiguration(organizationId)).configuration;
+  try {
+    return previewRetentionRows(rows, configuration, body.mapping || {}, { cutoff: body.cutoff });
+  } catch (error) {
+    throw httpError(400, "RETENTION_PREVIEW_FAILED", error.message);
+  }
+}
+
+function hashRetentionConfiguration(configuration) {
+  return crypto.createHash("sha256").update(JSON.stringify(configuration)).digest("hex").slice(0, 16);
 }
 
 async function getCurrentOutcomeAnalysis(organizationId, experimentId) {
@@ -1667,6 +2134,7 @@ async function seedDemoAccount() {
       id: createId("org"),
       name: "پلتفرم مصرفی نمونه",
       plan: "pilot",
+      retentionConfig: getRetentionPreset("super_app_packages"),
       createdAt: now,
       updatedAt: now
     };
@@ -1723,7 +2191,8 @@ function serveStatic(requestPath, res) {
   const routeAliases = {
     "/": "/sales.html",
     "/login": "/index.html",
-    "/signup": "/index.html"
+    "/signup": "/index.html",
+    "/docs/demo-user-guide-fa.md": "/docs/demo-user-guide-fa.txt"
   };
   const routePath = routeAliases[requestPath] || requestPath;
   const allowed = new Set([
@@ -1752,6 +2221,10 @@ function serveStatic(requestPath, res) {
     "/synthetic-campaign-data.csv",
     "/synthetic-customer-events.csv",
     "/synthetic-outcome-data.csv",
+    "/synthetic-package-transactions.csv",
+    "/synthetic-package-interventions.csv",
+    "/synthetic-ecommerce-transactions.csv",
+    "/synthetic-subscription-transactions.csv",
     "/README.md",
     "/docs/pilot-data-request.md",
     "/docs/pilot-experiment-brief.md",
@@ -1759,7 +2232,7 @@ function serveStatic(requestPath, res) {
     "/docs/investor-source-of-truth.md",
     "/docs/investor-memo.md",
     "/docs/demo-day-talk-track.md",
-    "/docs/demo-user-guide-fa.md",
+    "/docs/demo-user-guide-fa.txt",
     "/docs/investor-q-and-a.md",
     "/docs/submission-readiness-checklist.md",
     "/docs/30-day-validation-roadmap.md",

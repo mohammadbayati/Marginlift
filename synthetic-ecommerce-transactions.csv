@@ -1,0 +1,13 @@
+customer_id_hash,order_id,purchased_at,order_status,channel,product_id,product_category,paid_amount,net_revenue,contribution_margin,discount_amount,cashback_amount,campaign_id
+hash_shop_001,ord_001,2025-09-02T10:20:00Z,completed,web,sku_skin_01,beauty,1200000,1120000,280000,80000,0,
+hash_shop_001,ord_002,2025-10-08T14:10:00Z,completed,app,sku_skin_02,beauty,980000,940000,235000,40000,0,CRM-101
+hash_shop_001,ord_003,2025-11-12T09:40:00Z,completed,app,sku_skin_01,beauty,1250000,1250000,312500,0,0,
+hash_shop_002,ord_004,2025-08-15T16:00:00Z,completed,web,sku_home_01,home,3400000,3200000,640000,200000,0,
+hash_shop_002,ord_005,2025-10-20T12:35:00Z,completed,web,sku_home_02,home,2750000,2750000,550000,0,0,
+hash_shop_003,ord_006,2025-07-01T08:15:00Z,completed,app,sku_food_01,grocery,650000,620000,93000,30000,0,
+hash_shop_003,ord_007,2025-07-29T18:25:00Z,completed,app,sku_food_02,grocery,720000,720000,108000,0,0,
+hash_shop_003,ord_008,2025-08-27T11:50:00Z,completed,app,sku_food_01,grocery,690000,670000,100500,20000,0,CRM-102
+hash_shop_004,ord_009,2025-09-10T13:05:00Z,completed,web,sku_book_01,books,480000,480000,120000,0,0,
+hash_shop_004,ord_010,2025-11-18T15:45:00Z,completed,web,sku_book_02,books,560000,510000,127500,50000,0,CRM-103
+hash_shop_005,ord_011,2025-10-01T17:30:00Z,completed,app,sku_pet_01,pet,840000,840000,210000,0,0,
+hash_shop_005,ord_012,2025-11-03T10:10:00Z,completed,app,sku_pet_01,pet,860000,820000,205000,40000,0,CRM-104

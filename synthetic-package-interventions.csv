@@ -1,0 +1,7 @@
+campaign_id,customer_id_hash,assigned_group,assigned_at,exposed_at,action_type,incentive_amount,channel_cost
+RET-001,hash_demo_001,control,2025-02-01T08:00:00Z,2025-02-01T09:00:00Z,push,0,500
+RET-001,hash_demo_002,treatment,2025-02-01T08:00:00Z,2025-02-01T09:00:00Z,push,5000,500
+RET-001,hash_demo_003,control,2025-02-01T08:00:00Z,2025-02-01T09:00:00Z,push,0,500
+RET-002,hash_demo_004,treatment,2025-09-10T08:00:00Z,2025-09-10T09:00:00Z,push,20000,500
+RET-002,hash_demo_005,control,2025-09-10T08:00:00Z,2025-09-10T09:00:00Z,push,0,500
+

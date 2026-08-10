@@ -6,10 +6,17 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node tests/analysis.test.js && node tests/statistics.test.js && node tests/experiment.test.js && node tests/model-governance.test.js && node tests/config.test.js && node tests/storage.test.js && node tests/platform.test.js && node tests/server.test.js",
+    "test": "node tests/analysis.test.js && node tests/statistics.test.js && node tests/experiment.test.js && node tests/model-governance.test.js && node tests/churn-readiness.test.js && node tests/channel-retention-readiness.test.js && node tests/channel-retention-dataset.test.js && node tests/survival-baseline.test.js && node tests/retention-product.test.js && node tests/retention-shadow.test.js && node tests/churn-value-case.test.js && node tests/config.test.js && node tests/storage.test.js && node tests/platform.test.js && node tests/server.test.js",
     "backup": "node scripts/backup-db.js",
     "db:migrate": "node scripts/migrate-storage.js",
-    "demo-user": "node scripts/manage-demo-user.js"
+    "demo-user": "node scripts/manage-demo-user.js",
+    "churn:audit": "node scripts/audit-churn-data.js",
+    "churn:forecast": "node scripts/forecast-churn-case.js",
+    "retention:audit": "node scripts/audit-channel-retention-data.js",
+    "retention:dataset": "node scripts/build-channel-retention-dataset.js",
+    "retention:baseline": "node scripts/build-survival-baseline.js",
+    "retention:model": "python scripts/train-discrete-time-survival.py",
+    "retention:model:test": "python -m unittest tests/test_survival_model.py"
   },
   "engines": {
     "node": ">=18"

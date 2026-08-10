@@ -3,7 +3,7 @@ const path = require("path");
 const crypto = require("crypto");
 const { resolveDbPath } = require("./config");
 
-const CURRENT_SCHEMA_VERSION = 4;
+const CURRENT_SCHEMA_VERSION = 6;
 const databaseUrl = process.env.DATABASE_URL || "";
 const storageDriver = databaseUrl ? "postgres" : "json";
 const dbPath = resolveDbPath();
@@ -27,6 +27,8 @@ function createInitialDb() {
     sessions: [],
     campaigns: [],
     customerAnalyses: [],
+    retentionAnalyses: [],
+    retentionShadowRuns: [],
     experiments: [],
     outcomes: [],
     decisionLedger: [],
@@ -52,6 +54,8 @@ function normalizeDb(input) {
     "sessions",
     "campaigns",
     "customerAnalyses",
+    "retentionAnalyses",
+    "retentionShadowRuns",
     "experiments",
     "outcomes",
     "decisionLedger",
