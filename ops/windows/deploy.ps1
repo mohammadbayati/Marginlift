@@ -39,20 +39,11 @@ try {
 
   Write-Host "[3/6] Building release archive..."
   Remove-Item -LiteralPath $archive, $checksum -Force -ErrorAction SilentlyContinue
-  tar `
-    --exclude=.git `
-    --exclude=node_modules `
-    --exclude=.env `
-    --exclude=data/db.json `
-    --exclude=data/backups `
-    --exclude=data/artifacts `
-    --exclude=backups `
-    --exclude=qa-*.png `
-    --exclude=business `
-    --exclude=.agents `
-    --exclude=.impeccable `
-    --exclude=skills-lock.json `
-    -czf $archive .
+  git archive `
+    --format=tar.gz `
+    --output=$archive `
+    HEAD `
+    -- . ':(exclude)business/**'
   Assert-NativeCommand "Release archive"
 
   $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash.ToLowerInvariant()
@@ -82,6 +73,8 @@ else
 fi
 
 tar -xzf "$RELEASE" -C "$APP_DIR"
+test -f "$APP_DIR/src/retention-shadow.js"
+test -f "$APP_DIR/synthetic-subscription-transactions.csv"
 cp /root/marginlift.env.backup "$APP_DIR/.env"
 test ! -f /root/marginlift-db.backup.json || \
   cp /root/marginlift-db.backup.json "$APP_DIR/data/db.json"
@@ -99,10 +92,12 @@ rm -f "$RELEASE" "$CHECKSUM"
   Write-Host "[6/6] Verifying production..."
   $homeResponse = Invoke-WebRequest -UseBasicParsing "https://marginlift.ir/"
   $fontResponse = Invoke-WebRequest -UseBasicParsing "https://marginlift.ir/fonts/Estedad-Variable.woff2"
+  $retentionSampleResponse = Invoke-WebRequest -UseBasicParsing "https://marginlift.ir/synthetic-subscription-transactions.csv"
   $healthResponse = Invoke-RestMethod -UseBasicParsing "https://marginlift.ir/api/health"
   if (
     $homeResponse.StatusCode -ne 200 -or
     $fontResponse.StatusCode -ne 200 -or
+    $retentionSampleResponse.StatusCode -ne 200 -or
     $healthResponse.data.status -ne "ok" -or
     $healthResponse.data.storage.driver -ne "postgres"
   ) {
