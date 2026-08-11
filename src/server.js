@@ -25,6 +25,7 @@ const { startJobWorker } = require("./job-worker");
 const { beginRequest, getMetrics, log } = require("./observability");
 const { buildDecisionOverview } = require("./decision-engine");
 const { buildBehavioralWorkspace } = require("./behavioral-policy");
+const { buildContactSafetyWorkspace } = require("./contact-policy");
 const { appendDecision, toPublicDecision, verifyDecisionLedger } = require("./decision-ledger");
 const { auditOutcomeRows, buildExperimentRecord, hashDataset, toPublicExperiment } = require("./experiment");
 const { buildModelGovernance, buildOutcomeMonitor, toPublicModelGovernance } = require("./model-governance");
@@ -303,6 +304,11 @@ async function handleApi(req, res, url) {
     return;
   }
 
+  if (url.pathname === "/api/contact-policy/workspace" && req.method === "GET") {
+    sendJson(res, 200, { data: await getContactPolicyWorkspace(auth.organization.id) });
+    return;
+  }
+
   if (url.pathname === "/api/retention/preview" && req.method === "POST") {
     requireRole(auth, "analyst");
     const body = await readJson(req);
@@ -321,6 +327,13 @@ async function handleApi(req, res, url) {
     requireRole(auth, "analyst");
     const record = await getLatestRetentionRecord(auth.organization.id);
     if (!record) throw httpError(404, "RETENTION_ANALYSIS_NOT_FOUND", "ابتدا داده نگهداشت را تحلیل کنید.");
+    const contactSafety = record.contactSafety || record.workspace?.contactSafety || buildContactSafetyWorkspace(record.decisionQueue || []);
+    if (!contactSafety.contractReady) {
+      throw httpError(409, "CONTACT_SAFETY_CONTRACT_REQUIRED", "خروجی CRM مسدود است؛ رضایت، عدم تماس، کانال ترجیحی و تعداد تماس ۳۰ روزه را برای همه مشتریان تکمیل کنید.");
+    }
+    if (!contactSafety.summary.actionAllowed) {
+      throw httpError(409, "NO_CONTACT_SAFE_AUDIENCE", "هیچ مشتری از دروازه ایمنی تماس عبور نکرده است.");
+    }
     res.writeHead(200, {
       "Content-Type": "text/csv; charset=utf-8",
       "Cache-Control": "no-store",
@@ -464,14 +477,7 @@ async function handleApi(req, res, url) {
 
   if (url.pathname === "/api/exports/audience.csv" && req.method === "GET") {
     requireRole(auth, "analyst");
-    const analysis = await getCurrentCustomerAnalysis(auth.organization.id);
-    res.writeHead(200, {
-      "Content-Type": "text/csv; charset=utf-8",
-      "Cache-Control": "no-store",
-      "Content-Disposition": 'attachment; filename="marginlift-audience-export.csv"'
-    });
-    res.end(buildAudienceCsv(analysis.channelExport || []));
-    return;
+    throw httpError(409, "CONTACT_SAFETY_CONTRACT_REQUIRED", "این خروجی قدیمی مجوز تماس ندارد؛ از مسیر نگهداشت و خروجی CRM ایمن استفاده کنید.");
   }
 
   if (url.pathname === "/api/events/summary" && req.method === "GET") {
@@ -882,8 +888,15 @@ async function getBehavioralWorkspace(organizationId) {
   ]);
   return buildBehavioralWorkspace({
     retentionState,
-    overview: buildDecisionOverview(campaign)
+    overview: buildDecisionOverview(campaign),
+    contactSafety: retentionState.workspace?.contactSafety || null
   });
+}
+
+async function getContactPolicyWorkspace(organizationId) {
+  const record = await getLatestRetentionRecord(organizationId);
+  if (!record) return buildContactSafetyWorkspace([]);
+  return record.contactSafety || record.workspace?.contactSafety || buildContactSafetyWorkspace(record.decisionQueue || []);
 }
 
 async function importRetentionAnalysis(organizationId, body, context = {}) {
@@ -931,6 +944,7 @@ async function importRetentionAnalysis(organizationId, body, context = {}) {
       caveatsFa: result.baseline.caveatsFa
     } : null,
     decisionQueue: result.decisionQueue,
+    contactSafety: result.contactSafety,
     workspace: result.workspace,
     createdAt
   };
@@ -966,6 +980,7 @@ async function importRetentionAnalysis(organizationId, body, context = {}) {
     cutoffAt: record.cutoffAt,
     readiness: record.readiness,
     baseline: record.baseline,
+    contactSafety: record.contactSafety,
     workspace: record.workspace,
     configuration,
     onboarding: {
@@ -1043,12 +1058,12 @@ async function getLatestRetentionRecord(organizationId) {
 }
 
 function buildRetentionAudienceCsv(record) {
-  const queue = record.decisionQueue || record.workspace?.queue || [];
+  const queue = (record.decisionQueue || record.workspace?.queue || []).filter(item => item.actionAllowed);
   const datasetVersion = record.baseline?.modelCard?.datasetVersion || "";
   const modelVersion = record.baseline?.modelCard?.modelVersion || record.baseline?.baselineVersion || "";
   const headers = [
     "customer_id_hash", "state", "days_from_due", "purchase_count", "average_contribution_margin",
-    "recommended_action", "incentive_allowed", "evidence_level", "decision_reason_fa", "policy_version",
+    "recommended_action", "preferred_channel", "contact_count_30d", "action_allowed", "incentive_allowed", "evidence_level", "decision_reason_fa", "policy_version",
     "dataset_version", "model_version", "analysis_id"
   ];
   const rows = queue.map(item => [
@@ -1058,6 +1073,9 @@ function buildRetentionAudienceCsv(record) {
     item.purchaseCount,
     item.averageContributionMargin ?? "",
     item.recommendedAction,
+    item.contactSafety?.preferredChannel || "",
+    item.contactSafety?.contactCount30d ?? "",
+    item.actionAllowed ? "true" : "false",
     item.incentiveAllowed ? "true" : "false",
     "observational_baseline",
     item.decisionReasonFa,
@@ -2243,6 +2261,7 @@ function serveStatic(requestPath, req, res) {
     "/styles.css",
     "/styles-v2.css",
     "/styles-v3.css",
+    "/styles-v4.css",
     "/executive-report-v3.css",
     "/motion.js",
     "/app.js",

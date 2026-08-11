@@ -69,7 +69,7 @@ async function run() {
     assert.strictEqual(homeHead.response.status, 200);
     assert.strictEqual(homeHead.payload, "");
 
-    for (const page of ["/", "/login", "/signup", "/sales.html", "/styles-v2.css", "/styles-v3.css", "/executive-report-v3.css", "/motion.js", "/executive-report.html", "/executive-report.js", "/privacy.html", "/terms.html", "/security.html", "/pilot-data-request.html", "/vm-deployment.html", "/synthetic-ecommerce-transactions.csv", "/synthetic-subscription-transactions.csv", "/docs/vm-deployment.md", "/docs/model-governance.md", "/docs/demo-user-guide-fa.md"]) {
+    for (const page of ["/", "/login", "/signup", "/sales.html", "/styles-v2.css", "/styles-v3.css", "/styles-v4.css", "/executive-report-v3.css", "/motion.js", "/executive-report.html", "/executive-report.js", "/privacy.html", "/terms.html", "/security.html", "/pilot-data-request.html", "/vm-deployment.html", "/synthetic-ecommerce-transactions.csv", "/synthetic-subscription-transactions.csv", "/docs/vm-deployment.md", "/docs/model-governance.md", "/docs/demo-user-guide-fa.md"]) {
       const pageResponse = await request(page);
       assert.strictEqual(pageResponse.response.status, 200, `${page} should be public`);
     }
@@ -280,12 +280,20 @@ async function run() {
     assert.strictEqual(retentionWorkspace.payload.data.analysis.name, "تحلیل نگهداشت تست");
     assert.strictEqual(retentionWorkspace.payload.data.analysis.baseline.leakageAudit.passed, true);
     assert.strictEqual(retentionWorkspace.payload.data.analysis.baseline.modelCard.decisionPermission, "shadow_only");
+    assert.strictEqual(retentionWorkspace.payload.data.workspace.contactSafety.contractReady, true);
+    assert.ok(retentionWorkspace.payload.data.workspace.contactSafety.summary.actionAllowed >= 1);
+
+    const contactPolicyWorkspace = await request("/api/contact-policy/workspace", { cookie: viewerCookie });
+    assert.strictEqual(contactPolicyWorkspace.response.status, 200);
+    assert.strictEqual(contactPolicyWorkspace.payload.data.enforcement, "server_side_fail_closed");
+    assert.strictEqual(contactPolicyWorkspace.payload.data.contractReady, true);
 
     const retentionAudience = await request("/api/retention/audience.csv", { cookie });
     assert.strictEqual(retentionAudience.response.status, 200);
     assert.match(String(retentionAudience.payload), /customer_id_hash,state,days_from_due/);
+    assert.match(String(retentionAudience.payload), /preferred_channel,contact_count_30d,action_allowed/);
     assert.match(String(retentionAudience.payload), /observational_baseline/);
-    assert.match(String(retentionAudience.payload), /false/);
+    assert.match(String(retentionAudience.payload), /true,false,observational_baseline/);
 
     for (const role of ["executive", "crm", "finance", "data"]) {
       const readout = await request(`/api/retention/readout.md?role=${role}`, { cookie });
@@ -331,8 +339,8 @@ async function run() {
     assert.ok(finance.payload.data.expectedIncrementalProfit >= 0);
 
     const audienceExport = await request("/api/exports/audience.csv", { cookie });
-    assert.strictEqual(audienceExport.response.status, 200);
-    assert.ok(String(audienceExport.payload).includes("customer_id"));
+    assert.strictEqual(audienceExport.response.status, 409);
+    assert.strictEqual(audienceExport.payload.error.code, "CONTACT_SAFETY_CONTRACT_REQUIRED");
 
     const customerCsv = fs.readFileSync(path.join(__dirname, "..", "synthetic-customer-events.csv"), "utf8");
     const preview = await request("/api/imports/preview", {

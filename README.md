@@ -123,8 +123,12 @@ npm test
 - `PATCH /api/retention/configuration`
 - `GET /api/retention/workspace`
 - `POST /api/retention/import`
+- `GET /api/contact-policy/workspace`
+- `GET /api/retention/audience.csv`
 
 ریسک بالا به‌تنهایی مجوز مشوق نیست. تمام خروجی‌های این Workspace تا پیش از holdout با برچسب برآورد تاریخی نمایش داده می‌شوند.
+
+خروجی عملیاتی CRM فقط زمانی ساخته می‌شود که فایل ورودی ستون‌های `consent_status`، `preferred_channel`، `do_not_contact`، `contact_count_30d` و `last_contact_at` را داشته باشد. نبود رضایت، opt-out، کانال نامعتبر یا رسیدن به سقف تماس، ردیف را در سمت سرور مسدود می‌کند. جزئیات قرارداد در `docs/contact-safety-contract-fa.md` است.
 
 فاز بنیان سرویس Churn شامل تعریف بازار، قرارداد point-in-time و ممیز آمادگی داده است:
 

@@ -41,6 +41,8 @@ async function run() {
     }
     await delay(2500);
 
+    await capture(cdp, 1440, 1000, "qa-command-desktop.png", false, "#command");
+    await capture(cdp, 390, 844, "qa-command-mobile.png", true, "#command");
     await capture(cdp, 1440, 1000, "qa-retention-desktop.png");
     await capture(cdp, 390, 844, "qa-retention-mobile.png", true);
     await capture(cdp, 1440, 1000, "qa-retention-analysis-desktop.png", false, ".retention-analysis-panel");
@@ -56,6 +58,19 @@ async function run() {
     await capture(cdp, 390, 844, "qa-retention-model-card-mobile.png", true, ".retention-model-card");
     await capture(cdp, 1440, 900, "qa-retention-shadow-desktop.png", false, ".retention-shadow-panel");
     await capture(cdp, 390, 1000, "qa-retention-shadow-mobile.png", true, ".retention-shadow-panel");
+    await capture(cdp, 1440, 1000, "qa-behavioral-desktop.png", false, "#behavioral");
+    await capture(cdp, 390, 1000, "qa-behavioral-mobile.png", true, "#behavioral");
+    const diagnostics = await evaluate(cdp, `({
+      viewport: { width: document.documentElement.clientWidth, height: document.documentElement.clientHeight },
+      documentWidth: document.documentElement.scrollWidth,
+      horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      missingContactGate: !document.querySelector('#contactGateMetrics'),
+      emptyContactChecks: document.querySelectorAll('.contact-gate-check').length === 0
+    })`);
+    if (diagnostics.horizontalOverflow || diagnostics.missingContactGate || diagnostics.emptyContactChecks) {
+      throw new Error(`UI diagnostics failed: ${JSON.stringify(diagnostics)}`);
+    }
+    console.log(JSON.stringify(diagnostics));
     cdp.close();
   } finally {
     chrome.kill();

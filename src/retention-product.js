@@ -2,6 +2,7 @@ const crypto = require("crypto");
 
 const { auditChannelRetentionData } = require("./channel-retention-readiness");
 const { buildChannelRetentionDataset } = require("./channel-retention-dataset");
+const { applyContactPolicy, buildContactSafetyWorkspace } = require("./contact-policy");
 const { buildSurvivalBaseline } = require("./survival-baseline");
 
 const PRESETS = Object.freeze({
@@ -30,7 +31,12 @@ const PRESETS = Object.freeze({
       contributionMargin: "contribution_margin",
       discountAmount: "discount_amount",
       cashbackAmount: "cashback_amount",
-      campaignId: "campaign_id"
+      campaignId: "campaign_id",
+      consentStatus: "consent_status",
+      preferredChannel: "preferred_channel",
+      doNotContact: "do_not_contact",
+      contactCount30d: "contact_count_30d",
+      lastContactAt: "last_contact_at"
     },
     defaults: {
       status: "completed",
@@ -79,7 +85,12 @@ const PRESETS = Object.freeze({
       contributionMargin: "contribution_margin",
       discountAmount: "discount_amount",
       cashbackAmount: "cashback_amount",
-      campaignId: "campaign_id"
+      campaignId: "campaign_id",
+      consentStatus: "consent_status",
+      preferredChannel: "preferred_channel",
+      doNotContact: "do_not_contact",
+      contactCount30d: "contact_count_30d",
+      lastContactAt: "last_contact_at"
     },
     defaults: {
       status: "completed",
@@ -128,7 +139,12 @@ const PRESETS = Object.freeze({
       contributionMargin: "contribution_margin",
       discountAmount: "discount_amount",
       cashbackAmount: "cashback_amount",
-      campaignId: "campaign_id"
+      campaignId: "campaign_id",
+      consentStatus: "consent_status",
+      preferredChannel: "preferred_channel",
+      doNotContact: "do_not_contact",
+      contactCount30d: "contact_count_30d",
+      lastContactAt: "last_contact_at"
     },
     defaults: {
       status: "completed",
@@ -177,7 +193,12 @@ const MAPPING_SCHEMA = Object.freeze([
   mappingField("contributionMargin", "سود مشارکتی", false, ["contribution_margin", "contribution_profit", "margin_amount", "سود_مشارکتی"]),
   mappingField("discountAmount", "مبلغ تخفیف", false, ["discount_amount", "discount", "مبلغ_تخفیف"]),
   mappingField("cashbackAmount", "مبلغ بازگشت وجه", false, ["cashback_amount", "cashback", "مبلغ_کش_بک"]),
-  mappingField("campaignId", "شناسه کمپین", false, ["campaign_id", "promotion_id", "شناسه_کمپین"])
+  mappingField("campaignId", "شناسه کمپین", false, ["campaign_id", "promotion_id", "شناسه_کمپین"]),
+  mappingField("consentStatus", "وضعیت رضایت تماس", false, ["consent_status", "marketing_consent", "رضایت_تماس"]),
+  mappingField("preferredChannel", "کانال ترجیحی", false, ["preferred_channel", "contact_channel", "کانال_ترجیحی"]),
+  mappingField("doNotContact", "عدم تماس", false, ["do_not_contact", "opt_out", "عدم_تماس"]),
+  mappingField("contactCount30d", "تعداد تماس ۳۰ روزه", false, ["contact_count_30d", "contacts_last_30d", "تعداد_تماس_۳۰_روزه"]),
+  mappingField("lastContactAt", "زمان آخرین تماس", false, ["last_contact_at", "last_marketing_contact_at", "آخرین_تماس"])
 ]);
 
 function listRetentionPresets() {
@@ -284,7 +305,12 @@ function mapRetentionRows(rows, configInput) {
     contribution_margin: mappedValue(row, config, "contributionMargin"),
     discount_amount: mappedValue(row, config, "discountAmount"),
     cashback_amount: mappedValue(row, config, "cashbackAmount"),
-    campaign_id: mappedValue(row, config, "campaignId")
+    campaign_id: mappedValue(row, config, "campaignId"),
+    consent_status: mappedValue(row, config, "consentStatus"),
+    preferred_channel: mappedValue(row, config, "preferredChannel"),
+    do_not_contact: mappedValue(row, config, "doNotContact"),
+    contact_count_30d: mappedValue(row, config, "contactCount30d"),
+    last_contact_at: mappedValue(row, config, "lastContactAt")
   }));
 }
 
@@ -317,7 +343,8 @@ function analyzeRetentionRows(rows, configInput, options = {}) {
     }
   }
 
-  const decisionQueue = buildRetentionDecisionQueue(config, dataset);
+  const decisionQueue = applyContactPolicy(buildRetentionDecisionQueue(config, dataset), canonicalRows);
+  const contactSafety = buildContactSafetyWorkspace(decisionQueue);
   return {
     config,
     cutoffAt: cutoff ? new Date(cutoff).toISOString() : null,
@@ -325,11 +352,12 @@ function analyzeRetentionRows(rows, configInput, options = {}) {
     dataset,
     baseline,
     decisionQueue,
-    workspace: buildRetentionWorkspace(config, readiness, dataset, baseline, decisionQueue)
+    contactSafety,
+    workspace: buildRetentionWorkspace(config, readiness, dataset, baseline, decisionQueue, contactSafety)
   };
 }
 
-function buildRetentionWorkspace(configInput, readiness = null, dataset = null, baseline = null, fullDecisionQueue = null) {
+function buildRetentionWorkspace(configInput, readiness = null, dataset = null, baseline = null, fullDecisionQueue = null, contactSafetyInput = null) {
   const config = normalizeRetentionConfig(configInput, configInput?.presetKey);
   const policyVersion = retentionPolicyVersion(config);
   if (!readiness) {
@@ -342,12 +370,14 @@ function buildRetentionWorkspace(configInput, readiness = null, dataset = null, 
       policyVersion,
       metrics: emptyMetrics(),
       states: lifecycleStates(config, []),
-      queue: []
+      queue: [],
+      contactSafety: buildContactSafetyWorkspace([])
     };
   }
 
   const snapshots = dataset?.snapshots || [];
   const decisionQueue = fullDecisionQueue || buildRetentionDecisionQueue(config, dataset);
+  const contactSafety = contactSafetyInput || buildContactSafetyWorkspace(decisionQueue);
   const queue = decisionQueue.slice(0, 50);
   const status = readiness.status === "ready" ? "baseline_ready" : readiness.status;
   const median = baseline?.overall?.medianTimeToRepurchaseDays ?? null;
@@ -369,11 +399,14 @@ function buildRetentionWorkspace(configInput, readiness = null, dataset = null, 
       eligibleUnits: dataset?.summary?.eligibleSnapshots || 0,
       medianRepurchaseDays: median,
       queueSize: queue.length,
+      contactAllowed: contactSafety.summary.actionAllowed,
+      contactBlocked: contactSafety.summary.blocked,
       repeatCustomers: readiness.summary.repeatCustomers,
       coverageDays: readiness.summary.coverageDays
     },
     states: lifecycleStates(config, snapshots),
-    queue
+    queue,
+    contactSafety
   };
 }
 

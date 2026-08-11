@@ -59,6 +59,22 @@ assert.strictEqual(controlled.safeguards.find(item => item.key === "outcome_bias
 assert.ok(controlled.ethicalContract.some(item => item.key === "frequency_cap" && item.status === "blocked"));
 assert.ok(controlled.ethicalContract.some(item => item.key === "opt_out" && item.status === "blocked"));
 
+const safetyReady = buildBehavioralWorkspace({
+  retentionState: retentionState({ baseline: true, coverageDays: 180 }),
+  overview: overview({ control: true, margin: true }),
+  contactSafety: {
+    summary: { blockedByFrequencyCap: 2, blockedByOptOut: 1 },
+    checks: [
+      { key: "consent", status: "pass" },
+      { key: "opt_out", status: "pass" },
+      { key: "preferred_channel", status: "pass" },
+      { key: "frequency_cap", status: "pass" }
+    ]
+  }
+});
+assert.strictEqual(safetyReady.ethicalContract.find(item => item.key === "frequency_cap").status, "pass");
+assert.strictEqual(safetyReady.ethicalContract.find(item => item.key === "opt_out").status, "pass");
+
 const unrelatedCampaignEvidence = buildBehavioralWorkspace({
   retentionState: retentionState({ baseline: true, coverageDays: 180 }),
   overview: overview({ control: true, margin: true })

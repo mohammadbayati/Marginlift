@@ -21,7 +21,7 @@ const CODEX_LENSES = Object.freeze([
   }
 ]);
 
-function buildBehavioralWorkspace({ retentionState = {}, overview = {}, behavioralExperiment = null } = {}) {
+function buildBehavioralWorkspace({ retentionState = {}, overview = {}, behavioralExperiment = null, contactSafety = null } = {}) {
   const retention = retentionState.workspace || retentionState || {};
   const states = new Map((retention.states || []).map(item => [item.key, item]));
   const evidence = overview.evidence || [];
@@ -33,6 +33,11 @@ function buildBehavioralWorkspace({ retentionState = {}, overview = {}, behavior
   const hasMargin = evidence.some(item => item.labelFa === "مدل هزینه" && item.status === "pass");
   const hasObservedOutcome = Boolean(behavioralExperiment?.outcomeClosedAt);
   const coverageDays = Number(retention.metrics?.coverageDays || 0);
+  const safety = contactSafety || retention.contactSafety || null;
+  const frequencyCapEnforced = safety?.checks?.some(item => item.key === "frequency_cap" && item.status === "pass") || false;
+  const consentAndOptOutEnforced = safety?.checks?.some(item => item.key === "consent" && item.status === "pass")
+    && safety?.checks?.some(item => item.key === "opt_out" && item.status === "pass")
+    && safety?.checks?.some(item => item.key === "preferred_channel" && item.status === "pass");
 
   const safeguards = [
     guard("base_rate", "خط مبنا قبل از روایت", hasHistoricalBaseline,
@@ -58,8 +63,10 @@ function buildBehavioralWorkspace({ retentionState = {}, overview = {}, behavior
     check("hypothesis_only", "مکانیزم رفتاری به‌عنوان فرضیه", "pass", "نام هر اصل رفتاری در سطح سیاست ثبت می‌شود و تا آزمایش، ادعای اثربخشی نیست."),
     check("minimum_intervention", "کم‌هزینه‌ترین اقدام اول", "pass", "یادآوری یا کاهش اصطکاک پیش از هر مشوق پولی بررسی می‌شود."),
     check("holdout_required", "گروه کنترل و توقف از پیش تعریف‌شده", hasControl ? "pass" : "blocked", hasControl ? "کنترل معتبر در داده موجود است." : "اجرای زنده بدون holdout مجاز نیست."),
-    check("frequency_cap", "سقف تماس در همه کانال‌ها", "blocked", "پیش از اتصال CRM باید شمار تماس بین کمپین‌ها یکپارچه و enforce شود."),
-    check("opt_out", "حق انصراف و ترجیح کانال", "blocked", "قرارداد داده فعلی وضعیت رضایت و opt-out را دریافت نمی‌کند."),
+    check("frequency_cap", "سقف تماس در همه کانال‌ها", frequencyCapEnforced ? "pass" : "blocked",
+      frequencyCapEnforced ? `${safety.summary.blockedByFrequencyCap} مشتری به‌دلیل عبور از سقف تماس مسدود شده‌اند.` : "تعداد تماس ۳۰ روزه باید برای همه ردیف‌ها ثبت شود."),
+    check("opt_out", "حق انصراف و ترجیح کانال", consentAndOptOutEnforced ? "pass" : "blocked",
+      consentAndOptOutEnforced ? `${safety.summary.blockedByOptOut} مشتری انصراف‌داده به‌صورت سروری مسدود شده‌اند.` : "رضایت، عدم تماس و کانال ترجیحی باید برای همه ردیف‌ها ثبت شود."),
     check("financial_guardrail", "گاردریل سود و هزینه", hasMargin ? "pass" : "blocked", hasMargin ? "حاشیه سود در تصمیم لحاظ شده است." : "مشوق بدون داده حاشیه سود مجاز نیست.")
   ];
 
@@ -151,6 +158,7 @@ function buildBehavioralWorkspace({ retentionState = {}, overview = {}, behavior
     candidates,
     safeguards,
     ethicalContract,
+    contactSafety: safety,
     nextActionFa: nextAction(status, ethicalContract)
   };
 }

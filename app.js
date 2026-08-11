@@ -551,7 +551,7 @@ function renderRetentionWorkspace() {
 
   const metrics = [
     ["واحد مشتری قابل بررسی", workspace.metrics.units],
-    ["دارای سابقه کافی", workspace.metrics.eligibleUnits],
+    ["مجاز برای تماس", workspace.metrics.contactAllowed || 0],
     ["میانه خرید مجدد", workspace.metrics.medianRepurchaseDays === null ? "محاسبه نشد" : `${formatNumber(workspace.metrics.medianRepurchaseDays)} روز`],
     ["در صف اقدام", workspace.metrics.queueSize]
   ];
@@ -582,7 +582,7 @@ function renderRetentionWorkspace() {
       <td><bdi class="number">${formatNumber(item.daysFromDue)} روز</bdi></td>
       <td><bdi class="number">${formatNumber(item.purchaseCount)}</bdi></td>
       <td><strong>${escapeHtml(item.recommendedActionFa)}</strong></td>
-      <td><span class="queue-state ${item.incentiveAllowed ? "queue-state-due" : ""}">${item.incentiveAllowed ? "مجاز" : "غیرمجاز"}</span></td>
+      <td><span class="queue-state ${item.actionAllowed ? "queue-state-due" : ""}">${item.actionAllowed ? `مجاز / ${escapeHtml(item.contactSafety?.preferredChannel || "")}` : "مسدود"}</span></td>
       <td>${escapeHtml(item.decisionReasonFa)}</td>
     </tr>`).join("")
     : `<tr><td colspan="7" class="retention-empty">پس از ورود داده، مشتریان واجد شرایط اینجا نمایش داده می‌شوند.</td></tr>`;
@@ -630,6 +630,20 @@ function renderBehavioralWorkspace() {
   document.getElementById("behavioralEvidence").textContent = workspace.evidenceLabelFa;
   document.getElementById("behavioralNextAction").textContent = workspace.nextActionFa;
 
+  const contactSafety = workspace.contactSafety || { summary: {}, checks: [], statusFa: "در انتظار داده", nextActionFa: "داده تماس را تکمیل کنید." };
+  const contactGateStatus = document.getElementById("contactGateStatus");
+  contactGateStatus.textContent = contactSafety.statusFa;
+  contactGateStatus.className = `pill ${contactSafety.contractReady ? "save" : "warn"}`;
+  document.getElementById("contactGateNextAction").textContent = toPersianDigits(contactSafety.nextActionFa);
+  document.getElementById("contactGateMetrics").innerHTML = [
+    ["ردیف تصمیم", contactSafety.summary.decisionRows || 0],
+    ["مجاز برای اقدام", contactSafety.summary.actionAllowed || 0],
+    ["مسدودشده", contactSafety.summary.blocked || 0],
+    ["عبور از سقف تماس", contactSafety.summary.blockedByFrequencyCap || 0]
+  ].map(([label, value]) => `<div><span>${escapeHtml(label)}</span><strong class="number">${formatNumber(value)}</strong></div>`).join("");
+  document.getElementById("contactGateChecks").innerHTML = (contactSafety.checks || []).map(item => `
+    <div class="contact-gate-check ${item.status}"><span aria-hidden="true">${item.status === "pass" ? "✓" : "!"}</span><div><strong>${escapeHtml(item.labelFa)}</strong><small>${formatNumber(item.covered)} از ${formatNumber(item.total)} ردیف</small></div></div>`).join("");
+
   document.getElementById("behavioralInterventions").innerHTML = workspace.candidates.map(candidate => `
     <article class="behavior-card">
       <div class="behavior-card-head"><div><span>${escapeHtml(candidate.mechanismFa)}</span><h4>${escapeHtml(candidate.titleFa)}</h4></div><span class="pill ${statusClasses[candidate.status] || "warn"}">${escapeHtml(statusLabels[candidate.status] || candidate.status)}</span></div>
@@ -652,6 +666,13 @@ function renderBehavioralWorkspace() {
   contractStatus.className = `pill ${blockedCount ? "warn" : "save"}`;
   document.getElementById("behavioralContract").innerHTML = workspace.ethicalContract.map(item => `
     <div class="behavioral-check ${item.status}"><span aria-hidden="true">${item.status === "pass" ? "✓" : "!"}</span><div><strong>${escapeHtml(item.labelFa)}</strong><small>${escapeHtml(item.detailFa)}</small></div></div>`).join("");
+
+  const retentionAudienceButton = document.getElementById("retentionAudienceButton");
+  if (retentionAudienceButton) {
+    const canExport = contactSafety.contractReady && Number(contactSafety.summary.actionAllowed || 0) > 0;
+    retentionAudienceButton.disabled = currentSession?.role === "viewer" || !canExport;
+    retentionAudienceButton.title = canExport ? "دانلود مخاطبان مجاز برای CRM" : "قرارداد ایمنی تماس هنوز کامل نیست";
+  }
 }
 
 async function loadDashboard() {

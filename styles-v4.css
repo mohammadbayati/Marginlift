@@ -1,0 +1,344 @@
+/* MarginLift Product UI v4
+   A dense, decision-led enterprise workspace inspired by high-performing
+   customer analytics and B2B SaaS dashboard patterns. */
+
+:root {
+  --ink: #101318;
+  --ink-soft: #333945;
+  --muted: #697180;
+  --muted-soft: #8a93a2;
+  --canvas: #f3f5f8;
+  --surface: #ffffff;
+  --surface-subtle: #f7f8fa;
+  --surface-strong: #eceff3;
+  --line: #e2e6eb;
+  --line-strong: #c9d0d9;
+  --profit: #008a68;
+  --profit-deep: #00644d;
+  --profit-bright: #59dfb6;
+  --profit-soft: #e8f7f2;
+  --decision: #2457e6;
+  --decision-soft: #edf2ff;
+  --warning: #9b5a08;
+  --warning-soft: #fff4df;
+  --danger: #b42318;
+  --danger-soft: #fff0ee;
+  --radius-sm: 5px;
+  --radius-md: 7px;
+  --radius-lg: 8px;
+  --shadow-float: 0 1px 2px rgba(16, 19, 24, .04), 0 8px 24px rgba(16, 19, 24, .035);
+  --shadow-raised: 0 1px 2px rgba(16, 19, 24, .05), 0 14px 34px rgba(16, 19, 24, .06);
+  --sidebar-width: 252px;
+  --content-width: 1360px;
+  --motion-fast: 120ms;
+  --motion-base: 220ms;
+  --motion-slow: 320ms;
+  --ease-standard: cubic-bezier(.2, 0, 0, 1);
+}
+
+body { background: var(--canvas); }
+
+.app-shell { background: var(--canvas); }
+
+.sidebar {
+  padding: 18px 14px;
+  border-inline-end: 0;
+  color: #f4f6f8;
+  background: #111418;
+  box-shadow: inset -1px 0 rgba(255, 255, 255, .05);
+}
+
+.sidebar .brand-symbol {
+  color: #101318;
+  background: #64e1ba;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.12);
+}
+
+.sidebar-brand { color: #fff; }
+.sidebar-brand small { color: #8f98a5; }
+.sidebar-close { color: #d8dde3; }
+.workspace-chip {
+  margin-block: 22px 16px;
+  padding: 12px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: #1a1e23;
+}
+.workspace-chip small { color: #8f98a5; }
+.workspace-chip strong { color: #eef1f4; }
+.sidebar .status-dot { border-color: rgba(89,223,182,.24); background: #59dfb6; }
+.nav-group-label { margin-block-start: 18px; color: #747e8c; }
+.side-nav { gap: 2px; scrollbar-color: #3c424b transparent; }
+.side-nav a {
+  position: relative;
+  min-height: 42px;
+  padding-inline: 11px;
+  color: #aeb6c1;
+  font-size: .76rem;
+  font-weight: 600;
+  transition-property: color, background-color, transform;
+  transition-duration: var(--motion-fast);
+  transition-timing-function: var(--ease-standard);
+}
+.side-nav a:hover { color: #f7f8f9; background: #1c2025; }
+.side-nav a.active {
+  color: #fff;
+  background: #252a31;
+  box-shadow: inset -3px 0 #64e1ba;
+  font-weight: 760;
+}
+.nav-index { color: #636d7a; }
+.side-nav a.active .nav-index { color: #64e1ba; }
+.sidebar-footer { border-color: rgba(255,255,255,.08); }
+.sidebar-footer > span, .sidebar-footer p { color: #7f8996; }
+.sidebar-footer strong { color: #e6e9ed; }
+.sidebar-footer a { color: #b9c1cb; text-decoration-color: #4e5966; }
+
+.dashboard { padding: 0 28px 56px; }
+.topbar {
+  min-height: 64px;
+  margin-inline: -28px;
+  padding-inline: 28px;
+  border-color: rgba(218,223,229,.9);
+  background: rgba(243,245,248,.93);
+  backdrop-filter: blur(18px) saturate(130%);
+}
+.topbar-title .eyebrow { font-size: .8rem; font-weight: 800; }
+.topbar-date { font-size: .62rem; }
+.live-status {
+  min-height: 32px;
+  padding-inline: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: rgba(255,255,255,.72);
+  font-size: .66rem;
+}
+.icon-button { border-color: var(--line); background: rgba(255,255,255,.8); }
+
+.workspace-bar {
+  margin-block: 18px 14px;
+  border-color: var(--line);
+  background: rgba(255,255,255,.76);
+  box-shadow: 0 1px 2px rgba(16,19,24,.025);
+}
+.workspace-bar > div { padding: 12px 15px; }
+.workspace-bar span { font-size: .61rem; }
+.workspace-bar strong { font-size: .7rem; }
+.workspace-readiness { background: #edf8f4; }
+
+.command-hero {
+  grid-template-columns: minmax(0, 1.85fr) minmax(300px, .65fr);
+  border-color: #101318;
+  color: #fff;
+  background: #101318;
+  box-shadow: var(--shadow-raised);
+}
+.hero-intro { position: relative; padding: 30px 34px 32px; }
+.hero-intro::after {
+  content: "";
+  position: absolute;
+  inset-block: 28px;
+  inset-inline-end: 0;
+  width: 1px;
+  background: rgba(255,255,255,.1);
+}
+.decision-label { color: #64e1ba; }
+.evidence-label {
+  padding: 5px 9px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 999px;
+  color: #b9c0ca;
+  background: rgba(255,255,255,.04);
+}
+.hero-intro h1 { max-width: 760px; margin-block-end: 9px; color: #fff; font-size: 1.8rem; font-weight: 820; }
+.hero-intro > p { color: #aeb6c1; }
+.hero-intro .primary-button { border-color: #64e1ba; color: #101318; background: #64e1ba; }
+.hero-intro .primary-button:hover { border-color: #7ce9c7; background: #7ce9c7; }
+.hero-intro .quiet-link { color: #c7ced6; text-decoration-color: #68717d; }
+.hero-pulse { padding: 25px 24px; background: #181c21; }
+.pulse-label, .pulse-score span, .pulse-foot { color: #9099a5; }
+.pulse-score strong, .pulse-foot strong { color: #fff; }
+.pulse-meter { background: #30363f; }
+.pulse-meter span { background: #64e1ba; }
+
+.panel, .metric-card, .action-card, .model-card {
+  border-color: var(--line);
+  box-shadow: var(--shadow-float);
+}
+.panel { background: var(--surface); }
+.panel:hover { border-color: #d7dce3; }
+.snapshot-panel { margin-block-start: 10px; padding: 20px 22px; }
+.snapshot-grid { border-color: var(--line); }
+.snapshot-stat { padding-block-start: 17px; }
+.snapshot-stat strong { margin-block: 7px 3px; font-size: 1.35rem; font-weight: 790; }
+.metric-grid { gap: 8px; margin-block-start: 8px; }
+.metric-card { position: relative; min-height: 116px; padding: 17px 18px; overflow: hidden; }
+.metric-card::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  height: 2px;
+  background: var(--line-strong);
+}
+.metric-card:nth-child(1)::before { background: var(--decision); }
+.metric-card:nth-child(2)::before { background: var(--warning); }
+.metric-card:nth-child(3)::before { background: var(--profit); }
+.metric-card:nth-child(4)::before { background: #8057a6; }
+.metric-card strong { margin-block: 9px 4px; font-size: 1.18rem; }
+
+.content-section { padding-block-start: 42px; }
+.section-heading { margin-block-end: 17px; }
+.section-heading > div { max-width: 760px; }
+.section-heading h2 { margin-block-end: 5px; font-size: 1.35rem; font-weight: 800; }
+.section-heading p:last-child { max-width: 72ch; font-size: .75rem; }
+.section-kicker, .mini-label, .eyebrow { margin-block-end: 5px; font-size: .67rem; font-weight: 780; }
+.section-tag, .pill, .status-badge { min-height: 25px; border: 1px solid transparent; border-radius: 999px; }
+.section-tag, .pill { color: #535c69; background: #eef1f4; }
+.pill.save { border-color: #caebe0; }
+.pill.warn { border-color: #f3ddba; }
+
+.panel-heading { margin-block-end: 16px; }
+.panel-heading h3 { font-size: .88rem; }
+.decision-panel, .decision-aside, .uplift-summary, .qini-panel, .reaction-panel, .treatment-panel,
+.customer-panel, .finance-panel, .flow-panel, .experiment-builder, .data-panel, .readiness-panel,
+.workspace-panel, .outcome-panel, .history-panel, .limitations-panel, .evidence-layout > .panel,
+.retention-config-panel, .retention-import-panel, .retention-analysis-panel, .retention-queue-panel,
+.retention-shadow-panel, .behavioral-interventions-panel, .behavioral-guard-panel,
+.behavioral-contract-panel, .contact-gate-panel, .model-registry-panel, .promotion-panel,
+.calibration-panel, .drift-panel, .decision-ledger-panel, .access-panel, .audit-panel, .member-create-panel {
+  padding: 20px;
+}
+
+.decision-layout { grid-template-columns: minmax(0, 2.3fr) minmax(285px, .7fr); gap: 8px; }
+.decision-table th {
+  padding: 9px 10px;
+  border-block: 1px solid var(--line);
+  color: #747d8a;
+  background: #f8f9fb;
+  font-size: .61rem;
+  font-weight: 760;
+}
+.decision-table td { padding: 12px 10px; font-size: .7rem; }
+.decision-table tbody tr { transition: background-color var(--motion-fast) var(--ease-standard); }
+.decision-table tbody tr:hover { background: #fafbfc; }
+.decision-table tbody tr:hover td { border-color: #d9dee5; }
+.aside-note { border: 1px solid var(--line); background: #f8f9fb; }
+
+.action-grid { gap: 8px; }
+.action-card { min-height: 206px; padding: 18px; }
+.action-card:hover { border-color: #cdd4dd; box-shadow: var(--shadow-raised); transform: translateY(-1px); }
+.action-card h3 { font-size: .9rem; }
+.action-bottom strong { font-size: 1.22rem; }
+.uplift-lab, .customer-product-grid, .evidence-layout, .pilot-grid, .governance-grid, .operations-grid { gap: 8px; }
+.uplift-summary-grid, .finance-grid, .experiment-grid, .evidence-list, .customer-list,
+.model-registry-table, .promotion-checks, .calibration-chart, .drift-list, .ledger-list,
+.operations-list, .history-list, .workspace-steps { background: var(--line); }
+.uplift-stat, .finance-stat, .experiment-grid > div, .reaction-card, .stage-card,
+.readiness-check, .governance-note { background: #f8f9fb; }
+.qini-track, .calibration-track { height: 6px; background: #e7ebef; }
+.qini-track span, .calibration-track i { background: var(--decision); }
+
+.retention-setup-grid { grid-template-columns: minmax(300px, .72fr) minmax(0, 1.28fr); gap: 8px; }
+.retention-config-panel { background: #fafbfc; }
+.retention-config-form, .retention-upload-form { gap: 11px; }
+.retention-config-form label, .retention-upload-form label { font-size: .66rem; }
+input, select, textarea {
+  border-color: var(--line-strong);
+  color: var(--ink);
+  background: #fff;
+  border-radius: var(--radius-md);
+  transition-property: border-color, box-shadow, background-color;
+  transition-duration: var(--motion-fast);
+  transition-timing-function: var(--ease-standard);
+}
+input:hover, select:hover, textarea:hover { border-color: #aeb7c3; }
+input:focus, select:focus, textarea:focus { border-color: var(--decision); box-shadow: 0 0 0 3px rgba(36,87,230,.12); }
+.retention-horizon-fields { gap: 7px; }
+.retention-file-preview { border-color: #dbe1e8; background: #f8f9fb; }
+.retention-analysis-panel { overflow: hidden; }
+.retention-decision-line { padding-block-end: 17px; }
+.retention-proof { border-inline-start-width: 2px; }
+.retention-metrics > div { padding: 17px 14px; }
+.retention-state-track { height: 7px; background: #e8ecf0; }
+.retention-state-track span { background: var(--decision); }
+.retention-queue-panel .decision-table { min-width: 1040px; }
+.retention-export-tools { gap: 7px; }
+.retention-shadow-panel { background: #fcfcfd; }
+
+.behavioral-principle { border: 0; background: #12161b; box-shadow: var(--shadow-raised); }
+.behavioral-principle h3 { font-size: 1.05rem; }
+.behavioral-principle p { color: #aeb6c1; }
+.behavioral-score strong { color: #64e1ba; }
+.contact-gate-panel { border-inline-start: 3px solid var(--decision); }
+.contact-gate-metrics { border-color: var(--line); background: #fff; }
+.contact-gate-check { border: 1px solid transparent; background: #f7f8fa; }
+.contact-gate-check.pass { border-color: #d8eee7; background: #f4fbf8; }
+.behavioral-layout { gap: 8px; margin-block-start: 8px; }
+.behavior-card { padding-block: 17px; }
+.behavior-card:first-child { border-block-start: 1px solid var(--line); }
+.behavior-card-head h4 { font-size: .78rem; }
+.behavior-card dl { background: #f8f9fb; }
+.bias-guard-row { padding-block: 12px; }
+.behavioral-contract-panel { margin-block-start: 8px; }
+
+.primary-button, .secondary-button, .text-button, .icon-button, .mobile-nav-toggle,
+.sidebar-close {
+  transition-property: color, background-color, border-color, transform, box-shadow, opacity;
+  transition-duration: var(--motion-fast);
+  transition-timing-function: var(--ease-standard);
+}
+.primary-button { border-color: #101318; background: #101318; }
+.primary-button:hover { border-color: #252b33; background: #252b33; box-shadow: 0 5px 14px rgba(16,19,24,.13); }
+.secondary-button:hover { border-color: #aeb7c3; background: #f8f9fb; }
+button:disabled { cursor: not-allowed; opacity: .48; box-shadow: none !important; transform: none !important; }
+
+.governance-summary, .operations-summary { border: 0; box-shadow: var(--shadow-float); }
+.governance-summary > div, .operations-summary > div { background: #fff; }
+.limitations-panel { margin-block-start: 42px; border-inline-start: 3px solid var(--warning); background: #fffdfa; }
+.dashboard-footer { margin-block-start: 22px; border-block-start: 1px solid var(--line); }
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .panel, .metric-card, .action-card, .model-card { transition: border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-base) var(--ease-standard), transform var(--motion-base) var(--ease-standard); }
+}
+
+@media (max-width: 1180px) {
+  .retention-setup-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 980px) {
+  .sidebar { box-shadow: -18px 0 50px rgba(0,0,0,.22); }
+  .dashboard { padding-inline: 18px; }
+  .topbar { margin-inline: -18px; padding-inline: 18px; }
+  .command-hero, .decision-layout { grid-template-columns: minmax(0, 1fr); }
+  .hero-intro::after { display: none; }
+}
+
+@media (max-width: 720px) {
+  .dashboard { padding-block-end: 32px; }
+  .workspace-bar { margin-block-end: 10px; }
+  .workspace-bar > div { padding: 11px 13px; }
+  .command-hero { border-radius: var(--radius-lg); }
+  .hero-intro { padding: 22px 20px; }
+  .hero-intro h1 { font-size: 1.35rem; }
+  .hero-pulse { min-height: 190px; padding: 20px; }
+  .content-section { padding-block-start: 34px; }
+  .section-heading h2 { font-size: 1.18rem; }
+  .snapshot-panel, .decision-panel, .decision-aside, .uplift-summary, .qini-panel,
+  .reaction-panel, .treatment-panel, .customer-panel, .finance-panel, .flow-panel,
+  .experiment-builder, .data-panel, .readiness-panel, .workspace-panel, .outcome-panel,
+  .history-panel, .limitations-panel, .evidence-layout > .panel, .retention-config-panel,
+  .retention-import-panel, .retention-analysis-panel, .retention-queue-panel,
+  .retention-shadow-panel, .behavioral-interventions-panel, .behavioral-guard-panel,
+  .behavioral-contract-panel, .contact-gate-panel { padding: 16px; }
+  .metric-card { min-height: 104px; }
+  .contact-gate-metrics, .contact-gate-checks { grid-template-columns: 1fr; }
+  .contact-gate-metrics > div:nth-child(even) { border-inline-start: 0; }
+  .contact-gate-metrics > div + div { border-block-start: 1px solid var(--line); }
+  .retention-export-tools { display: grid; grid-template-columns: 1fr; width: 100%; }
+  .retention-export-tools select, .retention-export-tools button { width: 100%; }
+}
+
+@media (prefers-contrast: more) {
+  :root { --muted: #414955; --line: #b7c0cb; --line-strong: #7e8997; }
+  .sidebar { box-shadow: inset -1px 0 #697482; }
+}

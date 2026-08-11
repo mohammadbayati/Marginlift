@@ -8,6 +8,7 @@
     <link rel="icon" href="data:,">
     <title>MarginLift | مرکز تصمیم سود</title>
     <link rel="stylesheet" href="/styles-v3.css">
+    <link rel="stylesheet" href="/styles-v4.css">
     <script src="/motion.js" defer></script>
   </head>
   <body class="product-page">
@@ -218,7 +219,7 @@
 
           <article class="panel retention-queue-panel">
             <div class="panel-heading"><div><span class="mini-label">اقدام بعدی پیشنهادی</span><h3>صف اقدام نگهداشت</h3></div><div class="retention-export-tools"><select id="retentionReadoutRole" aria-label="مخاطب گزارش"><option value="executive">مدیریت ارشد</option><option value="crm">CRM و رشد</option><option value="finance">مدیریت مالی</option><option value="data">داده و تحلیل</option></select><button class="secondary-button" id="retentionReadoutButton" type="button">گزارش نقش‌محور</button><button class="secondary-button" id="retentionAudienceButton" type="button">خروجی CRM</button></div></div>
-            <div class="decision-table-wrap"><table class="decision-table"><thead><tr><th>شناسه ناشناس</th><th>وضعیت</th><th>فاصله از موعد</th><th>سابقه خرید</th><th>اقدام پیشنهادی</th><th>مجوز مشوق</th><th>دلیل تصمیم</th></tr></thead><tbody id="retentionQueueRows"></tbody></table></div>
+            <div class="decision-table-wrap"><table class="decision-table"><thead><tr><th>شناسه ناشناس</th><th>وضعیت</th><th>فاصله از موعد</th><th>سابقه خرید</th><th>اقدام پیشنهادی</th><th>مجوز تماس</th><th>دلیل تصمیم</th></tr></thead><tbody id="retentionQueueRows"></tbody></table></div>
           </article>
 
           <article class="panel retention-shadow-panel">
@@ -251,6 +252,11 @@
           <section class="panel behavioral-principle">
             <div><span class="mini-label">اصل غیرقابل‌مذاکره</span><h3>MarginLift ذهن مشتری را تشخیص نمی‌دهد.</h3><p>سامانه از رفتار مشاهده‌شده برای ساخت فرضیه استفاده می‌کند؛ هیچ فردی با برچسب روان‌شناختی، شخصیت یا «سوگیری» طبقه‌بندی نمی‌شود.</p></div>
             <div class="behavioral-score"><span>آمادگی اجرای مسئولانه</span><strong class="number" id="behavioralReadiness">—</strong><small id="behavioralEvidence">فرضیه رفتاری</small></div>
+          </section>
+          <section class="panel contact-gate-panel" aria-labelledby="contactGateTitle">
+            <div class="contact-gate-heading"><div><span class="mini-label">Contact Safety Gate</span><h3 id="contactGateTitle">دروازه ایمنی تماس</h3><p id="contactGateNextAction">تا تکمیل رضایت، انصراف، کانال ترجیحی و سقف تماس، خروجی CRM بسته می‌ماند.</p></div><span class="pill warn" id="contactGateStatus">در حال بررسی</span></div>
+            <div class="contact-gate-metrics" id="contactGateMetrics"></div>
+            <div class="contact-gate-checks" id="contactGateChecks"></div>
           </section>
           <div class="behavioral-layout">
             <article class="panel behavioral-interventions-panel">
