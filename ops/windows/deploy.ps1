@@ -69,6 +69,7 @@ cd /tmp
 sha256sum --check "$CHECKSUM"
 
 cd "$APP_DIR"
+find "$APP_DIR/ops/vm" -maxdepth 1 -type f -name '*.sh' -exec sed -i 's/\r$//' {} +
 cp .env /root/marginlift.env.backup
 if docker compose -f docker-compose.production.yml ps --status running postgres 2>/dev/null | grep -q postgres; then
   ./ops/vm/backup.sh
@@ -77,6 +78,7 @@ else
 fi
 
 tar -xzf "$RELEASE" -C "$STAGE_DIR"
+find "$STAGE_DIR/ops/vm" -maxdepth 1 -type f -name '*.sh' -exec sed -i 's/\r$//' {} +
 test -f "$STAGE_DIR/src/retention-shadow.js"
 test -f "$STAGE_DIR/synthetic-subscription-transactions.csv"
 cp /root/marginlift.env.backup "$STAGE_DIR/.env"
