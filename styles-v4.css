@@ -1,14 +1,6 @@
 /* MarginLift Product UI v5
    The Profit Evidence Desk: a restrained RTL enterprise decision workspace. */
 
-@font-face {
-  font-family: "Vazirmatn UI";
-  src: url("/fonts/Vazirmatn-Variable.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-}
-
 :root {
   --ink: #12161d;
   --ink-soft: #343b47;
@@ -39,7 +31,7 @@
   --shadow-float: 0 10px 28px rgba(18, 22, 29, .09);
   --sidebar-width: 244px;
   --content-width: 1420px;
-  --font-fa: "Vazirmatn UI", Tahoma, sans-serif;
+  --font-fa: var(--font-primary, "Vazirmatn UI", Tahoma, sans-serif);
   --motion-fast: 140ms;
   --motion-base: 220ms;
   --motion-slow: 320ms;

@@ -11,6 +11,9 @@ const profileDir = path.join(os.tmpdir(), `marginlift-qa-${Date.now()}`);
 
 async function run() {
   const sessionCookie = await prepareDemoWorkspace();
+  const typographyResponse = await fetch(`${baseUrl}/api/font-status`);
+  if (!typographyResponse.ok) throw new Error(`Typography status failed: ${typographyResponse.status}`);
+  const typographyStatus = (await typographyResponse.json()).data;
   const chrome = spawn(chromePath, [
     "--headless=new",
     "--disable-gpu",
@@ -61,6 +64,7 @@ async function run() {
     });
     await cdp.send("Page.navigate", { url: `${baseUrl}/login` });
     await delay(2500);
+    const typography = await auditRenderedTypography(cdp, typographyStatus);
 
     const productSkipLink = await auditSkipLink(cdp, "product");
     await capture(cdp, 1440, 1000, "qa-command-desktop.png", false, "#command");
@@ -141,6 +145,7 @@ async function run() {
     const publicSurfaces = await auditPublicSurfaces(cdp);
     const report = {
       auth: authDiagnostics,
+      typography,
       authSkipLink,
       authKeyboard,
       authAccessibility,
@@ -248,6 +253,29 @@ async function auditKeyboard(cdp, tabCount, requiredStops) {
   return { checkedStops: stops.length, requiredStops, visibleFocusFailures: 0 };
 }
 
+async function auditRenderedTypography(cdp, expectedStatus) {
+  const rendered = await evaluate(cdp, `(async () => {
+    const loadResult = await Promise.race([
+      document.fonts.load('16px "MarginLift Persian"', 'تصمیم سود افزایشی').then(faces => ({ timedOut: false, count: faces.length })),
+      new Promise(resolve => setTimeout(() => resolve({ timedOut: true, count: 0 }), 5000))
+    ]);
+    const faces = [...document.fonts]
+      .filter(face => String(face.family).includes('MarginLift Persian'))
+      .map(face => ({ family: face.family, status: face.status, weight: face.weight }));
+    return {
+      loadResult,
+      runtimeStylesheet: [...document.querySelectorAll('link[rel="stylesheet"]')].some(link => link.href.includes('/fonts/marginlift-font.css')),
+      bodyFontFamily: getComputedStyle(document.body).fontFamily,
+      faces
+    };
+  })()`);
+  const loaded = !rendered.loadResult.timedOut && rendered.loadResult.count > 0 && rendered.faces.some(face => face.status === "loaded");
+  if (!rendered.runtimeStylesheet || !rendered.bodyFontFamily.includes("MarginLift Persian") || !loaded) {
+    throw new Error(`Typography rendering audit failed: ${JSON.stringify({ expectedStatus, rendered })}`);
+  }
+  return { ...expectedStatus, renderedFamily: "MarginLift Persian", browserFaceLoaded: true };
+}
+
 async function auditSkipLink(cdp, label) {
   await evaluate(cdp, `(() => {
     document.activeElement?.blur();
@@ -348,12 +376,14 @@ async function auditPublicSurfaces(cdp) {
           hasH1: Boolean(document.querySelector('h1')),
           mainCount: [...document.querySelectorAll('main')].filter(main => getComputedStyle(main).display !== 'none').length,
           hasSkipLink: Boolean(document.querySelector('.skip-link[href^="#"]')),
+          hasRuntimeFont: [...document.querySelectorAll('link[rel="stylesheet"]')].some(link => link.href.includes('/fonts/marginlift-font.css')),
+          bodyFontFamily: getComputedStyle(document.body).fontFamily,
           horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
           logoCount: logos.length,
           unrenderedLogo: logos.some(logo => !getComputedStyle(logo).backgroundImage.includes('brand-mark.svg'))
         };
       })()`);
-      if (!diagnostics.title || diagnostics.lang !== 'fa' || diagnostics.dir !== 'rtl' || !diagnostics.hasH1 || diagnostics.mainCount !== 1 || !diagnostics.hasSkipLink || diagnostics.horizontalOverflow || diagnostics.unrenderedLogo) {
+      if (!diagnostics.title || diagnostics.lang !== 'fa' || diagnostics.dir !== 'rtl' || !diagnostics.hasH1 || diagnostics.mainCount !== 1 || !diagnostics.hasSkipLink || !diagnostics.hasRuntimeFont || !diagnostics.bodyFontFamily.includes('MarginLift Persian') || diagnostics.horizontalOverflow || diagnostics.unrenderedLogo) {
         throw new Error(`${route} ${label} surface audit failed: ${JSON.stringify(diagnostics)}`);
       }
       await capture(cdp, width, height, `qa-${slug}-${label}.png`, mobile, "body");

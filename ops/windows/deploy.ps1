@@ -82,9 +82,10 @@ find "$STAGE_DIR/ops/vm" -maxdepth 1 -type f -name '*.sh' -exec sed -i 's/\r$//'
 test -f "$STAGE_DIR/src/retention-shadow.js"
 test -f "$STAGE_DIR/synthetic-subscription-transactions.csv"
 cp /root/marginlift.env.backup "$STAGE_DIR/.env"
-mkdir -p "$STAGE_DIR/data" "$STAGE_DIR/backups"
+mkdir -p "$STAGE_DIR/data" "$STAGE_DIR/backups" "$STAGE_DIR/private/fonts"
 cp -a "$APP_DIR/data/." "$STAGE_DIR/data/" 2>/dev/null || true
 cp -a "$APP_DIR/backups/." "$STAGE_DIR/backups/" 2>/dev/null || true
+cp -a "$APP_DIR/private/fonts/." "$STAGE_DIR/private/fonts/" 2>/dev/null || true
 test ! -f /root/marginlift-db.backup.json || \
   cp /root/marginlift-db.backup.json "$STAGE_DIR/data/db.json"
 
@@ -121,7 +122,7 @@ rm -f "$RELEASE" "$CHECKSUM"
 
   Write-Host "[6/6] Verifying production..."
   $homeResponse = Invoke-WebRequest -UseBasicParsing "https://marginlift.ir/"
-  $fontResponse = Invoke-WebRequest -UseBasicParsing "https://marginlift.ir/fonts/Estedad-Variable.woff2"
+  $fontResponse = Invoke-WebRequest -UseBasicParsing "https://marginlift.ir/fonts/marginlift-font.css"
   $retentionSampleResponse = Invoke-WebRequest -UseBasicParsing "https://marginlift.ir/synthetic-subscription-transactions.csv"
   $healthResponse = Invoke-RestMethod -UseBasicParsing "https://marginlift.ir/api/health"
   if (

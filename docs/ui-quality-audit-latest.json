@@ -9,6 +9,16 @@
     "hasDecisionPreview": true,
     "hasVisibleLogin": true
   },
+  "typography": {
+    "activeFamily": "Vazirmatn",
+    "ready": false,
+    "licensed": false,
+    "webEmbeddingConfirmed": false,
+    "fontSha256": null,
+    "reason": "licensed_font_missing",
+    "renderedFamily": "MarginLift Persian",
+    "browserFaceLoaded": true
+  },
   "authSkipLink": {
     "target": "#authShell",
     "firstFocusable": true,

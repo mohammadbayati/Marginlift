@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 APP_DIR="${MARGINLIFT_APP_DIR:-/opt/marginlift}"
 cd "$APP_DIR"
+mkdir -p "$APP_DIR/private/fonts"
 
 if [[ ! -f .env ]]; then
   echo "Missing $APP_DIR/.env. Copy .env.example and set production values first." >&2

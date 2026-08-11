@@ -7,7 +7,7 @@
 | گیت | معیار قبولی | مدرک فعلی | وضعیت |
 | --- | --- | --- | --- |
 | هویت اختصاصی | نشان، favicon و کاربرد یکسان در محصول و سایت | `brand-mark.svg`، ممیزی همه سطوح و تست static asset | قبول |
-| تایپوگرافی فارسی | IRANSansX لایسنس‌دار، WOFF2، fallback و QA | fallback محلی Vazirmatn فعال است؛ فایل لایسنس‌دار موجود نیست | در انتظار ورودی |
+| تایپوگرافی فارسی | IRANSansX لایسنس‌دار، WOFF2، fallback و QA | runtime، اعتبارسنج مجوز، نصب خصوصی VM و browser QA آماده است؛ فایل مجاز موجود نیست | در انتظار فایل و مجوز |
 | UX سازمانی | تصمیم، اثر مالی، شواهد و اقدام در viewport اول | QA تصویری صفحه فروش، ورود، محصول و گزارش | قبول فنی |
 | Desktop / Mobile | بدون overlap و overflow در viewportهای هدف | تصاویر `qa-*.png` و `docs/ui-quality-audit-latest.json` | قبول |
 | Keyboard | ترتیب تمرکز، focus visible و اجرای فرم بدون ماوس | آزمون واقعی Tab در `npm run ui:qa` | قبول |

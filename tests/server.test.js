@@ -5,6 +5,7 @@ const path = require("path");
 
 process.env.MARGINLIFT_DB = path.join(os.tmpdir(), `marginlift-test-${Date.now()}.json`);
 process.env.ARTIFACT_STORAGE_PATH = path.join(os.tmpdir(), `marginlift-artifacts-${Date.now()}`);
+process.env.MARGINLIFT_FONT_DIR = path.join(os.tmpdir(), `marginlift-fonts-${Date.now()}`);
 process.env.ARTIFACT_ENCRYPTION_KEY = "22".repeat(32);
 process.env.MARGINLIFT_LOG_LEVEL = "silent";
 
@@ -58,6 +59,11 @@ async function run() {
     assert.strictEqual(publicConfig.response.status, 200);
     assert.strictEqual(publicConfig.payload.data.publicSignupEnabled, true);
 
+    const fontStatus = await request("/api/font-status");
+    assert.strictEqual(fontStatus.response.status, 200);
+    assert.strictEqual(fontStatus.payload.data.ready, false);
+    assert.strictEqual(fontStatus.payload.data.activeFamily, "Vazirmatn");
+
     const healthHead = await request("/api/health", { method: "HEAD" });
     assert.strictEqual(healthHead.response.status, 200);
 
@@ -69,7 +75,7 @@ async function run() {
     assert.strictEqual(homeHead.response.status, 200);
     assert.strictEqual(homeHead.payload, "");
 
-    for (const page of ["/", "/login", "/signup", "/sales.html", "/styles-v2.css", "/styles-v3.css", "/styles-v4.css", "/brand-mark.svg", "/executive-report-v3.css", "/motion.js", "/executive-report.html", "/executive-report.js", "/privacy.html", "/terms.html", "/security.html", "/pilot-data-request.html", "/vm-deployment.html", "/synthetic-ecommerce-transactions.csv", "/synthetic-subscription-transactions.csv", "/docs/vm-deployment.md", "/docs/model-governance.md", "/docs/demo-user-guide-fa.md"]) {
+    for (const page of ["/", "/login", "/signup", "/sales.html", "/styles-v2.css", "/styles-v3.css", "/styles-v4.css", "/fonts/marginlift-font.css", "/brand-mark.svg", "/executive-report-v3.css", "/motion.js", "/executive-report.html", "/executive-report.js", "/privacy.html", "/terms.html", "/security.html", "/pilot-data-request.html", "/vm-deployment.html", "/synthetic-ecommerce-transactions.csv", "/synthetic-subscription-transactions.csv", "/docs/vm-deployment.md", "/docs/model-governance.md", "/docs/demo-user-guide-fa.md"]) {
       const pageResponse = await request(page);
       assert.strictEqual(pageResponse.response.status, 200, `${page} should be public`);
     }
@@ -93,6 +99,11 @@ async function run() {
     const fontAsset = await request("/fonts/Estedad-Variable.woff2");
     assert.strictEqual(fontAsset.response.status, 200);
     assert.strictEqual(fontAsset.response.headers.get("content-type"), "font/woff2");
+    const runtimeFontCss = await request("/fonts/marginlift-font.css");
+    assert.match(String(runtimeFontCss.payload), /marginlift-font:vazirmatn/);
+    const missingLicensedFont = await request("/fonts/IRANSansX-Variable.woff2");
+    assert.strictEqual(missingLicensedFont.response.status, 404);
+    assert.strictEqual(missingLicensedFont.payload.error.code, "LICENSED_FONT_NOT_READY");
 
     const signup = await request("/api/auth/signup", {
       method: "POST",
@@ -558,6 +569,7 @@ async function run() {
     await new Promise(resolve => server.close(resolve));
     if (fs.existsSync(process.env.MARGINLIFT_DB)) fs.unlinkSync(process.env.MARGINLIFT_DB);
     fs.rmSync(process.env.ARTIFACT_STORAGE_PATH, { recursive: true, force: true });
+    fs.rmSync(process.env.MARGINLIFT_FONT_DIR, { recursive: true, force: true });
   }
 }
 

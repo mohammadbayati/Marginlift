@@ -6,6 +6,7 @@ const password = String(process.env.MARGINLIFT_DEMO_PASSWORD || "");
 const expectedRole = String(process.env.MARGINLIFT_EXPECTED_ROLE || "viewer");
 const expectedStorage = String(process.env.MARGINLIFT_EXPECTED_STORAGE || "postgres");
 const requireInviteOnly = process.env.MARGINLIFT_REQUIRE_INVITE_ONLY !== "false";
+const requireLicensedFont = process.env.MARGINLIFT_REQUIRE_IRANSANSX === "true";
 
 async function request(route, options = {}) {
   const response = await fetch(`${baseUrl}${route}`, {
@@ -55,7 +56,7 @@ async function main() {
     assert.match(html, new RegExp(`<main[^>]+id="${mainId}"[^>]+tabindex="-1"`), `${route}: focusable main landmark missing`);
   }
   evidence.push(`public-surfaces:${publicSurfaces.length}:rtl-skip-main`);
-  for (const route of ["/styles-v4.css", "/brand-mark.svg", "/fonts/Estedad-Variable.woff2"]) {
+  for (const route of ["/styles-v4.css", "/brand-mark.svg", "/fonts/marginlift-font.css", "/fonts/Vazirmatn-Variable.woff2"]) {
     const result = await request(route);
     expectStatus(result, 200, route);
     evidence.push(`${route}:200`);
@@ -64,6 +65,19 @@ async function main() {
   assert.match(String(loginPage.payload), /auth-product-preview/);
   assert.match(String(loginPage.payload), /topbarUser/);
   evidence.push("ui-v5:auth-preview", "ui-v5:session-identity");
+
+  const fontStatus = await request("/api/font-status");
+  expectStatus(fontStatus, 200, "font status");
+  if (requireLicensedFont) {
+    assert.strictEqual(fontStatus.payload.data.ready, true, "IRANSansX is required but is not ready");
+    assert.strictEqual(fontStatus.payload.data.activeFamily, "IRANSansX");
+  }
+  if (fontStatus.payload.data.ready) {
+    const licensedFont = await request("/fonts/IRANSansX-Variable.woff2");
+    expectStatus(licensedFont, 200, "licensed font");
+    assert.strictEqual(licensedFont.response.headers.get("content-type"), "font/woff2");
+  }
+  evidence.push(`typography:${fontStatus.payload.data.activeFamily}:${fontStatus.payload.data.ready ? "licensed" : "fallback"}`);
 
   const health = await request("/api/health");
   expectStatus(health, 200, "health");

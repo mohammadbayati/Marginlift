@@ -38,6 +38,7 @@ const {
   previewRetentionRows
 } = require("./retention-product");
 const { buildRetentionExperimentBrief, buildRetentionShadowRun } = require("./retention-shadow");
+const { FONT_FILENAME, inspectTypography, renderTypographyCss } = require("./typography");
 const {
   analyzeOutcomeRows,
   buildPilotReadout,
@@ -48,6 +49,7 @@ const {
 const { appOrigin, assertProductionConfig, isProduction, maxBodyBytes, port: defaultPort, publicSignupEnabled, trustProxy } = require("./config");
 
 const publicRoot = path.join(__dirname, "..");
+const privateFontRoot = path.resolve(process.env.MARGINLIFT_FONT_DIR || path.join(publicRoot, "private", "fonts"));
 const sampleCsvPath = path.join(publicRoot, "synthetic-campaign-data.csv");
 const sampleCustomerCsvPath = path.join(publicRoot, "synthetic-customer-events.csv");
 const sampleOutcomeCsvPath = path.join(publicRoot, "synthetic-outcome-data.csv");
@@ -146,6 +148,19 @@ async function handleApi(req, res, url) {
 
   if (url.pathname === "/api/public-config" && req.method === "GET") {
     sendJson(res, 200, { data: { publicSignupEnabled } });
+    return;
+  }
+
+  if (url.pathname === "/api/font-status" && req.method === "GET") {
+    const typography = inspectTypography(privateFontRoot);
+    sendJson(res, 200, { data: {
+      activeFamily: typography.activeFamily,
+      ready: typography.ready,
+      licensed: typography.licensed,
+      webEmbeddingConfirmed: typography.webEmbeddingConfirmed,
+      fontSha256: typography.fontSha256,
+      reason: typography.reason
+    } });
     return;
   }
 
@@ -2240,6 +2255,21 @@ function publicSession(session, user, organization, role) {
 }
 
 function serveStatic(requestPath, req, res) {
+  if (requestPath === "/fonts/marginlift-font.css") {
+    const css = renderTypographyCss(inspectTypography(privateFontRoot));
+    res.writeHead(200, { "Content-Type": "text/css; charset=utf-8", "Cache-Control": "no-store" });
+    res.end(req.method === "HEAD" ? undefined : css);
+    return;
+  }
+  if (requestPath === `/fonts/${FONT_FILENAME}`) {
+    const typography = inspectTypography(privateFontRoot);
+    if (!typography.ready) {
+      sendJson(res, 404, { error: { code: "LICENSED_FONT_NOT_READY", message: "فونت لایسنس‌دار هنوز نصب نشده است." } });
+      return;
+    }
+    serveFile(path.join(privateFontRoot, FONT_FILENAME), req, res, "font/woff2");
+    return;
+  }
   const routeAliases = {
     "/": "/sales.html",
     "/login": "/index.html",
@@ -2321,8 +2351,12 @@ function serveStatic(requestPath, req, res) {
     return;
   }
   const extension = path.extname(filePath);
+  serveFile(filePath, req, res, contentTypes[extension] || "application/octet-stream");
+}
+
+function serveFile(filePath, req, res, contentType) {
   res.writeHead(200, {
-    "Content-Type": contentTypes[extension] || "application/octet-stream",
+    "Content-Type": contentType,
     "Cache-Control": "no-store"
   });
   if (req.method === "HEAD") {

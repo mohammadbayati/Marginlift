@@ -277,3 +277,13 @@ npm run usability:evaluate
 ```
 
 این ارزیاب تا زمان پوشش سه نقش هدف، یک جلسه واقعی Narrator/NVDA و صفرشدن Severity 1 و 2 وضعیت `pass` نمی‌دهد.
+
+## فونت فارسی لایسنس‌دار
+
+تایپوگرافی همه صفحات از `/fonts/marginlift-font.css` کنترل می‌شود. تا پیش از نصب فایل مجاز، Vazirmatn fallback رسمی است. روش نصب خصوصی IRANSansX بدون انتشار در GitHub در `docs/iransansx-installation-fa.md` آمده است.
+
+وضعیت فعال فونت:
+
+```text
+GET /api/font-status
+```

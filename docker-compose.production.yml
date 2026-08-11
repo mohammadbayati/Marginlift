@@ -27,6 +27,7 @@ services:
       DATABASE_SSL: "false"
       MARGINLIFT_DB_PATH: /app/data/db.json
       ARTIFACT_STORAGE_PATH: /app/private/artifacts
+      MARGINLIFT_FONT_DIR: /app/private/fonts
       MARGINLIFT_JOB_WORKER: "true"
     depends_on:
       postgres:
@@ -35,6 +36,7 @@ services:
       - "3000"
     volumes:
       - ./data:/app/data
+      - ./private/fonts:/app/private/fonts:ro
       - artifact_data:/app/private/artifacts
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]

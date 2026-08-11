@@ -6,7 +6,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node tests/analysis.test.js && node tests/statistics.test.js && node tests/experiment.test.js && node tests/model-governance.test.js && node tests/churn-readiness.test.js && node tests/channel-retention-readiness.test.js && node tests/channel-retention-dataset.test.js && node tests/survival-baseline.test.js && node tests/retention-product.test.js && node tests/retention-shadow.test.js && node tests/contact-policy.test.js && node tests/behavioral-policy.test.js && node tests/churn-value-case.test.js && node tests/usability-evaluation.test.js && node tests/config.test.js && node tests/storage.test.js && node tests/platform.test.js && node tests/server.test.js",
+    "test": "node tests/analysis.test.js && node tests/statistics.test.js && node tests/experiment.test.js && node tests/model-governance.test.js && node tests/churn-readiness.test.js && node tests/channel-retention-readiness.test.js && node tests/channel-retention-dataset.test.js && node tests/survival-baseline.test.js && node tests/retention-product.test.js && node tests/retention-shadow.test.js && node tests/contact-policy.test.js && node tests/behavioral-policy.test.js && node tests/churn-value-case.test.js && node tests/usability-evaluation.test.js && node tests/typography.test.js && node tests/config.test.js && node tests/storage.test.js && node tests/platform.test.js && node tests/server.test.js",
     "backup": "node scripts/backup-db.js",
     "db:migrate": "node scripts/migrate-storage.js",
     "demo-user": "node scripts/manage-demo-user.js",
@@ -14,6 +14,7 @@
     "production:smoke": "node scripts/verify-production.js",
     "ui:qa": "node scripts/qa-retention-workspace.js",
     "usability:evaluate": "node scripts/evaluate-usability-tests.js",
+    "font:install": "node scripts/install-iransansx.js",
     "churn:audit": "node scripts/audit-churn-data.js",
     "churn:forecast": "node scripts/forecast-churn-case.js",
     "retention:audit": "node scripts/audit-channel-retention-data.js",

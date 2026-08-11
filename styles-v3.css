@@ -1,27 +1,3 @@
-@font-face {
-  font-family: "Estedad";
-  src: url("/fonts/Estedad-Variable.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "MarginLift Numerals";
-  src: url("/fonts/Vazirmatn-Variable.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Vazirmatn UI";
-  src: url("/fonts/Vazirmatn-Variable.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-}
-
 :root {
   --ink: #111418;
   --ink-soft: #343a43;
@@ -51,7 +27,7 @@
   --shadow-modal: 0 16px 40px rgba(17, 20, 24, .16);
   --sidebar-width: 236px;
   --content-width: 1480px;
-  --font-fa: "Vazirmatn UI", Tahoma, sans-serif;
+  --font-fa: var(--font-primary, "Vazirmatn UI", Tahoma, sans-serif);
   --motion-fast: 160ms;
   --motion-base: 320ms;
   --motion-slow: 520ms;
@@ -98,7 +74,7 @@ a { color: inherit; text-decoration-thickness: from-font; text-underline-positio
 img { display: block; max-width: 100%; }
 bdi, code, .number, [dir="ltr"] { unicode-bidi: isolate; }
 bdi, code, [dir="ltr"] { direction: ltr; }
-.number { font-family: "MarginLift Numerals", var(--font-fa); font-variant-numeric: tabular-nums; word-spacing: 0; }
+.number { font-family: var(--font-numerals, "MarginLift Numerals", var(--font-fa)); font-variant-numeric: tabular-nums; word-spacing: 0; }
 .is-hidden { display: none !important; }
 
 /* Motion system: calm, state-led, and compositor-friendly. */

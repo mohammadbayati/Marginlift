@@ -25,7 +25,7 @@ body.report-page {
   min-height: 100dvh;
   color: var(--report-ink);
   background: var(--report-canvas);
-  font-family: "Vazirmatn UI", Tahoma, sans-serif;
+  font-family: var(--font-primary, "Vazirmatn UI", Tahoma, sans-serif);
   font-size: 15px;
   line-height: 1.65;
 }
