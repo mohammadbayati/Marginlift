@@ -54,8 +54,9 @@ try {
   Assert-NativeCommand "Release upload"
 
   Write-Host "[5/6] Deploying containers..."
-  $remoteScript = @'
+$remoteScript = @'
 set -Eeuo pipefail
+trap 'rm -f /tmp/marginlift-remote-deploy.sh' EXIT
 
 APP_DIR=/opt/marginlift
 RELEASE=/tmp/marginlift-release.tar.gz
@@ -109,7 +110,8 @@ rm -f "$RELEASE" "$CHECKSUM"
 '@
   $remotePayload = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($remoteScript))
 
-  ssh -i $KeyPath "${ServerUser}@${ServerHost}" "printf '%s' '$remotePayload' | base64 -d | sudo -n bash"
+  # Execute from a file so Docker commands cannot consume the remaining script via stdin.
+  ssh -i $KeyPath "${ServerUser}@${ServerHost}" "printf '%s' '$remotePayload' | base64 -d > /tmp/marginlift-remote-deploy.sh && sudo -n bash /tmp/marginlift-remote-deploy.sh"
   Assert-NativeCommand "Remote deployment"
 
   Write-Host "[6/6] Verifying production..."
