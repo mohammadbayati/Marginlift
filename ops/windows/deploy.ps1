@@ -86,7 +86,7 @@ cp -a "$APP_DIR/backups/." "$STAGE_DIR/backups/" 2>/dev/null || true
 test ! -f /root/marginlift-db.backup.json || \
   cp /root/marginlift-db.backup.json "$STAGE_DIR/data/db.json"
 
-chmod +x "$STAGE_DIR/ops/vm/deploy.sh" "$STAGE_DIR/ops/vm/backup.sh"
+chmod +x "$STAGE_DIR/ops/vm/deploy.sh" "$STAGE_DIR/ops/vm/backup.sh" "$STAGE_DIR/ops/vm/verify-backup.sh" "$STAGE_DIR/ops/vm/install-backup-timer.sh"
 docker build --pull --no-cache --tag marginlift-app:latest "$STAGE_DIR"
 docker run --rm --entrypoint sh marginlift-app:latest -lc \
   'test -f /app/src/retention-shadow.js && test -f /app/synthetic-subscription-transactions.csv'
@@ -95,7 +95,7 @@ mv "$APP_DIR" "$PREVIOUS_DIR"
 mv "$STAGE_DIR" "$APP_DIR"
 
 cd "$APP_DIR"
-chmod +x ops/vm/deploy.sh ops/vm/backup.sh
+chmod +x ops/vm/deploy.sh ops/vm/backup.sh ops/vm/verify-backup.sh ops/vm/install-backup-timer.sh
 docker compose -f docker-compose.production.yml up -d postgres
 docker compose -f docker-compose.production.yml run --rm app npm run db:migrate
 docker compose -f docker-compose.production.yml up -d --force-recreate app
@@ -104,6 +104,9 @@ docker compose -f docker-compose.production.yml exec -T app \
   sh -lc 'test -f /app/src/retention-shadow.js && test -f /app/synthetic-subscription-transactions.csv'
 docker compose -f docker-compose.production.yml exec -T app node -e \
   "fetch('http://127.0.0.1:3000/api/health').then(response => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
+./ops/vm/backup.sh
+./ops/vm/verify-backup.sh
+./ops/vm/install-backup-timer.sh
 docker compose -f docker-compose.production.yml ps
 
 rm -f "$RELEASE" "$CHECKSUM"

@@ -24,4 +24,7 @@ docker compose -f docker-compose.production.yml up -d caddy
 docker compose -f docker-compose.production.yml ps
 
 docker compose -f docker-compose.production.yml exec -T app node -e "fetch('http://127.0.0.1:3000/api/health').then(response => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
+./ops/vm/backup.sh
+./ops/vm/verify-backup.sh
+./ops/vm/install-backup-timer.sh
 printf '\nMarginLift VM deployment is healthy.\n'

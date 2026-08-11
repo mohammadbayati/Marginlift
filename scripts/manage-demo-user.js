@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 
 const { createId, hashPassword } = require("../src/auth");
+const { isProduction } = require("../src/config");
 const { closeStorage, initializeStorage, readDb, transact } = require("../src/storage");
 
 function getArg(name, fallback = "") {
@@ -18,21 +19,28 @@ async function main() {
   const name = getArg("name", "مهمان دمو");
   const password = getArg("password", generatePassword());
   const days = Number(getArg("days", "7"));
+  const organizationName = getArg("organization");
 
   if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error("--email باید یک ایمیل معتبر باشد.");
   if (password.length < 16) throw new Error("رمز حساب دمو باید حداقل ۱۶ کاراکتر باشد.");
   if (!Number.isFinite(days) || days < 1 || days > 30) throw new Error("--days باید بین ۱ تا ۳۰ باشد.");
+  if (isProduction && !organizationName) throw new Error("--organization is required in production to prevent attaching the demo user to the wrong workspace.");
 
   await initializeStorage();
   const snapshot = await readDb();
-  const organization = snapshot.organizations
+  const rankedOrganizations = snapshot.organizations
     .map(item => ({
       ...item,
       activity: snapshot.customerAnalyses.filter(row => row.organizationId === item.id).length
         + snapshot.campaigns.filter(row => row.organizationId === item.id).length
         + snapshot.outcomes.filter(row => row.organizationId === item.id).length
     }))
-    .sort((a, b) => b.activity - a.activity)[0];
+    .sort((a, b) => b.activity - a.activity);
+  const matchingOrganizations = organizationName
+    ? rankedOrganizations.filter(item => item.name.trim().toLowerCase() === organizationName.trim().toLowerCase())
+    : rankedOrganizations;
+  if (organizationName && matchingOrganizations.length > 1) throw new Error("Multiple workspaces have the same name. Use a unique workspace name before issuing demo access.");
+  const organization = matchingOrganizations[0];
 
   if (!organization) throw new Error("هیچ فضای کاری برای اتصال حساب دمو پیدا نشد.");
 

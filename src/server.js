@@ -43,7 +43,7 @@ const {
   buildReadinessAudit,
   buildSavingsSnapshot
 } = require("./pilot");
-const { appOrigin, assertProductionConfig, isProduction, maxBodyBytes, port: defaultPort, trustProxy } = require("./config");
+const { appOrigin, assertProductionConfig, isProduction, maxBodyBytes, port: defaultPort, publicSignupEnabled, trustProxy } = require("./config");
 
 const publicRoot = path.join(__dirname, "..");
 const sampleCsvPath = path.join(publicRoot, "synthetic-campaign-data.csv");
@@ -56,6 +56,11 @@ const retentionDemoScenarios = Object.freeze({
 });
 const sessionTtlMs = 1000 * 60 * 60 * 24 * 7;
 const authAttempts = new Map();
+const rateLimits = Object.freeze({
+  signup: { max: 5, windowMs: 15 * 60 * 1000 },
+  login: { max: 10, windowMs: 15 * 60 * 1000 },
+  events: { max: 60, windowMs: 15 * 60 * 1000 }
+});
 
 const contentTypes = {
   ".html": "text/html; charset=utf-8",
@@ -112,7 +117,7 @@ async function handleRequest(req, res) {
       return;
     }
 
-    serveStatic(url.pathname, res);
+    serveStatic(url.pathname, req, res);
   } catch (error) {
     log((error.status || 500) >= 500 ? "error" : "info", (error.status || 500) >= 500 ? "request_failed" : "request_rejected", {
       requestId: req.requestId,
@@ -137,7 +142,15 @@ async function handleApi(req, res, url) {
     return;
   }
 
+  if (url.pathname === "/api/public-config" && req.method === "GET") {
+    sendJson(res, 200, { data: { publicSignupEnabled } });
+    return;
+  }
+
   if (url.pathname === "/api/auth/signup" && req.method === "POST") {
+    if (!publicSignupEnabled) {
+      throw httpError(403, "SIGNUP_DISABLED", "ساخت فضای کاری جدید فقط با هماهنگی تیم MarginLift انجام می‌شود.");
+    }
     checkRateLimit(req, "signup");
     const body = await readJson(req);
     const result = await signup(body, requestContext(req));
@@ -176,6 +189,7 @@ async function handleApi(req, res, url) {
   }
 
   if (url.pathname === "/api/events" && req.method === "POST") {
+    checkRateLimit(req, "events");
     const body = await readJson(req);
     const event = await trackEvent(req, body);
     sendJson(res, 201, { data: { id: event.id, accepted: true } });
@@ -530,6 +544,9 @@ async function signup(body, context = {}) {
     throw httpError(400, "VALIDATION_ERROR", "نام کسب‌وکار باید حداقل ۲ کاراکتر باشد.");
   }
   validateEmailAndPassword(email, password);
+  if (isProduction && password.length < 12) {
+    throw httpError(400, "VALIDATION_ERROR", "رمز عبور باید حداقل ۱۲ کاراکتر باشد.");
+  }
   if (password.length < 8) {
     throw httpError(400, "VALIDATION_ERROR", "رمز عبور باید حداقل ۸ کاراکتر باشد.");
   }
@@ -2187,7 +2204,7 @@ function publicSession(session, user, organization, role) {
   };
 }
 
-function serveStatic(requestPath, res) {
+function serveStatic(requestPath, req, res) {
   const routeAliases = {
     "/": "/sales.html",
     "/login": "/index.html",
@@ -2255,12 +2272,33 @@ function serveStatic(requestPath, res) {
   }
 
   const filePath = path.join(publicRoot, routePath.slice(1));
+  let fileStat;
+  try {
+    fileStat = fs.statSync(filePath);
+  } catch (error) {
+    sendJson(res, 404, { error: { code: "NOT_FOUND", message: "فایل پیدا نشد." } });
+    return;
+  }
+  if (!fileStat.isFile()) {
+    sendJson(res, 404, { error: { code: "NOT_FOUND", message: "فایل پیدا نشد." } });
+    return;
+  }
   const extension = path.extname(filePath);
   res.writeHead(200, {
     "Content-Type": contentTypes[extension] || "application/octet-stream",
     "Cache-Control": "no-store"
   });
-  fs.createReadStream(filePath).pipe(res);
+  if (req.method === "HEAD") {
+    res.end();
+    return;
+  }
+  const stream = fs.createReadStream(filePath);
+  stream.on("error", error => {
+    log("error", "static_file_failed", { filePath, message: error.message });
+    if (!res.headersSent) sendJson(res, 500, { error: { code: "STATIC_FILE_ERROR", message: "خواندن فایل انجام نشد." } });
+    else res.destroy(error);
+  });
+  stream.pipe(res);
 }
 
 function readJson(req) {
@@ -2300,6 +2338,7 @@ function sendJson(res, status, payload, extraHeaders = {}) {
 }
 
 function addSecurityHeaders(res) {
+  res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'");
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Referrer-Policy", "no-referrer");
   res.setHeader("X-Frame-Options", "DENY");
@@ -2330,7 +2369,8 @@ function checkRateLimit(req, bucketName) {
     : (req.socket.remoteAddress || "local");
   const key = `${bucketName}:${ip}`;
   const now = Date.now();
-  const windowMs = 15 * 60 * 1000;
+  const policy = rateLimits[bucketName] || rateLimits.login;
+  const windowMs = policy.windowMs;
   const entry = authAttempts.get(key) || { count: 0, resetAt: now + windowMs };
   if (entry.resetAt < now) {
     entry.count = 0;
@@ -2345,7 +2385,7 @@ function checkRateLimit(req, bucketName) {
     }
   }
 
-  if (entry.count > 30) {
+  if (entry.count > policy.max) {
     throw httpError(429, "RATE_LIMITED", "تعداد تلاش‌ها زیاد است. کمی بعد دوباره امتحان کنید.");
   }
 }

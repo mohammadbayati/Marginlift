@@ -3,6 +3,7 @@ const path = require("path");
 const isProduction = process.env.NODE_ENV === "production";
 const sessionSecret = process.env.SESSION_SECRET || (isProduction ? "" : "development-only-session-secret");
 const maxBodyBytes = Number(process.env.MARGINLIFT_MAX_BODY_BYTES || 2 * 1024 * 1024);
+const publicSignupEnabled = process.env.MARGINLIFT_PUBLIC_SIGNUP === "true" || !isProduction;
 
 function assertProductionConfig() {
   if (!isProduction) return;
@@ -41,6 +42,7 @@ module.exports = {
   isProduction,
   maxBodyBytes: Number.isFinite(maxBodyBytes) && maxBodyBytes > 0 ? maxBodyBytes : 2 * 1024 * 1024,
   port: Number(process.env.PORT || 3000),
+  publicSignupEnabled,
   resolveDbPath,
   sessionSecret,
   trustProxy: process.env.TRUST_PROXY === "true",

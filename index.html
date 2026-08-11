@@ -42,21 +42,21 @@
           <div class="auth-panel-heading">
             <p class="section-kicker">فضای کاری امن</p>
             <h2>به MarginLift خوش آمدید.</h2>
-            <p>برای ادامه وارد شوید یا یک فضای کاری پایلوت بسازید.</p>
+            <p>برای ادامه وارد شوید. فضای کاری پایلوت پس از هماهنگی با تیم MarginLift ساخته می‌شود.</p>
           </div>
           <div class="auth-tabs" role="tablist" aria-label="ورود یا ثبت‌نام">
             <button class="auth-tab active" type="button" role="tab" aria-selected="true" data-auth-tab="login">ورود</button>
-            <button class="auth-tab" type="button" role="tab" aria-selected="false" data-auth-tab="signup">ثبت‌نام</button>
+            <button class="auth-tab" type="button" role="tab" aria-selected="false" data-auth-tab="signup" hidden>ثبت‌نام</button>
           </div>
           <form class="auth-form active" id="loginForm">
             <label for="loginEmail">ایمیل کاری</label>
-            <input id="loginEmail" name="email" type="email" value="growth@example.com" autocomplete="email" required>
+            <input id="loginEmail" name="email" type="email" autocomplete="email" required>
             <label for="loginPassword">رمز عبور</label>
-            <div class="password-field"><input id="loginPassword" name="password" type="password" value="demo1234" autocomplete="current-password" required minlength="6"><button type="button" data-password-toggle="loginPassword" aria-label="نمایش رمز عبور">نمایش</button></div>
+            <div class="password-field"><input id="loginPassword" name="password" type="password" autocomplete="current-password" required minlength="6"><button type="button" data-password-toggle="loginPassword" aria-label="نمایش رمز عبور">نمایش</button></div>
             <button class="primary-button" type="submit">ورود به مرکز تصمیم</button>
-            <p class="auth-hint" id="loginMessage" role="status">اطلاعات حساب دمو از قبل وارد شده است.</p>
+            <p class="auth-hint" id="loginMessage" role="status">اطلاعات حساب موقت را از تیم MarginLift دریافت کنید.</p>
           </form>
-          <form class="auth-form" id="signupForm">
+          <form class="auth-form" id="signupForm" hidden>
             <label for="signupEmail">ایمیل کاری</label>
             <input id="signupEmail" name="email" type="email" placeholder="name@company.com" autocomplete="email" required>
             <label for="signupPassword">رمز عبور</label>

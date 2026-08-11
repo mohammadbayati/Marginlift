@@ -52,9 +52,22 @@ async function run() {
     assert.strictEqual(health.response.status, 200);
     assert.strictEqual(health.response.headers.get("x-content-type-options"), "nosniff");
     assert.strictEqual(health.response.headers.get("x-frame-options"), "DENY");
+    assert.match(health.response.headers.get("content-security-policy"), /default-src 'self'/);
+
+    const publicConfig = await request("/api/public-config");
+    assert.strictEqual(publicConfig.response.status, 200);
+    assert.strictEqual(publicConfig.payload.data.publicSignupEnabled, true);
 
     const healthHead = await request("/api/health", { method: "HEAD" });
     assert.strictEqual(healthHead.response.status, 200);
+
+    const missingAllowedFile = await request("/docs/retention-decision-contract.md");
+    assert.strictEqual(missingAllowedFile.response.status, 404);
+    assert.strictEqual(missingAllowedFile.payload.error.code, "NOT_FOUND");
+
+    const homeHead = await request("/", { method: "HEAD" });
+    assert.strictEqual(homeHead.response.status, 200);
+    assert.strictEqual(homeHead.payload, "");
 
     for (const page of ["/", "/login", "/signup", "/sales.html", "/styles-v2.css", "/styles-v3.css", "/executive-report-v3.css", "/motion.js", "/executive-report.html", "/executive-report.js", "/privacy.html", "/terms.html", "/security.html", "/pilot-data-request.html", "/vm-deployment.html", "/synthetic-ecommerce-transactions.csv", "/synthetic-subscription-transactions.csv", "/docs/vm-deployment.md", "/docs/model-governance.md", "/docs/demo-user-guide-fa.md"]) {
       const pageResponse = await request(page);
@@ -513,6 +526,20 @@ async function run() {
     });
     assert.strictEqual(duplicateRegistration.response.status, 409);
     assert.strictEqual(duplicateRegistration.payload.error.code, "ACTIVE_EXPERIMENT_EXISTS");
+
+    let rateLimitedEvent = null;
+    for (let index = 0; index < 61; index += 1) {
+      const response = await request("/api/events", {
+        method: "POST",
+        body: { event: "readiness_test", properties: { index } }
+      });
+      if (response.response.status === 429) {
+        rateLimitedEvent = response;
+        break;
+      }
+    }
+    assert.ok(rateLimitedEvent, "events endpoint should be rate limited");
+    assert.strictEqual(rateLimitedEvent.payload.error.code, "RATE_LIMITED");
   } finally {
     await new Promise(resolve => server.close(resolve));
     if (fs.existsSync(process.env.MARGINLIFT_DB)) fs.unlinkSync(process.env.MARGINLIFT_DB);

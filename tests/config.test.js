@@ -1,7 +1,7 @@
 const assert = require("assert");
 
 function loadConfig(overrides = {}) {
-  const keys = ["NODE_ENV", "APP_ORIGIN", "SESSION_SECRET", "DATABASE_URL", "ARTIFACT_ENCRYPTION_KEY"];
+  const keys = ["NODE_ENV", "APP_ORIGIN", "SESSION_SECRET", "DATABASE_URL", "ARTIFACT_ENCRYPTION_KEY", "MARGINLIFT_PUBLIC_SIGNUP"];
   keys.forEach(key => delete process.env[key]);
   Object.assign(process.env, overrides);
   delete require.cache[require.resolve("../src/config")];
@@ -17,6 +17,8 @@ const base = {
 };
 
 assert.doesNotThrow(() => loadConfig(base).assertProductionConfig());
+assert.strictEqual(loadConfig(base).publicSignupEnabled, false);
+assert.strictEqual(loadConfig({ ...base, MARGINLIFT_PUBLIC_SIGNUP: "true" }).publicSignupEnabled, true);
 assert.throws(
   () => loadConfig({ ...base, DATABASE_URL: "" }).assertProductionConfig(),
   /DATABASE_URL/

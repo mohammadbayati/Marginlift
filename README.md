@@ -201,7 +201,7 @@ npm run retention:model -- data/channel-retention-dataset.json \
 راهنمای قابل‌ارسال به ارزیاب در `docs/demo-user-guide-fa.txt` قرار دارد. حساب دمو باید با نقش `viewer` و تاریخ انقضای کوتاه ساخته شود تا داده‌ها فقط قابل مشاهده باشند:
 
 ```bash
-npm run demo-user -- --email=reviewer@example.com --name="مهمان دمو" --days=7
+npm run demo-user -- --organization="نام دقیق فضای کاری" --email=reviewer@example.com --name="مهمان دمو" --days=7
 ```
 
 رمز تصادفی فقط در خروجی فرمان نمایش داده می‌شود و نباید داخل Git یا فایل راهنما ثبت شود.
@@ -234,3 +234,24 @@ docs/vm-deployment.md
 ```
 
 این نسخه برای pilot service-led و یک instance طراحی شده است؛ قبل از scale افقی، سند JSONB تراکنشی باید به جدول‌های tenant-aware دامنه‌ای تفکیک شود.
+
+## آمادگی دمو و پایلوت
+
+- ثبت‌نام عمومی در production به‌صورت پیش‌فرض خاموش است؛ حساب‌ها با دعوت ساخته می‌شوند.
+- Scorecard رسمی: `docs/demo-and-pilot-readiness-scorecard-fa.md`
+- Runbook اجرایی پایلوت: `docs/service-led-pilot-runbook-fa.md`
+- ساخت Workspace و مالک پایلوت:
+
+```bash
+npm run pilot-user -- --organization="نام مشتری" --email=owner@example.com --role=owner --days=30
+```
+
+- تست دامنه واقعی با حساب مشاهده‌گر، بدون ثبت رمز در Git:
+
+```bash
+MARGINLIFT_DEMO_EMAIL=reviewer@example.com \
+MARGINLIFT_DEMO_PASSWORD='temporary-password' \
+npm run production:smoke
+```
+
+- بکاپ روزانه با systemd زمان‌بندی می‌شود و آخرین نسخه با `ops/vm/verify-backup.sh` در یک دیتابیس موقت restore-test می‌شود.

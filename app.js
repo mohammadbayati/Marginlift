@@ -124,6 +124,21 @@ function setAuthMode(mode) {
   });
 }
 
+async function configurePublicSignup() {
+  const signupTab = document.querySelector("[data-auth-tab='signup']");
+  const signupForm = document.getElementById("signupForm");
+  let enabled = false;
+  try {
+    const config = await apiRequest("/api/public-config");
+    enabled = config.publicSignupEnabled === true;
+  } catch (error) {
+    enabled = false;
+  }
+  if (signupTab) signupTab.hidden = !enabled;
+  if (signupForm) signupForm.hidden = !enabled;
+  if (!enabled) setAuthMode("login");
+}
+
 function fileIsTooLarge(file) {
   return file && file.size > MAX_IMPORT_FILE_BYTES;
 }
@@ -647,7 +662,7 @@ function setupAuth() {
       setButtonBusy(submitButton, false);
     }
   });
-  document.getElementById("signupForm").addEventListener("submit", async event => {
+  document.getElementById("signupForm")?.addEventListener("submit", async event => {
     event.preventDefault();
     const submitButton = event.currentTarget.querySelector("button[type='submit']");
     setButtonBusy(submitButton, true, "در حال ساخت حساب...");
@@ -1047,6 +1062,7 @@ function setupActions() {
 }
 
 async function init() {
+  await configurePublicSignup();
   setupAuth();
   setupNavigation();
   setupUpload();
