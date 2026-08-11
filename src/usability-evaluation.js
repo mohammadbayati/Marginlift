@@ -1,4 +1,5 @@
 const REQUIRED_ROLES = ["executive", "crm_growth", "data_finance"];
+const { validateSessionEvidence } = require("./usability-session");
 
 function evaluateUsabilitySessions(rows) {
   const sessions = (rows || []).filter(row => String(row.participant_id || "").trim() && String(row.session_date || "").trim());
@@ -13,11 +14,16 @@ function evaluateUsabilitySessions(rows) {
   const requiredTaskFields = ["task_1_pass", "task_2_pass", "task_3_pass", "task_4_pass"];
   sessions.forEach(session => {
     const id = session.participant_id;
+    const evidenceFailures = validateSessionEvidence(session);
+    if (evidenceFailures.length) failures.push(`${id}: سند جلسه ناقص است: ${evidenceFailures.join("؛ ")}.`);
     if (requiredTaskFields.some(field => !toBoolean(session[field]))) failures.push(`${id}: یکی از کارهای اصلی ۱ تا ۴ بدون کمک کامل نشده است.`);
     if (!toBoolean(session.decision_under_90s)) failures.push(`${id}: تصمیم اصلی در کمتر از ۹۰ ثانیه پیدا نشده است.`);
     if (!toBoolean(session.evidence_interpretation_correct)) failures.push(`${id}: نوع شواهد درست تفسیر نشده است.`);
     if (!toBoolean(session.next_action_correct)) failures.push(`${id}: اقدام بعدی درست پیدا نشده است.`);
-    if (toRate(session.unassisted_completion_rate) < 0.8) failures.push(`${id}: نرخ تکمیل بدون کمک کمتر از ۸۰٪ است.`);
+    const derivedCompletionRate = [1, 2, 3, 4, 5].filter(index => toBoolean(session[`task_${index}_pass`])).length / 5;
+    if (derivedCompletionRate < 0.8) failures.push(`${id}: نرخ تکمیل بدون کمک کمتر از ۸۰٪ است.`);
+    const decisionSeconds = toNumber(session.task_2_seconds);
+    if (!Number.isFinite(decisionSeconds) || decisionSeconds > 90) failures.push(`${id}: زمان واقعی تصمیم مدیریتی بیشتر از ۹۰ ثانیه است.`);
   });
 
   const confidenceValues = sessions.map(session => toNumber(session.confidence_1_to_5)).filter(Number.isFinite);

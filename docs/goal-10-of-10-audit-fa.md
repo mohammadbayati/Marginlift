@@ -27,6 +27,6 @@
 - زمان رسیدن به تصمیم و نقاط مکث ثبت شود.
 - هر سه تفاوت «برآورد» و «اثر تأییدشده» را درست توضیح دهند.
 - ایرادهای Severity 1 و 2 اصلاح و دوباره آزمایش شوند.
-- نتیجه هر جلسه در قالب `usability-test-session-template-fa.md` ثبت شود.
+- نتیجه هر جلسه با `usability-session-console-fa.html` ثبت و CSV استاندارد خروجی گرفته شود؛ قالب متنی فقط مدرک پشتیبان است.
 - حداقل یک جلسه با Narrator یا NVDA طبق `screen-reader-test-protocol-fa.md` اجرا شود.
 - `npm run usability:evaluate` باید status برابر `pass` برگرداند.

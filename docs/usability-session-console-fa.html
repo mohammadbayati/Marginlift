@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>کنسول تست کاربری MarginLift</title>
+  <style>
+    @font-face {
+      font-family: "MarginLift Persian";
+      src: url("../fonts/Vazirmatn-Variable.woff2") format("woff2");
+      font-weight: 100 900;
+      font-display: swap;
+    }
+
+    :root {
+      color-scheme: light;
+      --ink: #101820;
+      --muted: #5e6a73;
+      --line: #d9e0e4;
+      --soft: #f4f7f8;
+      --paper: #ffffff;
+      --mint: #0a8f74;
+      --mint-light: #dff5ee;
+      --amber: #a36000;
+      --amber-light: #fff2d8;
+      --danger: #b42318;
+      --danger-light: #feeceb;
+      --focus: #1769aa;
+      --shadow: 0 16px 44px rgba(16, 24, 32, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    html { background: #e9eef1; font-family: "MarginLift Persian", Tahoma, Arial, sans-serif; letter-spacing: 0; }
+    body { margin: 0; color: var(--ink); background: var(--soft); line-height: 1.65; -webkit-font-smoothing: antialiased; }
+    button, input, select, textarea { font: inherit; letter-spacing: 0; }
+    button, input, select, textarea { min-height: 44px; }
+    button { cursor: pointer; }
+    :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+    input[type="date"]:focus { outline: 3px solid var(--focus); outline-offset: 3px; }
+    .skip-link { position: fixed; inset-block-start: 12px; inset-inline-start: 12px; z-index: 20; transform: translateY(-160%); background: var(--ink); color: #fff; padding: 10px 16px; }
+    .skip-link:focus { transform: translateY(0); }
+
+    .shell { width: min(1180px, calc(100% - 32px)); margin: 24px auto 64px; background: var(--paper); border: 1px solid var(--line); box-shadow: var(--shadow); }
+    .topbar { min-height: 78px; padding: 18px 28px; display: flex; align-items: center; justify-content: space-between; gap: 24px; border-bottom: 1px solid var(--line); }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark { width: 38px; height: 38px; flex: 0 0 38px; background: var(--ink) url("../brand-mark.svg") center / 28px 28px no-repeat; }
+    .brand strong { display: block; font-size: 18px; line-height: 1.25; }
+    .brand span { display: block; color: var(--muted); font-size: 13px; }
+    .privacy-note { max-width: 48ch; margin: 0; color: var(--muted); font-size: 13px; text-align: start; }
+
+    .intro { padding: 46px 28px 34px; background: var(--ink); color: #fff; display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr); gap: 36px; align-items: end; }
+    .eyebrow { margin: 0 0 8px; color: #62e1ba; font-size: 13px; font-weight: 700; }
+    h1 { max-width: 19ch; margin: 0; font-size: clamp(30px, 5vw, 48px); line-height: 1.2; text-wrap: balance; }
+    .intro-copy { max-width: 68ch; margin: 18px 0 0; color: #c9d2d8; text-wrap: pretty; }
+    .session-clock { border-inline-start: 1px solid #3b4650; padding-inline-start: 28px; }
+    .clock-label { display: block; color: #aeb9c1; font-size: 13px; }
+    .clock-value { display: block; min-height: 56px; margin: 6px 0 12px; color: #62e1ba; font-size: 38px; font-weight: 760; direction: ltr; text-align: end; font-variant-numeric: tabular-nums; }
+
+    .status-band { padding: 22px 28px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--line); background: #fbfcfc; }
+    .status-item { min-height: 68px; padding: 0 18px; border-inline-end: 1px solid var(--line); }
+    .status-item:first-child { padding-inline-start: 0; }
+    .status-item:last-child { border-inline-end: 0; padding-inline-end: 0; }
+    .status-label { display: block; color: var(--muted); font-size: 12px; }
+    .status-value { display: block; margin-top: 6px; font-size: 18px; font-weight: 720; font-variant-numeric: tabular-nums; }
+    .status-value.good { color: var(--mint); }
+    .status-value.waiting { color: var(--amber); }
+
+    form > section, .saved-section { padding: 34px 28px; border-bottom: 1px solid var(--line); }
+    .section-head { display: flex; justify-content: space-between; gap: 24px; align-items: start; margin-bottom: 24px; }
+    .section-index { flex: 0 0 38px; width: 38px; height: 38px; display: grid; place-items: center; background: var(--ink); color: #fff; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .section-title { flex: 1; }
+    h2 { margin: 0; font-size: 23px; line-height: 1.3; }
+    .section-title p { max-width: 72ch; margin: 7px 0 0; color: var(--muted); font-size: 14px; text-wrap: pretty; }
+
+    .field-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+    .field { display: grid; gap: 7px; align-content: start; }
+    .field-wide { grid-column: 1 / -1; }
+    label, legend { font-size: 13px; font-weight: 720; }
+    input, select, textarea { width: 100%; border: 1px solid #bcc7cd; border-radius: 4px; background: #fff; color: var(--ink); padding: 10px 12px; }
+    textarea { min-height: 112px; resize: vertical; }
+    input[type="checkbox"], input[type="radio"] { width: 20px; min-height: 20px; accent-color: var(--mint); }
+    .hint { margin: 0; color: var(--muted); font-size: 12px; }
+    .bidi { direction: ltr; text-align: left; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+    fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+    .choice-row { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 9px; }
+    .choice { min-height: 44px; display: inline-flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; font-weight: 500; }
+
+    .task-list { display: grid; gap: 12px; }
+    .task-row { display: grid; grid-template-columns: 42px minmax(240px, 1fr) 132px 125px 170px; gap: 14px; align-items: center; padding: 16px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+    .task-number { width: 32px; height: 32px; display: grid; place-items: center; background: var(--soft); color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
+    .task-copy strong { display: block; font-size: 15px; }
+    .task-copy span { display: block; color: var(--muted); font-size: 12px; }
+    .timer-button, .secondary-button, .danger-button { border: 1px solid #aebac1; border-radius: 4px; background: #fff; color: var(--ink); padding: 8px 14px; font-weight: 700; }
+    .timer-button[aria-pressed="true"] { border-color: var(--amber); color: var(--amber); background: var(--amber-light); }
+    .seconds-field { position: relative; }
+    .seconds-field input { direction: ltr; text-align: center; font-variant-numeric: tabular-nums; padding-inline-end: 42px; }
+    .seconds-field span { position: absolute; inset-inline-end: 11px; inset-block-start: 50%; transform: translateY(-50%); color: var(--muted); font-size: 12px; pointer-events: none; }
+    .pass-check { min-height: 44px; display: flex; align-items: center; gap: 9px; font-size: 13px; }
+
+    .evidence-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+    .screen-reader-fields { grid-column: 1 / -1; padding: 20px; background: var(--soft); border-inline-start: 4px solid var(--mint); }
+    .screen-reader-fields[hidden] { display: none; }
+
+    .issues-head { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .issues { display: grid; gap: 12px; margin-top: 18px; }
+    .issue-row { display: grid; grid-template-columns: 120px minmax(220px, 1fr) minmax(220px, 1fr) 130px 48px; gap: 12px; align-items: end; padding: 16px; border: 1px solid var(--line); border-radius: 6px; }
+    .remove-issue { width: 44px; padding: 0; border: 1px solid #e4b6b2; border-radius: 4px; background: var(--danger-light); color: var(--danger); font-size: 22px; }
+    .empty-state { margin: 0; padding: 20px; color: var(--muted); background: var(--soft); border-inline-start: 4px solid #aebac1; }
+
+    .form-actions { position: sticky; bottom: 0; z-index: 5; padding: 18px 28px; display: flex; justify-content: space-between; gap: 16px; align-items: center; background: rgba(255, 255, 255, 0.96); border-top: 1px solid var(--line); backdrop-filter: blur(10px); }
+    .primary-button { min-width: 190px; border: 1px solid var(--ink); border-radius: 4px; background: var(--ink); color: #fff; padding: 10px 18px; font-weight: 780; }
+    .primary-button:hover { background: #23313b; }
+    .action-note { margin: 0; color: var(--muted); font-size: 12px; }
+    .message { margin: 0; color: var(--danger); font-size: 13px; font-weight: 700; }
+    .message.success { color: var(--mint); }
+
+    .saved-section { border-bottom: 0; background: #fbfcfc; }
+    .saved-list { display: grid; margin-top: 20px; border-top: 1px solid var(--line); }
+    .saved-row { display: grid; grid-template-columns: 100px 1fr 140px 150px 52px; gap: 16px; align-items: center; min-height: 68px; border-bottom: 1px solid var(--line); }
+    .saved-row strong, .saved-row span { overflow-wrap: break-word; }
+    .role-name { color: var(--muted); font-size: 13px; }
+    .evidence-state { font-size: 13px; font-weight: 720; color: var(--mint); }
+    .saved-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+    .secondary-button:disabled { cursor: not-allowed; opacity: 0.45; }
+    .danger-button { color: var(--danger); border-color: #e4b6b2; }
+
+    @media (max-width: 840px) {
+      .shell { width: 100%; margin: 0; border-inline: 0; box-shadow: none; }
+      .topbar, .intro, form > section, .saved-section, .form-actions { padding-inline: 18px; }
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .intro { grid-template-columns: 1fr; }
+      .session-clock { border-inline-start: 0; border-top: 1px solid #3b4650; padding: 20px 0 0; }
+      .clock-value { text-align: start; }
+      .status-band { grid-template-columns: 1fr 1fr; padding-inline: 18px; }
+      .status-item { padding: 12px; border-bottom: 1px solid var(--line); }
+      .status-item:nth-child(2) { border-inline-end: 0; }
+      .status-item:nth-child(3), .status-item:nth-child(4) { border-bottom: 0; }
+      .field-grid, .evidence-grid { grid-template-columns: 1fr; }
+      .field-wide, .screen-reader-fields { grid-column: auto; }
+      .task-row { grid-template-columns: 36px minmax(0, 1fr); }
+      .task-row > :not(.task-number):not(.task-copy) { grid-column: 2; }
+      .issue-row { grid-template-columns: 1fr; }
+      .remove-issue { justify-self: end; }
+      .form-actions { align-items: stretch; flex-direction: column; }
+      .primary-button { width: 100%; }
+      .saved-row { grid-template-columns: 72px 1fr 44px; padding-block: 12px; }
+      .saved-row .session-date, .saved-row .evidence-state { grid-column: 2; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+    }
+
+    @media print {
+      body { background: #fff; }
+      .shell { width: 100%; margin: 0; border: 0; box-shadow: none; }
+      .form-actions, button, .privacy-note { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#mainContent">رفتن به محتوای اصلی</a>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand" aria-label="MarginLift">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span><strong>MarginLift</strong><span>آزمایشگاه مشاهده کاربر</span></span>
+      </div>
+      <p class="privacy-note">نام، ایمیل یا داده سازمانی شرکت‌کننده را وارد نکنید. تمام اطلاعات این صفحه فقط در همین مرورگر ذخیره می‌شود.</p>
+    </header>
+
+    <main id="mainContent" tabindex="-1">
+      <section class="intro" aria-labelledby="pageTitle">
+        <div>
+          <p class="eyebrow">سه جلسه واقعی، یک تصمیم قابل دفاع</p>
+          <h1 id="pageTitle">رفتار را ثبت کنید، نه نظر را.</h1>
+          <p class="intro-copy">این کنسول زمان هر کار، برداشت تصمیم، کیفیت شواهد و ایرادهای مشاهده‌شده را ثبت می‌کند و یک فایل استاندارد برای گیت نهایی MarginLift می‌سازد.</p>
+        </div>
+        <div class="session-clock" aria-label="زمان جلسه">
+          <span class="clock-label">زمان سپری‌شده جلسه</span>
+          <output class="clock-value" id="sessionClock" aria-live="off">00:00</output>
+          <button class="timer-button" id="sessionTimerButton" type="button" aria-pressed="false">شروع جلسه</button>
+        </div>
+      </section>
+
+      <section class="status-band" aria-label="وضعیت پوشش تست‌ها">
+        <div class="status-item"><span class="status-label">جلسه ثبت‌شده</span><strong class="status-value waiting" id="sessionCount">۰ از ۳</strong></div>
+        <div class="status-item"><span class="status-label">نقش‌های پوشش‌داده‌شده</span><strong class="status-value waiting" id="roleCount">۰ از ۳</strong></div>
+        <div class="status-item"><span class="status-label">آزمون صفحه‌خوان</span><strong class="status-value waiting" id="screenReaderGate">انجام نشده</strong></div>
+        <div class="status-item"><span class="status-label">کیفیت شواهد</span><strong class="status-value waiting" id="evidenceGate">در انتظار جلسه</strong></div>
+      </section>
+
+      <form id="sessionForm" novalidate>
+        <section aria-labelledby="setupTitle">
+          <div class="section-head">
+            <span class="section-index" aria-hidden="true">۱</span>
+            <div class="section-title"><h2 id="setupTitle">مشخصات ناشناس جلسه</h2><p>فقط اطلاعاتی را ثبت کنید که برای اثبات واقعی‌بودن و تکرارپذیری آزمون لازم است.</p></div>
+          </div>
+          <div class="field-grid">
+            <div class="field"><label for="participantId">شناسه شرکت‌کننده</label><input id="participantId" name="participant_id" value="P01" pattern="P[0-9]{2,}" autocomplete="off" required><p class="hint">از نام واقعی استفاده نکنید.</p></div>
+            <div class="field"><label for="role">نقش آزمون</label><select id="role" name="role" required><option value="">انتخاب کنید</option><option value="executive">مدیر تصمیم‌گیر</option><option value="crm_growth">مالک CRM / Growth</option><option value="data_finance">مالک داده / مالی</option></select></div>
+            <div class="field"><label for="sessionDate">تاریخ جلسه</label><input class="bidi" id="sessionDate" name="session_date" type="date" required></div>
+            <div class="field"><label for="moderatorId">شناسه مجری</label><input id="moderatorId" name="moderator_id" placeholder="مثلاً M01" autocomplete="off" required></div>
+            <div class="field"><label for="sessionMode">شیوه برگزاری</label><select id="sessionMode" name="session_mode" required><option value="moderated_remote">آنلاین با مجری</option><option value="moderated_in_person">حضوری با مجری</option></select></div>
+            <div class="field"><label for="durationMinutes">مدت جلسه، دقیقه</label><input class="bidi" id="durationMinutes" name="duration_minutes" type="number" min="15" max="60" inputmode="numeric" required></div>
+            <div class="field"><label for="device">دستگاه</label><input id="device" name="device" placeholder="لپ‌تاپ ویندوز" required></div>
+            <div class="field"><label for="browser">مرورگر و نسخه</label><input id="browser" name="browser" placeholder="Chrome 140" required></div>
+            <div class="field"><label for="inputMethod">روش تعامل</label><input id="inputMethod" name="input_method" placeholder="کیبورد و ماوس" required></div>
+            <div class="field"><label for="recordingConsent">رضایت برای ضبط</label><select id="recordingConsent" name="recording_consent" required><option value="">ثبت کنید</option><option value="yes">بله</option><option value="no">خیر؛ فقط یادداشت مجری</option></select></div>
+            <div class="field field-wide"><label for="evidenceReference">مرجع شواهد</label><input class="bidi" id="evidenceReference" name="evidence_reference" placeholder="مثلاً local/P01-notes.md یا نام فایل ضبط محلی" required><p class="hint">فایل ضبط یا یادداشت محرمانه را داخل GitHub قرار ندهید.</p></div>
+          </div>
+        </section>
+
+        <section aria-labelledby="tasksTitle">
+          <div class="section-head">
+            <span class="section-index" aria-hidden="true">۲</span>
+            <div class="section-title"><h2 id="tasksTitle">پنج کار بدون راهنمایی</h2><p>دکمه شروع را هنگام خواندن هر سناریو بزنید؛ با توقف، زمان به‌صورت خودکار ثبت می‌شود.</p></div>
+          </div>
+          <div class="task-list">
+            <div class="task-row" data-task="1"><span class="task-number">۱</span><div class="task-copy"><strong>ورود و جهت‌یابی</strong><span>کاربر در یک جمله بگوید محصول چه تصمیمی می‌گیرد.</span></div><button class="timer-button task-timer" type="button" aria-pressed="false">شروع زمان</button><div class="seconds-field"><label class="sr-only" for="task1Seconds">زمان کار ۱</label><input id="task1Seconds" name="task_1_seconds" type="number" min="1" inputmode="numeric" required><span>ثانیه</span></div><label class="pass-check"><input name="task_1_pass" type="checkbox">موفق، بدون کمک</label></div>
+            <div class="task-row" data-task="2"><span class="task-number">۲</span><div class="task-copy"><strong>تصمیم مدیریتی</strong><span>تصمیم، دلیل و مهم‌ترین عدد مالی را پیدا کند.</span></div><button class="timer-button task-timer" type="button" aria-pressed="false">شروع زمان</button><div class="seconds-field"><label class="sr-only" for="task2Seconds">زمان کار ۲</label><input id="task2Seconds" name="task_2_seconds" type="number" min="1" inputmode="numeric" required><span>ثانیه</span></div><label class="pass-check"><input name="task_2_pass" type="checkbox">موفق، بدون کمک</label></div>
+            <div class="task-row" data-task="3"><span class="task-number">۳</span><div class="task-copy"><strong>کیفیت شواهد</strong><span>نوع اثر و سطح اعتماد را بدون برداشت causal اشتباه بگوید.</span></div><button class="timer-button task-timer" type="button" aria-pressed="false">شروع زمان</button><div class="seconds-field"><label class="sr-only" for="task3Seconds">زمان کار ۳</label><input id="task3Seconds" name="task_3_seconds" type="number" min="1" inputmode="numeric" required><span>ثانیه</span></div><label class="pass-check"><input name="task_3_pass" type="checkbox">موفق، بدون کمک</label></div>
+            <div class="task-row" data-task="4"><span class="task-number">۴</span><div class="task-copy"><strong>اقدام بعدی</strong><span>قدم، مالک و مانع فعلی را پیدا کند.</span></div><button class="timer-button task-timer" type="button" aria-pressed="false">شروع زمان</button><div class="seconds-field"><label class="sr-only" for="task4Seconds">زمان کار ۴</label><input id="task4Seconds" name="task_4_seconds" type="number" min="1" inputmode="numeric" required><span>ثانیه</span></div><label class="pass-check"><input name="task_4_pass" type="checkbox">موفق، بدون کمک</label></div>
+            <div class="task-row" data-task="5"><span class="task-number">۵</span><div class="task-copy"><strong>خروجی قابل ارسال</strong><span>گزارش مدیرعامل یا مدیر مالی را پیدا و تصمیم صفحه اول را بیان کند.</span></div><button class="timer-button task-timer" type="button" aria-pressed="false">شروع زمان</button><div class="seconds-field"><label class="sr-only" for="task5Seconds">زمان کار ۵</label><input id="task5Seconds" name="task_5_seconds" type="number" min="1" inputmode="numeric" required><span>ثانیه</span></div><label class="pass-check"><input name="task_5_pass" type="checkbox">موفق، بدون کمک</label></div>
+          </div>
+        </section>
+
+        <section aria-labelledby="evidenceTitle">
+          <div class="section-head">
+            <span class="section-index" aria-hidden="true">۳</span>
+            <div class="section-title"><h2 id="evidenceTitle">اعتبار برداشت و دسترس‌پذیری</h2><p>این بخش مشخص می‌کند کاربر فقط مسیر را طی کرده یا واقعاً تصمیم را درست فهمیده است.</p></div>
+          </div>
+          <div class="evidence-grid">
+            <fieldset><legend>نوع شواهد را درست تشخیص داد؟</legend><div class="choice-row"><label class="choice"><input type="radio" name="evidence_interpretation_correct" value="yes" required>بله</label><label class="choice"><input type="radio" name="evidence_interpretation_correct" value="no">خیر</label></div></fieldset>
+            <fieldset><legend>اقدام بعدی را درست پیدا کرد؟</legend><div class="choice-row"><label class="choice"><input type="radio" name="next_action_correct" value="yes" required>بله</label><label class="choice"><input type="radio" name="next_action_correct" value="no">خیر</label></div></fieldset>
+            <div class="field"><label for="confidence">اطمینان برای اقدام، از ۱ تا ۵</label><input class="bidi" id="confidence" name="confidence_1_to_5" type="number" min="1" max="5" inputmode="numeric" required></div>
+            <label class="choice field-wide"><input id="screenReaderUsed" name="screen_reader_used" type="checkbox">این جلسه واقعاً با Narrator یا NVDA اجرا شد</label>
+            <fieldset class="screen-reader-fields" id="screenReaderFields" hidden><legend>مدرک آزمون صفحه‌خوان</legend><div class="field-grid"><div class="field"><label for="screenReaderName">صفحه‌خوان</label><select id="screenReaderName" name="screen_reader_name"><option value="">انتخاب کنید</option><option value="Narrator">Narrator</option><option value="NVDA">NVDA</option></select></div><div class="field"><label for="screenReaderVersion">نسخه</label><input class="bidi" id="screenReaderVersion" name="screen_reader_version" placeholder="مثلاً 2025.3"></div><fieldset><legend>نتیجه مسیر بدون تصویر</legend><div class="choice-row"><label class="choice"><input type="radio" name="screen_reader_pass" value="yes">پاس</label><label class="choice"><input type="radio" name="screen_reader_pass" value="no">رد</label></div></fieldset></div></fieldset>
+          </div>
+        </section>
+
+        <section aria-labelledby="issuesTitle">
+          <div class="issues-head">
+            <div class="section-head" style="margin:0"><span class="section-index" aria-hidden="true">۴</span><div class="section-title"><h2 id="issuesTitle">یافته‌های مشاهده‌شده</h2><p>هر یافته باید رفتار واقعی و پیامد تصمیم را توصیف کند.</p></div></div>
+            <button class="secondary-button" id="addIssueButton" type="button">افزودن یافته</button>
+          </div>
+          <div class="issues" id="issues"><p class="empty-state">هنوز یافته‌ای ثبت نشده است. نبود یافته فقط وقتی معتبر است که تمام پنج کار واقعاً مشاهده شده باشند.</p></div>
+        </section>
+
+        <section aria-labelledby="notesTitle">
+          <div class="section-head"><span class="section-index" aria-hidden="true">۵</span><div class="section-title"><h2 id="notesTitle">یادداشت رفتاری جلسه</h2><p>مکث‌ها، واژه‌های نامفهوم، تصمیمی که بیان شد و نشانه‌های اعتماد یا تردید را بنویسید.</p></div></div>
+          <div class="field"><label for="observationNotes">مشاهده مجری</label><textarea id="observationNotes" name="observation_notes" minlength="40" required placeholder="مثال: شرکت‌کننده پس از ورود ۱۸ ثانیه روی عدد ROI مکث کرد و ابتدا آن را درآمد قطعی تفسیر کرد..."></textarea><p class="hint">حداقل ۴۰ نویسه؛ قضاوت کلی مانند «خوب بود» مدرک محسوب نمی‌شود.</p></div>
+        </section>
+
+        <div class="form-actions">
+          <div><p class="action-note">با ثبت جلسه، اطلاعات فقط در Local Storage همین مرورگر می‌ماند.</p><p class="message" id="formMessage" role="alert" aria-live="assertive"></p></div>
+          <button class="primary-button" type="submit">ثبت این جلسه</button>
+        </div>
+      </form>
+
+      <section class="saved-section" aria-labelledby="savedTitle">
+        <div class="section-head"><span class="section-index" aria-hidden="true">۶</span><div class="section-title"><h2 id="savedTitle">جلسه‌های ثبت‌شده</h2><p>بعد از سه جلسه، CSV را خروجی بگیرید و با گیت رسمی MarginLift ارزیابی کنید.</p></div></div>
+        <div class="saved-list" id="savedSessions"></div>
+        <div class="saved-actions"><button class="primary-button" id="exportButton" type="button" disabled>دریافت CSV استاندارد</button><button class="danger-button" id="clearButton" type="button">پاک‌کردن همه جلسه‌ها</button></div>
+      </section>
+    </main>
+  </div>
+
+  <template id="issueTemplate">
+    <div class="issue-row">
+      <div class="field"><label>شدت</label><select data-issue="severity"><option value="1">۱، توقف انتشار</option><option value="2">۲، اصلاح پیش از ارائه</option><option value="3" selected>۳، اصطکاک جدی</option><option value="4">۴، جزئی</option></select></div>
+      <div class="field"><label>مشاهده عینی</label><input data-issue="observation" placeholder="کاربر چه کرد یا گفت؟"></div>
+      <div class="field"><label>پیامد تصمیم</label><input data-issue="impact" placeholder="چه خطایی ممکن بود رخ دهد؟"></div>
+      <label class="choice"><input type="checkbox" data-issue="resolved">اصلاح و بازآزمایی شد</label>
+      <button class="remove-issue" type="button" aria-label="حذف این یافته">×</button>
+    </div>
+  </template>
+
+  <script src="../src/usability-session.js"></script>
+  <script>
+    (() => {
+      const api = window.MarginLiftUsability;
+      const storageKey = "marginlift_usability_sessions_v2";
+      const form = document.querySelector("#sessionForm");
+      const message = document.querySelector("#formMessage");
+      const issuesContainer = document.querySelector("#issues");
+      const issueTemplate = document.querySelector("#issueTemplate");
+      const screenReaderUsed = document.querySelector("#screenReaderUsed");
+      const screenReaderFields = document.querySelector("#screenReaderFields");
+      const timers = new Map();
+      let sessionTimerStartedAt = 0;
+      let sessionTimerInterval = null;
+
+      const roleLabels = { executive: "مدیر تصمیم‌گیر", crm_growth: "مالک CRM / Growth", data_finance: "مالک داده / مالی" };
+      const faNumber = value => new Intl.NumberFormat("fa-IR").format(value);
+      const loadSessions = () => {
+        try { return JSON.parse(localStorage.getItem(storageKey) || "[]"); }
+        catch (error) { return []; }
+      };
+      const saveSessions = sessions => localStorage.setItem(storageKey, JSON.stringify(sessions));
+
+      document.querySelector("#sessionDate").value = new Date().toISOString().slice(0, 10);
+      setNextParticipantId();
+      renderSessions();
+
+      document.querySelector("#sessionTimerButton").addEventListener("click", event => {
+        if (!sessionTimerStartedAt) {
+          sessionTimerStartedAt = Date.now();
+          event.currentTarget.textContent = "توقف جلسه";
+          event.currentTarget.setAttribute("aria-pressed", "true");
+          sessionTimerInterval = setInterval(updateSessionClock, 1000);
+          updateSessionClock();
+        } else {
+          stopSessionTimer();
+        }
+      });
+
+      document.querySelectorAll(".task-timer").forEach(button => button.addEventListener("click", () => toggleTaskTimer(button)));
+      document.querySelector("#addIssueButton").addEventListener("click", addIssue);
+      screenReaderUsed.addEventListener("change", syncScreenReaderFields);
+      document.querySelector("#exportButton").addEventListener("click", exportCsv);
+      document.querySelector("#clearButton").addEventListener("click", clearSessions);
+
+      form.addEventListener("submit", event => {
+        event.preventDefault();
+        message.className = "message";
+        message.textContent = "";
+        stopAllTaskTimers();
+        if (sessionTimerStartedAt) stopSessionTimer();
+        if (!form.reportValidity()) return;
+
+        const input = Object.fromEntries(new FormData(form).entries());
+        input.screen_reader_used = screenReaderUsed.checked;
+        for (let index = 1; index <= 5; index += 1) input[`task_${index}_pass`] = Boolean(form.elements[`task_${index}_pass`].checked);
+        input.issues = readIssues();
+        const record = api.buildSessionRecord(input);
+        const failures = api.validateSessionEvidence(record);
+        const issueFailures = validateIssues();
+        if (failures.length || issueFailures.length) {
+          message.textContent = [...failures, ...issueFailures].join("؛ ");
+          focusFirstInvalidEvidence(record, issueFailures);
+          return;
+        }
+
+        const sessions = loadSessions().filter(session => session.participant_id.toLowerCase() !== record.participant_id.toLowerCase());
+        sessions.push(record);
+        saveSessions(sessions);
+        resetForm();
+        renderSessions();
+        message.className = "message success";
+        message.textContent = "جلسه با شواهد کامل ثبت شد.";
+        document.querySelector("#participantId").focus();
+      });
+
+      function toggleTaskTimer(button) {
+        const row = button.closest("[data-task]");
+        const index = row.dataset.task;
+        const input = row.querySelector("input[type='number']");
+        if (!timers.has(index)) {
+          stopAllTaskTimers();
+          timers.set(index, Date.now());
+          button.textContent = "توقف زمان";
+          button.setAttribute("aria-pressed", "true");
+          return;
+        }
+        input.value = Math.max(1, Math.round((Date.now() - timers.get(index)) / 1000));
+        timers.delete(index);
+        button.textContent = "شروع زمان";
+        button.setAttribute("aria-pressed", "false");
+        input.focus();
+      }
+
+      function stopAllTaskTimers() {
+        for (const [index, startedAt] of timers.entries()) {
+          const row = document.querySelector(`[data-task="${index}"]`);
+          row.querySelector("input[type='number']").value = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
+          const button = row.querySelector(".task-timer");
+          button.textContent = "شروع زمان";
+          button.setAttribute("aria-pressed", "false");
+        }
+        timers.clear();
+      }
+
+      function updateSessionClock() {
+        const elapsed = Math.floor((Date.now() - sessionTimerStartedAt) / 1000);
+        const minutes = String(Math.floor(elapsed / 60)).padStart(2, "0");
+        const seconds = String(elapsed % 60).padStart(2, "0");
+        document.querySelector("#sessionClock").value = `${minutes}:${seconds}`;
+      }
+
+      function stopSessionTimer() {
+        const elapsedMinutes = Math.max(1, Math.round((Date.now() - sessionTimerStartedAt) / 60000));
+        document.querySelector("#durationMinutes").value = elapsedMinutes;
+        sessionTimerStartedAt = 0;
+        clearInterval(sessionTimerInterval);
+        sessionTimerInterval = null;
+        const button = document.querySelector("#sessionTimerButton");
+        button.textContent = "شروع جلسه";
+        button.setAttribute("aria-pressed", "false");
+      }
+
+      function syncScreenReaderFields() {
+        screenReaderFields.hidden = !screenReaderUsed.checked;
+        screenReaderFields.querySelectorAll("select, input").forEach(control => control.required = screenReaderUsed.checked);
+        if (screenReaderUsed.checked) document.querySelector("#screenReaderName").focus();
+      }
+
+      function addIssue() {
+        if (issuesContainer.querySelector(".empty-state")) issuesContainer.innerHTML = "";
+        const issue = issueTemplate.content.firstElementChild.cloneNode(true);
+        issue.querySelector(".remove-issue").addEventListener("click", () => {
+          issue.remove();
+          if (!issuesContainer.children.length) issuesContainer.innerHTML = '<p class="empty-state">هنوز یافته‌ای ثبت نشده است. نبود یافته فقط وقتی معتبر است که تمام پنج کار واقعاً مشاهده شده باشند.</p>';
+        });
+        issuesContainer.append(issue);
+        issue.querySelector("select").focus();
+      }
+
+      function readIssues() {
+        return [...issuesContainer.querySelectorAll(".issue-row")].map(row => ({
+          severity: row.querySelector('[data-issue="severity"]').value,
+          observation: row.querySelector('[data-issue="observation"]').value.trim(),
+          impact: row.querySelector('[data-issue="impact"]').value.trim(),
+          resolved: row.querySelector('[data-issue="resolved"]').checked
+        }));
+      }
+
+      function validateIssues() {
+        const failures = [];
+        readIssues().forEach((issue, index) => {
+          if (issue.observation.length < 10 || issue.impact.length < 10) failures.push(`یافته ${faNumber(index + 1)} باید مشاهده و پیامد روشن داشته باشد`);
+        });
+        return failures;
+      }
+
+      function focusFirstInvalidEvidence(record, issueFailures) {
+        if (!/^P\d{2,}$/i.test(record.participant_id)) return document.querySelector("#participantId").focus();
+        if (record.observation_notes.length < 40) return document.querySelector("#observationNotes").focus();
+        if (issueFailures.length) return issuesContainer.querySelector('[data-issue="observation"]')?.focus();
+        form.querySelector(":invalid")?.focus();
+      }
+
+      function resetForm() {
+        const moderator = document.querySelector("#moderatorId").value;
+        form.reset();
+        document.querySelector("#moderatorId").value = moderator;
+        document.querySelector("#sessionDate").value = new Date().toISOString().slice(0, 10);
+        document.querySelector("#sessionMode").value = "moderated_remote";
+        issuesContainer.innerHTML = '<p class="empty-state">هنوز یافته‌ای ثبت نشده است. نبود یافته فقط وقتی معتبر است که تمام پنج کار واقعاً مشاهده شده باشند.</p>';
+        screenReaderFields.hidden = true;
+        screenReaderFields.querySelectorAll("select, input").forEach(control => control.required = false);
+        document.querySelector("#sessionClock").value = "00:00";
+        setNextParticipantId();
+      }
+
+      function setNextParticipantId() {
+        const used = new Set(loadSessions().map(session => session.participant_id.toUpperCase()));
+        let next = 1;
+        while (used.has(`P${String(next).padStart(2, "0")}`)) next += 1;
+        document.querySelector("#participantId").value = `P${String(next).padStart(2, "0")}`;
+      }
+
+      function renderSessions() {
+        const sessions = loadSessions();
+        const list = document.querySelector("#savedSessions");
+        list.innerHTML = "";
+        if (!sessions.length) {
+          list.innerHTML = '<p class="empty-state">هنوز جلسه معتبری ذخیره نشده است.</p>';
+        } else {
+          sessions.forEach(session => {
+            const row = document.createElement("div");
+            row.className = "saved-row";
+            row.innerHTML = `<strong dir="ltr">${escapeHtml(session.participant_id)}</strong><span class="role-name">${escapeHtml(roleLabels[session.role] || session.role)}</span><span class="session-date" dir="ltr">${escapeHtml(session.session_date)}</span><span class="evidence-state">شواهد کامل</span><button class="remove-issue" type="button" aria-label="حذف جلسه ${escapeHtml(session.participant_id)}">×</button>`;
+            row.querySelector("button").addEventListener("click", () => removeSession(session.participant_id));
+            list.append(row);
+          });
+        }
+        updateStatus(sessions);
+        document.querySelector("#exportButton").disabled = !sessions.length;
+      }
+
+      function updateStatus(sessions) {
+        const participants = new Set(sessions.map(session => session.participant_id.toLowerCase()));
+        const roles = new Set(sessions.map(session => session.role));
+        const screenReaderPass = sessions.some(session => api.toBoolean(session.screen_reader_used) && api.toBoolean(session.screen_reader_pass));
+        const evidenceReady = sessions.length > 0 && sessions.every(session => api.validateSessionEvidence(session).length === 0);
+        setStatus("sessionCount", `${faNumber(participants.size)} از ۳`, participants.size >= 3);
+        setStatus("roleCount", `${faNumber(api.ROLE_CODES.filter(role => roles.has(role)).length)} از ۳`, api.ROLE_CODES.every(role => roles.has(role)));
+        setStatus("screenReaderGate", screenReaderPass ? "پاس" : "انجام نشده", screenReaderPass);
+        setStatus("evidenceGate", evidenceReady ? "کامل" : sessions.length ? "نیازمند اصلاح" : "در انتظار جلسه", evidenceReady);
+      }
+
+      function setStatus(id, text, good) {
+        const element = document.querySelector(`#${id}`);
+        element.textContent = text;
+        element.className = `status-value ${good ? "good" : "waiting"}`;
+      }
+
+      function removeSession(id) {
+        saveSessions(loadSessions().filter(session => session.participant_id !== id));
+        renderSessions();
+        setNextParticipantId();
+        message.className = "message success";
+        message.textContent = `جلسه ${id} حذف شد.`;
+      }
+
+      function clearSessions() {
+        if (!loadSessions().length) return;
+        if (!window.confirm("همه جلسه‌های ذخیره‌شده در این مرورگر پاک شوند؟")) return;
+        localStorage.removeItem(storageKey);
+        renderSessions();
+        setNextParticipantId();
+      }
+
+      function exportCsv() {
+        const sessions = loadSessions();
+        if (!sessions.length) return;
+        const blob = new Blob([api.sessionsToCsv(sessions)], { type: "text/csv;charset=utf-8" });
+        const anchor = document.createElement("a");
+        anchor.href = URL.createObjectURL(blob);
+        anchor.download = "usability-test-scorecard.csv";
+        anchor.click();
+        setTimeout(() => URL.revokeObjectURL(anchor.href), 1000);
+      }
+
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+      }
+    })();
+  </script>
+</body>
+</html>
