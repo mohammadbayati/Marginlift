@@ -9,6 +9,12 @@
     "hasDecisionPreview": true,
     "hasVisibleLogin": true
   },
+  "authSkipLink": {
+    "target": "#authShell",
+    "firstFocusable": true,
+    "visibleOnFocus": true,
+    "movedFocus": true
+  },
   "authKeyboard": {
     "checkedStops": 18,
     "requiredStops": [
@@ -20,6 +26,7 @@
   },
   "authAccessibility": {
     "nodes": 158,
+    "mains": 1,
     "headings": 3,
     "buttons": 2,
     "links": 4,
@@ -36,6 +43,12 @@
     "emptyContactChecks": false,
     "untranslatedFileControls": false
   },
+  "productSkipLink": {
+    "target": "#mainContent",
+    "firstFocusable": true,
+    "visibleOnFocus": true,
+    "movedFocus": true
+  },
   "productKeyboard": {
     "checkedStops": 22,
     "requiredStops": [
@@ -47,6 +60,7 @@
   },
   "productAccessibility": {
     "nodes": 4012,
+    "mains": 1,
     "headings": 59,
     "buttons": 23,
     "links": 20,
@@ -69,8 +83,15 @@
       "viewport": "mobile",
       "overflow": false,
       "logoCount": 2,
+      "skipLink": {
+        "target": "#siteMain",
+        "firstFocusable": true,
+        "visibleOnFocus": true,
+        "movedFocus": true
+      },
       "accessibility": {
         "nodes": 419,
+        "mains": 1,
         "headings": 25,
         "buttons": 1,
         "links": 17,
@@ -88,65 +109,15 @@
       "viewport": "mobile",
       "overflow": false,
       "logoCount": 1,
+      "skipLink": {
+        "target": "#mainContent",
+        "firstFocusable": true,
+        "visibleOnFocus": true,
+        "movedFocus": true
+      },
       "accessibility": {
-        "nodes": 97,
-        "headings": 5,
-        "buttons": 0,
-        "links": 5,
-        "unnamedControls": 0
-      }
-    },
-    {
-      "route": "/terms.html",
-      "viewport": "desktop",
-      "overflow": false,
-      "logoCount": 1
-    },
-    {
-      "route": "/terms.html",
-      "viewport": "mobile",
-      "overflow": false,
-      "logoCount": 1,
-      "accessibility": {
-        "nodes": 95,
-        "headings": 5,
-        "buttons": 0,
-        "links": 5,
-        "unnamedControls": 0
-      }
-    },
-    {
-      "route": "/security.html",
-      "viewport": "desktop",
-      "overflow": false,
-      "logoCount": 1
-    },
-    {
-      "route": "/security.html",
-      "viewport": "mobile",
-      "overflow": false,
-      "logoCount": 1,
-      "accessibility": {
-        "nodes": 148,
-        "headings": 5,
-        "buttons": 0,
-        "links": 5,
-        "unnamedControls": 0
-      }
-    },
-    {
-      "route": "/pilot-data-request.html",
-      "viewport": "desktop",
-      "overflow": false,
-      "logoCount": 1
-    },
-    {
-      "route": "/pilot-data-request.html",
-      "viewport": "mobile",
-      "overflow": false,
-      "logoCount": 1,
-      "accessibility": {
-        "nodes": 112,
+        "nodes": 100,
+        "mains": 1,
         "headings": 5,
         "buttons": 0,
         "links": 6,
@@ -154,82 +125,188 @@
       }
     },
     {
-      "route": "/pilot.html",
+      "route": "/terms.html",
       "viewport": "desktop",
       "overflow": false,
       "logoCount": 1
     },
     {
-      "route": "/pilot.html",
+      "route": "/terms.html",
       "viewport": "mobile",
       "overflow": false,
       "logoCount": 1,
+      "skipLink": {
+        "target": "#mainContent",
+        "firstFocusable": true,
+        "visibleOnFocus": true,
+        "movedFocus": true
+      },
       "accessibility": {
-        "nodes": 208,
-        "headings": 6,
-        "buttons": 0,
-        "links": 5,
-        "unnamedControls": 0
-      }
-    },
-    {
-      "route": "/executive-report.html",
-      "viewport": "desktop",
-      "overflow": false,
-      "logoCount": 1
-    },
-    {
-      "route": "/executive-report.html",
-      "viewport": "mobile",
-      "overflow": false,
-      "logoCount": 1,
-      "accessibility": {
-        "nodes": 541,
-        "headings": 14,
-        "buttons": 1,
-        "links": 1,
-        "unnamedControls": 0
-      }
-    },
-    {
-      "route": "/submission.html",
-      "viewport": "desktop",
-      "overflow": false,
-      "logoCount": 1
-    },
-    {
-      "route": "/submission.html",
-      "viewport": "mobile",
-      "overflow": false,
-      "logoCount": 1,
-      "accessibility": {
-        "nodes": 183,
+        "nodes": 98,
+        "mains": 1,
         "headings": 5,
         "buttons": 0,
-        "links": 16,
+        "links": 6,
         "unnamedControls": 0
       }
     },
     {
-      "route": "/deck.html",
+      "route": "/security.html",
       "viewport": "desktop",
       "overflow": false,
       "logoCount": 1
     },
     {
-      "route": "/deck.html",
+      "route": "/security.html",
       "viewport": "mobile",
       "overflow": false,
       "logoCount": 1,
+      "skipLink": {
+        "target": "#mainContent",
+        "firstFocusable": true,
+        "visibleOnFocus": true,
+        "movedFocus": true
+      },
       "accessibility": {
-        "nodes": 297,
-        "headings": 10,
+        "nodes": 151,
+        "mains": 1,
+        "headings": 5,
         "buttons": 0,
+        "links": 6,
+        "unnamedControls": 0
+      }
+    },
+    {
+      "route": "/pilot-data-request.html",
+      "viewport": "desktop",
+      "overflow": false,
+      "logoCount": 1
+    },
+    {
+      "route": "/pilot-data-request.html",
+      "viewport": "mobile",
+      "overflow": false,
+      "logoCount": 1,
+      "skipLink": {
+        "target": "#mainContent",
+        "firstFocusable": true,
+        "visibleOnFocus": true,
+        "movedFocus": true
+      },
+      "accessibility": {
+        "nodes": 115,
+        "mains": 1,
+        "headings": 5,
+        "buttons": 0,
+        "links": 7,
+        "unnamedControls": 0
+      }
+    },
+    {
+      "route": "/pilot.html",
+      "viewport": "desktop",
+      "overflow": false,
+      "logoCount": 1
+    },
+    {
+      "route": "/pilot.html",
+      "viewport": "mobile",
+      "overflow": false,
+      "logoCount": 1,
+      "skipLink": {
+        "target": "#mainContent",
+        "firstFocusable": true,
+        "visibleOnFocus": true,
+        "movedFocus": true
+      },
+      "accessibility": {
+        "nodes": 211,
+        "mains": 1,
+        "headings": 6,
+        "buttons": 0,
+        "links": 6,
+        "unnamedControls": 0
+      }
+    },
+    {
+      "route": "/executive-report.html",
+      "viewport": "desktop",
+      "overflow": false,
+      "logoCount": 1
+    },
+    {
+      "route": "/executive-report.html",
+      "viewport": "mobile",
+      "overflow": false,
+      "logoCount": 1,
+      "skipLink": {
+        "target": "#executiveReport",
+        "firstFocusable": true,
+        "visibleOnFocus": true,
+        "movedFocus": true
+      },
+      "accessibility": {
+        "nodes": 544,
+        "mains": 1,
+        "headings": 14,
+        "buttons": 1,
         "links": 2,
         "unnamedControls": 0
       }
     },
     {
+      "route": "/submission.html",
+      "viewport": "desktop",
+      "overflow": false,
+      "logoCount": 1
+    },
+    {
+      "route": "/submission.html",
+      "viewport": "mobile",
+      "overflow": false,
+      "logoCount": 1,
+      "skipLink": {
+        "target": "#mainContent",
+        "firstFocusable": true,
+        "visibleOnFocus": true,
+        "movedFocus": true
+      },
+      "accessibility": {
+        "nodes": 186,
+        "mains": 1,
+        "headings": 5,
+        "buttons": 0,
+        "links": 17,
+        "unnamedControls": 0
+      }
+    },
+    {
+      "route": "/deck.html",
+      "viewport": "desktop",
+      "overflow": false,
+      "logoCount": 1
+    },
+    {
+      "route": "/deck.html",
+      "viewport": "mobile",
+      "overflow": false,
+      "logoCount": 1,
+      "skipLink": {
+        "target": "#mainContent",
+        "firstFocusable": true,
+        "visibleOnFocus": true,
+        "movedFocus": true
+      },
+      "accessibility": {
+        "nodes": 300,
+        "mains": 1,
+        "headings": 10,
+        "buttons": 0,
+        "links": 3,
+        "unnamedControls": 0
+      }
+    },
+    {
       "route": "/vm-deployment.html",
       "viewport": "desktop",
       "overflow": false,
@@ -240,11 +317,18 @@
       "viewport": "mobile",
       "overflow": false,
       "logoCount": 1,
+      "skipLink": {
+        "target": "#mainContent",
+        "firstFocusable": true,
+        "visibleOnFocus": true,
+        "movedFocus": true
+      },
       "accessibility": {
-        "nodes": 189,
+        "nodes": 192,
+        "mains": 1,
         "headings": 7,
         "buttons": 0,
-        "links": 3,
+        "links": 4,
         "unnamedControls": 0
       }
     }

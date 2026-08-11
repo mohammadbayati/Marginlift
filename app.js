@@ -783,6 +783,7 @@ function setupAuth() {
 async function enterApp() {
   document.getElementById("authShell").classList.add("is-hidden");
   document.getElementById("appShell").classList.remove("is-hidden");
+  document.querySelector(".skip-link")?.setAttribute("href", "#mainContent");
   setSidebarOpen(false);
   window.scrollTo({ top: 0, behavior: "instant" });
   try {

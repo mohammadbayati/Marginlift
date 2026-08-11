@@ -269,3 +269,11 @@ npm run ui:qa
 ```
 
 خروجی ساختاریافته در `docs/ui-quality-audit-latest.json` ثبت می‌شود. پروتکل سه تست کاربری واقعی نیز در `docs/usability-test-protocol-fa.md` قرار دارد.
+
+پس از ثبت سه جلسه واقعی در scorecard، گیت نهایی تجربه کاربر با این دستور سنجیده می‌شود:
+
+```bash
+npm run usability:evaluate
+```
+
+این ارزیاب تا زمان پوشش سه نقش هدف، یک جلسه واقعی Narrator/NVDA و صفرشدن Severity 1 و 2 وضعیت `pass` نمی‌دهد.

@@ -56,6 +56,11 @@ h1, h2, h3, strong { letter-spacing: 0; }
 .is-hidden { display: none !important; }
 .section-kicker, .eyebrow, .mini-label { margin: 0 0 9px; color: var(--teal); font-size: .72rem; font-weight: 900; }
 .section-kicker, .eyebrow { letter-spacing: 0; }
+.skip-link { position: fixed; z-index: 1000; inset-block-start: 12px; inset-inline-start: 12px; padding: 10px 14px; border-radius: 7px; color: #fff; background: var(--navy); transform: translateY(-170%); transition: transform .16s ease; }
+.skip-link:focus { transform: translateY(0); }
+:focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; }
+main[tabindex="-1"]:focus { outline: none; }
+@media (forced-colors: active) { :focus-visible { outline-color: Highlight; } }
 
 /* Authentication */
 .auth-shell { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(380px, .62fr); gap: 18px; min-height: 100vh; padding: 18px; }

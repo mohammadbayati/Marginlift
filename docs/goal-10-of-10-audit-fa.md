@@ -11,7 +11,7 @@
 | UX سازمانی | تصمیم، اثر مالی، شواهد و اقدام در viewport اول | QA تصویری صفحه فروش، ورود، محصول و گزارش | قبول فنی |
 | Desktop / Mobile | بدون overlap و overflow در viewportهای هدف | تصاویر `qa-*.png` و `docs/ui-quality-audit-latest.json` | قبول |
 | Keyboard | ترتیب تمرکز، focus visible و اجرای فرم بدون ماوس | آزمون واقعی Tab در `npm run ui:qa` | قبول |
-| Screen reader | نام قابل‌فهم برای کنترل‌ها و درخت AX بدون کنترل بی‌نام | ممیزی `Accessibility.getFullAXTree` در همه صفحات | قبول |
+| Screen reader | نام، landmark، ترتیب خواندن و اجرای مسیر با Narrator/NVDA | AX Tree، یک main در هر صفحه و Skip Link پاس شده؛ آزمون صوتی انسانی اجرا نشده | قبول فنی؛ در انتظار تست انسانی |
 | داده مرزی | متن و عدد بلند بدون شکست رابط | سناریوی edge-content در `npm run ui:qa` | قبول |
 | تست کاربر واقعی | حداقل سه شرکت‌کننده از نقش‌های هدف و ثبت شواهد | پروتکل و scorecard آماده؛ جلسه‌ها اجرا نشده‌اند | در انتظار اجرا |
 | Production | سلامت، امنیت، font/asset، login و RBAC | smoke دامنه برای commit `4639973`: سلامت PostgreSQL، CSP، assetها، login و RBAC | قبول |
@@ -28,3 +28,5 @@
 - هر سه تفاوت «برآورد» و «اثر تأییدشده» را درست توضیح دهند.
 - ایرادهای Severity 1 و 2 اصلاح و دوباره آزمایش شوند.
 - نتیجه هر جلسه در قالب `usability-test-session-template-fa.md` ثبت شود.
+- حداقل یک جلسه با Narrator یا NVDA طبق `screen-reader-test-protocol-fa.md` اجرا شود.
+- `npm run usability:evaluate` باید status برابر `pass` برگرداند.

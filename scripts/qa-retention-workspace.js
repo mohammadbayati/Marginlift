@@ -48,6 +48,7 @@ async function run() {
     if (authDiagnostics.horizontalOverflow || !authDiagnostics.hasDecisionPreview || !authDiagnostics.hasVisibleLogin) {
       throw new Error(`Auth UI diagnostics failed: ${JSON.stringify(authDiagnostics)}`);
     }
+    const authSkipLink = await auditSkipLink(cdp, "auth");
     const authKeyboard = await auditKeyboard(cdp, 18, ["loginEmail", "loginPassword", "submit:loginForm"]);
     const authAccessibility = await auditAccessibilityTree(cdp, "auth");
 
@@ -61,6 +62,7 @@ async function run() {
     await cdp.send("Page.navigate", { url: `${baseUrl}/login` });
     await delay(2500);
 
+    const productSkipLink = await auditSkipLink(cdp, "product");
     await capture(cdp, 1440, 1000, "qa-command-desktop.png", false, "#command");
     await capture(cdp, 390, 844, "qa-command-mobile.png", true, "#command");
     await capture(cdp, 1440, 1000, "qa-retention-desktop.png");
@@ -139,9 +141,11 @@ async function run() {
     const publicSurfaces = await auditPublicSurfaces(cdp);
     const report = {
       auth: authDiagnostics,
+      authSkipLink,
       authKeyboard,
       authAccessibility,
       product: diagnostics,
+      productSkipLink,
       productKeyboard,
       productAccessibility,
       edge: edgeDiagnostics,
@@ -244,7 +248,43 @@ async function auditKeyboard(cdp, tabCount, requiredStops) {
   return { checkedStops: stops.length, requiredStops, visibleFocusFailures: 0 };
 }
 
-async function auditAccessibilityTree(cdp, label, requiredRoles = ["heading", "button", "link"]) {
+async function auditSkipLink(cdp, label) {
+  await evaluate(cdp, `(() => {
+    document.activeElement?.blur();
+    document.body.setAttribute('tabindex', '-1');
+    document.body.focus();
+  })()`);
+  await cdp.send("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "Tab", code: "Tab", windowsVirtualKeyCode: 9 });
+  await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Tab", code: "Tab", windowsVirtualKeyCode: 9 });
+  await delay(220);
+  const firstStop = await evaluate(cdp, `(() => {
+    const element = document.activeElement;
+    const rect = element.getBoundingClientRect();
+    return {
+      isSkipLink: element.classList.contains('skip-link'),
+      href: element.getAttribute('href'),
+      visible: rect.width > 0 && rect.height > 0,
+      focusVisible: rect.top >= 0 && rect.left >= 0 && rect.right <= innerWidth && rect.bottom <= innerHeight
+    };
+  })()`);
+  await cdp.send("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13 });
+  await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13 });
+  await delay(120);
+  const destination = await evaluate(cdp, `(() => ({
+    hash: location.hash,
+    activeId: document.activeElement?.id || '',
+    targetExists: Boolean(location.hash && document.querySelector(location.hash)),
+    targetIsMain: Boolean(location.hash && document.querySelector(location.hash)?.matches('main'))
+  }))()`);
+  await evaluate(cdp, `document.body.removeAttribute('tabindex')`);
+  const targetId = String(firstStop.href || '').replace(/^#/, '');
+  if (!firstStop.isSkipLink || !firstStop.visible || !firstStop.focusVisible || !destination.targetExists || !destination.targetIsMain || destination.activeId !== targetId) {
+    throw new Error(`${label} skip-link audit failed: ${JSON.stringify({ firstStop, destination })}`);
+  }
+  return { target: firstStop.href, firstFocusable: true, visibleOnFocus: true, movedFocus: true };
+}
+
+async function auditAccessibilityTree(cdp, label, requiredRoles = ["main", "heading", "button", "link"]) {
   const tree = await cdp.send("Accessibility.getFullAXTree");
   const nodes = (tree.nodes || []).filter(node => !node.ignored);
   const namedRoles = new Set(["button", "link", "textbox", "combobox", "checkbox", "radio", "switch", "heading"]);
@@ -272,7 +312,7 @@ async function auditAccessibilityTree(cdp, label, requiredRoles = ["heading", "b
   if (missingNames.length) throw new Error(`${label} accessibility tree has unnamed controls: ${JSON.stringify(missingNames)}`);
   const missingRoles = requiredRoles.filter(role => !counts[role]);
   if (missingRoles.length) throw new Error(`${label} accessibility tree is incomplete: ${JSON.stringify({ missingRoles, counts })}`);
-  return { nodes: nodes.length, headings: counts.heading || 0, buttons: counts.button || 0, links: counts.link || 0, unnamedControls: 0 };
+  return { nodes: nodes.length, mains: counts.main || 0, headings: counts.heading || 0, buttons: counts.button || 0, links: counts.link || 0, unnamedControls: 0 };
 }
 
 async function auditPublicSurfaces(cdp) {
@@ -302,19 +342,26 @@ async function auditPublicSurfaces(cdp) {
         const logos = [...document.querySelectorAll('.brand-symbol, .brand-mark, .report-brandmark')];
         return {
           status: document.readyState,
+          title: document.title.trim(),
+          lang: document.documentElement.lang,
+          dir: document.documentElement.dir,
           hasH1: Boolean(document.querySelector('h1')),
+          mainCount: [...document.querySelectorAll('main')].filter(main => getComputedStyle(main).display !== 'none').length,
+          hasSkipLink: Boolean(document.querySelector('.skip-link[href^="#"]')),
           horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
           logoCount: logos.length,
           unrenderedLogo: logos.some(logo => !getComputedStyle(logo).backgroundImage.includes('brand-mark.svg'))
         };
       })()`);
-      if (!diagnostics.hasH1 || diagnostics.horizontalOverflow || diagnostics.unrenderedLogo) {
+      if (!diagnostics.title || diagnostics.lang !== 'fa' || diagnostics.dir !== 'rtl' || !diagnostics.hasH1 || diagnostics.mainCount !== 1 || !diagnostics.hasSkipLink || diagnostics.horizontalOverflow || diagnostics.unrenderedLogo) {
         throw new Error(`${route} ${label} surface audit failed: ${JSON.stringify(diagnostics)}`);
       }
       await capture(cdp, width, height, `qa-${slug}-${label}.png`, mobile, "body");
       results.push({ route, viewport: label, overflow: false, logoCount: diagnostics.logoCount });
     }
-    const accessibility = await auditAccessibilityTree(cdp, route, ["heading"]);
+    const skipLink = await auditSkipLink(cdp, route);
+    const accessibility = await auditAccessibilityTree(cdp, route, ["main", "heading"]);
+    results[results.length - 1].skipLink = skipLink;
     results[results.length - 1].accessibility = accessibility;
   }
   return results;

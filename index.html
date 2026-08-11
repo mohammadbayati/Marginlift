@@ -12,9 +12,9 @@
     <script src="/motion.js" defer></script>
   </head>
   <body class="product-page">
-    <a class="skip-link" href="#mainContent">رفتن به محتوای اصلی</a>
+    <a class="skip-link" href="#authShell">رفتن به محتوای اصلی</a>
 
-    <section class="auth-shell" id="authShell" aria-label="ورود به MarginLift">
+    <main class="auth-shell" id="authShell" tabindex="-1" aria-label="ورود به MarginLift">
       <header class="auth-header">
         <a class="auth-home-link" href="/" aria-label="بازگشت به صفحه اصلی MarginLift">
           <span class="brand-symbol" aria-hidden="true">M</span>
@@ -93,7 +93,7 @@
           </div>
         </div>
       </div>
-    </section>
+    </main>
 
     <div class="app-shell is-hidden" id="appShell">
       <aside class="sidebar" id="productSidebar" aria-label="ناوبری محصول">
@@ -136,7 +136,7 @@
       </aside>
       <div class="sidebar-scrim" id="sidebarScrim" hidden></div>
 
-      <main class="dashboard" id="mainContent">
+      <main class="dashboard" id="mainContent" tabindex="-1">
         <header class="topbar">
           <div class="topbar-title">
             <button class="mobile-nav-toggle" id="mobileNavToggle" type="button" aria-label="بازکردن فهرست" aria-controls="productSidebar" aria-expanded="false">فهرست</button>
