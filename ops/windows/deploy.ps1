@@ -60,6 +60,9 @@ set -Eeuo pipefail
 APP_DIR=/opt/marginlift
 RELEASE=/tmp/marginlift-release.tar.gz
 CHECKSUM=/tmp/marginlift-release.sha256
+STAMP="$(date -u +%Y-%m-%dT%H-%M-%SZ)"
+STAGE_DIR="$(mktemp -d /opt/marginlift-stage.XXXXXX)"
+PREVIOUS_DIR="/opt/marginlift-previous-$STAMP"
 
 cd /tmp
 sha256sum --check "$CHECKSUM"
@@ -72,15 +75,35 @@ else
   cp data/db.json /root/marginlift-db.backup.json 2>/dev/null || true
 fi
 
-tar -xzf "$RELEASE" -C "$APP_DIR"
-test -f "$APP_DIR/src/retention-shadow.js"
-test -f "$APP_DIR/synthetic-subscription-transactions.csv"
-cp /root/marginlift.env.backup "$APP_DIR/.env"
+tar -xzf "$RELEASE" -C "$STAGE_DIR"
+test -f "$STAGE_DIR/src/retention-shadow.js"
+test -f "$STAGE_DIR/synthetic-subscription-transactions.csv"
+cp /root/marginlift.env.backup "$STAGE_DIR/.env"
+mkdir -p "$STAGE_DIR/data" "$STAGE_DIR/backups"
+cp -a "$APP_DIR/data/." "$STAGE_DIR/data/" 2>/dev/null || true
+cp -a "$APP_DIR/backups/." "$STAGE_DIR/backups/" 2>/dev/null || true
 test ! -f /root/marginlift-db.backup.json || \
-  cp /root/marginlift-db.backup.json "$APP_DIR/data/db.json"
+  cp /root/marginlift-db.backup.json "$STAGE_DIR/data/db.json"
 
+chmod +x "$STAGE_DIR/ops/vm/deploy.sh" "$STAGE_DIR/ops/vm/backup.sh"
+docker build --pull --no-cache --tag marginlift-app:latest "$STAGE_DIR"
+docker run --rm --entrypoint sh marginlift-app:latest -lc \
+  'test -f /app/src/retention-shadow.js && test -f /app/synthetic-subscription-transactions.csv'
+
+mv "$APP_DIR" "$PREVIOUS_DIR"
+mv "$STAGE_DIR" "$APP_DIR"
+
+cd "$APP_DIR"
 chmod +x ops/vm/deploy.sh ops/vm/backup.sh
-./ops/vm/deploy.sh
+docker compose -f docker-compose.production.yml up -d postgres
+docker compose -f docker-compose.production.yml run --rm app npm run db:migrate
+docker compose -f docker-compose.production.yml up -d --force-recreate app
+docker compose -f docker-compose.production.yml up -d caddy
+docker compose -f docker-compose.production.yml exec -T app \
+  sh -lc 'test -f /app/src/retention-shadow.js && test -f /app/synthetic-subscription-transactions.csv'
+docker compose -f docker-compose.production.yml exec -T app node -e \
+  "fetch('http://127.0.0.1:3000/api/health').then(response => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
+docker compose -f docker-compose.production.yml ps
 
 rm -f "$RELEASE" "$CHECKSUM"
 '@

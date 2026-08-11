@@ -19,7 +19,8 @@ done
 docker compose -f docker-compose.production.yml build --pull
 docker compose -f docker-compose.production.yml up -d postgres
 docker compose -f docker-compose.production.yml run --rm app npm run db:migrate
-docker compose -f docker-compose.production.yml up -d
+docker compose -f docker-compose.production.yml up -d --force-recreate app
+docker compose -f docker-compose.production.yml up -d caddy
 docker compose -f docker-compose.production.yml ps
 
 docker compose -f docker-compose.production.yml exec -T app node -e "fetch('http://127.0.0.1:3000/api/health').then(response => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
