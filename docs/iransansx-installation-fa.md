@@ -59,6 +59,19 @@ npm run production:smoke
 
 سپس `npm run ui:qa` باید `browserFaceLoaded: true` و `activeFamily: IRANSansX` ثبت کند. این دو مدرک نشان می‌دهند فایل فقط روی سرور وجود ندارد و مرورگر هم واقعاً آن را مصرف کرده است.
 
+QA کامل Chrome روی production:
+
+```powershell
+$env:QA_BASE_URL='https://marginlift.ir'
+$env:QA_EMAIL='demo@marginlift.ir'
+$env:QA_PASSWORD='<رمز حساب دمو>'
+$env:QA_EXPECTED_FONT='IRANSansX'
+$env:QA_REMOTE_PORT='9460'
+npm run ui:qa
+```
+
+این حالت فقط‌خواندنی است و داده فضای کاری production را تغییر نمی‌دهد.
+
 ## بازگشت اضطراری
 
 با حذف سه فایل IRANSansX از `/opt/marginlift/private/fonts`، runtime خودکار به Vazirmatn برمی‌گردد. حذف فقط زمانی انجام شود که نسخه پشتیبان مجوز و فونت در محل امن دیگری نگه‌داری شده باشد.

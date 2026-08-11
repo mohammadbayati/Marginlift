@@ -10,10 +10,14 @@ const outputDir = path.join(__dirname, "..");
 const profileDir = path.join(os.tmpdir(), `marginlift-qa-${Date.now()}`);
 
 async function run() {
-  const sessionCookie = await prepareDemoWorkspace();
+  const { cookie: sessionCookie, readOnly } = await prepareDemoWorkspace();
   const typographyResponse = await fetch(`${baseUrl}/api/font-status`);
   if (!typographyResponse.ok) throw new Error(`Typography status failed: ${typographyResponse.status}`);
   const typographyStatus = (await typographyResponse.json()).data;
+  const expectedFont = String(process.env.QA_EXPECTED_FONT || "").trim();
+  if (expectedFont && typographyStatus.activeFamily !== expectedFont) {
+    throw new Error(`Expected ${expectedFont}, received ${typographyStatus.activeFamily}.`);
+  }
   const chrome = spawn(chromePath, [
     "--headless=new",
     "--disable-gpu",
@@ -73,13 +77,17 @@ async function run() {
     await capture(cdp, 390, 844, "qa-retention-mobile.png", true);
     await capture(cdp, 1440, 1000, "qa-retention-analysis-desktop.png", false, ".retention-analysis-panel");
     await capture(cdp, 390, 844, "qa-retention-analysis-mobile.png", true, ".retention-analysis-panel");
-    const previewCsv = fs.readFileSync(path.join(outputDir, "synthetic-ecommerce-transactions.csv"), "utf8");
-    await evaluate(cdp, `retentionCsvText = ${JSON.stringify(previewCsv)}; refreshRetentionPreview()`);
-    await delay(700);
+    if (!readOnly) {
+      const previewCsv = fs.readFileSync(path.join(outputDir, "synthetic-ecommerce-transactions.csv"), "utf8");
+      await evaluate(cdp, `retentionCsvText = ${JSON.stringify(previewCsv)}; refreshRetentionPreview()`);
+      await delay(700);
+    }
     await capture(cdp, 1440, 1100, "qa-retention-onboarding-desktop.png", false, ".retention-import-panel");
     await capture(cdp, 390, 1000, "qa-retention-onboarding-mobile.png", true, ".retention-import-panel");
-    await evaluate(cdp, `fetch('/api/retention/shadow-runs', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ capacity: 3 }) }).then(response => { if (!response.ok) throw new Error('Shadow QA failed'); return response.json(); }).then(() => loadDashboard())`);
-    await delay(700);
+    if (!readOnly) {
+      await evaluate(cdp, `fetch('/api/retention/shadow-runs', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ capacity: 3 }) }).then(response => { if (!response.ok) throw new Error('Shadow QA failed'); return response.json(); }).then(() => loadDashboard())`);
+      await delay(700);
+    }
     await capture(cdp, 1440, 900, "qa-retention-model-card-desktop.png", false, ".retention-model-card");
     await capture(cdp, 390, 844, "qa-retention-model-card-mobile.png", true, ".retention-model-card");
     await capture(cdp, 1440, 900, "qa-retention-shadow-desktop.png", false, ".retention-shadow-panel");
@@ -144,6 +152,7 @@ async function run() {
     }
     const publicSurfaces = await auditPublicSurfaces(cdp);
     const report = {
+      environment: { baseUrl, readOnly, expectedFont: expectedFont || null },
       auth: authDiagnostics,
       typography,
       authSkipLink,
@@ -174,14 +183,18 @@ async function run() {
 }
 
 async function prepareDemoWorkspace() {
+  const email = String(process.env.QA_EMAIL || "growth@example.com");
+  const password = String(process.env.QA_PASSWORD || "demo1234");
+  const readOnly = Boolean(process.env.QA_EMAIL || process.env.QA_PASSWORD);
   const login = await fetch(`${baseUrl}/api/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: "growth@example.com", password: "demo1234" })
+    body: JSON.stringify({ email, password })
   });
   if (!login.ok) throw new Error(`Demo login failed: ${login.status}`);
   const cookie = login.headers.get("set-cookie")?.split(";")[0];
   if (!cookie) throw new Error("Demo session cookie was not returned.");
+  if (readOnly) return { cookie, readOnly: true };
   const headers = { "Content-Type": "application/json", Cookie: cookie };
   const configuration = await fetch(`${baseUrl}/api/retention/configuration`, {
     method: "PATCH",
@@ -200,7 +213,7 @@ async function prepareDemoWorkspace() {
     body: JSON.stringify({ name: "دموی نگهداشت بسته اینترنت", cutoff: "2026-02-01", csvText })
   });
   if (!analysis.ok) throw new Error(`Retention import failed: ${analysis.status}`);
-  return cookie;
+  return { cookie, readOnly: false };
 }
 
 async function capture(cdp, width, height, filename, mobile = false, selector = "#retention") {
@@ -360,7 +373,8 @@ async function auditPublicSurfaces(cdp) {
   for (const [route, slug] of surfaces) {
     const navigation = await cdp.send("Page.navigate", { url: `${baseUrl}${route}` });
     if (navigation.errorText && navigation.errorText !== "net::ERR_ABORTED") throw new Error(`${route} navigation failed: ${navigation.errorText}`);
-    await delay(900);
+    await waitForDocument(cdp, route);
+    await waitForSurfaceResources(cdp, route);
     const viewports = [[1440, 900, false, "desktop"], [390, 844, true, "mobile"]];
     for (const [width, height, mobile, label] of viewports) {
       await cdp.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile, screenWidth: width, screenHeight: height });
@@ -403,6 +417,42 @@ async function evaluate(cdp, expression) {
     throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text || "Browser evaluation failed.");
   }
   return result.result?.value;
+}
+
+async function waitForDocument(cdp, label) {
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    try {
+      const ready = await evaluate(cdp, `Boolean(document.documentElement && document.body && ['interactive', 'complete'].includes(document.readyState))`);
+      if (ready) return;
+    } catch (error) {
+      // Navigation can briefly invalidate the execution context.
+    }
+    await delay(250);
+  }
+  throw new Error(`${label} document did not become ready.`);
+}
+
+async function waitForSurfaceResources(cdp, label) {
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    try {
+      const ready = await evaluate(cdp, `(async () => {
+        if (document.readyState !== 'complete') return false;
+        const runtimeFont = [...document.querySelectorAll('link[rel="stylesheet"]')]
+          .find(link => link.href.includes('/fonts/marginlift-font.css'));
+        if (!runtimeFont || !runtimeFont.sheet) return false;
+        await document.fonts.ready;
+        await document.fonts.load('16px "MarginLift Persian"');
+        const logos = [...document.querySelectorAll('.brand-symbol, .brand-mark, .report-brandmark')];
+        return getComputedStyle(document.body).fontFamily.includes('MarginLift Persian')
+          && logos.every(logo => getComputedStyle(logo).backgroundImage.includes('brand-mark.svg'));
+      })()`);
+      if (ready) return;
+    } catch (error) {
+      // Stylesheets and execution contexts can change while navigation settles.
+    }
+    await delay(250);
+  }
+  throw new Error(`${label} fonts or brand assets did not become ready.`);
 }
 
 function connect(url) {

@@ -1,4 +1,9 @@
 {
+  "environment": {
+    "baseUrl": "https://marginlift.ir",
+    "readOnly": true,
+    "expectedFont": "Vazirmatn"
+  },
   "auth": {
     "viewport": {
       "width": 390,
@@ -35,7 +40,7 @@
     "visibleFocusFailures": 0
   },
   "authAccessibility": {
-    "nodes": 158,
+    "nodes": 151,
     "mains": 1,
     "headings": 3,
     "buttons": 2,
@@ -69,10 +74,10 @@
     "visibleFocusFailures": 0
   },
   "productAccessibility": {
-    "nodes": 4012,
+    "nodes": 3480,
     "mains": 1,
-    "headings": 59,
-    "buttons": 23,
+    "headings": 57,
+    "buttons": 22,
     "links": 20,
     "unnamedControls": 0
   },
@@ -256,7 +261,7 @@
         "movedFocus": true
       },
       "accessibility": {
-        "nodes": 544,
+        "nodes": 603,
         "mains": 1,
         "headings": 14,
         "buttons": 1,
