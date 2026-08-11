@@ -2262,6 +2262,7 @@ function serveStatic(requestPath, req, res) {
     "/styles-v2.css",
     "/styles-v3.css",
     "/styles-v4.css",
+    "/brand-mark.svg",
     "/executive-report-v3.css",
     "/motion.js",
     "/app.js",

@@ -12,6 +12,7 @@
     "demo-user": "node scripts/manage-demo-user.js",
     "pilot-user": "node scripts/manage-pilot-workspace.js",
     "production:smoke": "node scripts/verify-production.js",
+    "ui:qa": "node scripts/qa-retention-workspace.js",
     "churn:audit": "node scripts/audit-churn-data.js",
     "churn:forecast": "node scripts/forecast-churn-case.js",
     "retention:audit": "node scripts/audit-channel-retention-data.js",

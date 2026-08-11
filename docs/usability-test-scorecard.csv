@@ -1,0 +1,4 @@
+participant_id,role,session_date,device,input_method,task_1_seconds,task_1_pass,task_2_pass,task_3_pass,task_4_pass,task_5_pass,unassisted_completion_rate,decision_under_90s,evidence_interpretation_correct,next_action_correct,confidence_1_to_5,sev1_count,sev2_count,sev3_count,sev4_count,retest_pass,notes
+P01,executive,,,,,,,,,,,,,,,,,,,,
+P02,crm_growth,,,,,,,,,,,,,,,,,,,,
+P03,data_finance,,,,,,,,,,,,,,,,,,,,

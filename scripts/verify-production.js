@@ -33,7 +33,7 @@ async function main() {
   }
 
   const evidence = [];
-  for (const route of ["/", "/login", "/privacy.html", "/terms.html", "/security.html", "/styles-v4.css", "/fonts/Estedad-Variable.woff2"]) {
+  for (const route of ["/", "/login", "/privacy.html", "/terms.html", "/security.html", "/styles-v4.css", "/brand-mark.svg", "/fonts/Estedad-Variable.woff2"]) {
     const result = await request(route);
     expectStatus(result, 200, route);
     evidence.push(`${route}:200`);

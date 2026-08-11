@@ -92,8 +92,9 @@ button:active:not(:disabled), .button-link:active { transform: scale(.985); }
   width: 34px;
   height: 34px;
   border-radius: 7px;
-  color: #fff;
-  background: var(--ink);
+  overflow: hidden;
+  color: transparent;
+  background: var(--ink) url("/brand-mark.svg") center / 24px 24px no-repeat;
   font: 760 .88rem/34px Arial, sans-serif;
   text-align: center;
 }
@@ -237,7 +238,7 @@ button:active:not(:disabled), .button-link:active { transform: scale(.985); }
   box-shadow: inset -1px 0 rgba(255,255,255,.05);
 }
 .sidebar-top { min-height: 38px; padding-inline: 5px; }
-.sidebar .brand-symbol { color: #11161b; background: var(--profit-bright); }
+.sidebar .brand-symbol { color: transparent; background: #0e1218 url("/brand-mark.svg") center / 24px 24px no-repeat; box-shadow: 0 0 0 1px rgba(255,255,255,.1); }
 .sidebar-brand { color: #fff; }
 .sidebar-brand bdi { font-size: .88rem; font-weight: 760; }
 .sidebar-brand small { color: #8c96a3; font-size: .59rem; }
