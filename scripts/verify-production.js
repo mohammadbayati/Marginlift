@@ -33,7 +33,29 @@ async function main() {
   }
 
   const evidence = [];
-  for (const route of ["/", "/login", "/privacy.html", "/terms.html", "/security.html", "/styles-v4.css", "/brand-mark.svg", "/fonts/Estedad-Variable.woff2"]) {
+  const publicSurfaces = [
+    ["/", "siteMain"],
+    ["/login", "authShell"],
+    ["/privacy.html", "mainContent"],
+    ["/terms.html", "mainContent"],
+    ["/security.html", "mainContent"],
+    ["/pilot-data-request.html", "mainContent"],
+    ["/pilot.html", "mainContent"],
+    ["/executive-report.html", "executiveReport"],
+    ["/submission.html", "mainContent"],
+    ["/deck.html", "mainContent"],
+    ["/vm-deployment.html", "mainContent"]
+  ];
+  for (const [route, mainId] of publicSurfaces) {
+    const result = await request(route);
+    expectStatus(result, 200, route);
+    const html = String(result.payload);
+    assert.match(html, /<html lang="fa" dir="rtl">/, `${route}: Persian RTL contract missing`);
+    assert.match(html, new RegExp(`class="skip-link" href="#${mainId}"`), `${route}: skip link missing`);
+    assert.match(html, new RegExp(`<main[^>]+id="${mainId}"[^>]+tabindex="-1"`), `${route}: focusable main landmark missing`);
+  }
+  evidence.push(`public-surfaces:${publicSurfaces.length}:rtl-skip-main`);
+  for (const route of ["/styles-v4.css", "/brand-mark.svg", "/fonts/Estedad-Variable.woff2"]) {
     const result = await request(route);
     expectStatus(result, 200, route);
     evidence.push(`${route}:200`);
