@@ -38,6 +38,10 @@ async function main() {
     expectStatus(result, 200, route);
     evidence.push(`${route}:200`);
   }
+  const loginPage = await request("/login");
+  assert.match(String(loginPage.payload), /auth-product-preview/);
+  assert.match(String(loginPage.payload), /topbarUser/);
+  evidence.push("ui-v5:auth-preview", "ui-v5:session-identity");
 
   const health = await request("/api/health");
   expectStatus(health, 200, "health");

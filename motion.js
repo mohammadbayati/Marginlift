@@ -14,15 +14,7 @@
     ".trust-links",
     ".plans-grid article",
     ".site-final-cta > *",
-    ".site-footer > *",
-    ".auth-story-copy > *",
-    ".auth-signal",
-    ".auth-proof-line span",
-    ".auth-panel > *",
-    ".workspace-bar > div",
-    ".command-hero > *",
-    ".snapshot-panel",
-    ".metric-card"
+    ".site-footer > *"
   ];
 
   let observer = null;

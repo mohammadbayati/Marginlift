@@ -16,31 +16,31 @@ colors:
   danger: "#B42318"
 typography:
   display:
-    fontFamily: "Estedad, Tahoma, sans-serif"
-    fontSize: "64px"
-    fontWeight: 800
-    lineHeight: 1.18
+    fontFamily: "Vazirmatn, Tahoma, sans-serif"
+    fontSize: "40px"
+    fontWeight: 720
+    lineHeight: 1.5
     letterSpacing: "0"
   headline:
-    fontFamily: "Estedad, Tahoma, sans-serif"
-    fontSize: "32px"
-    fontWeight: 800
-    lineHeight: 1.35
+    fontFamily: "Vazirmatn, Tahoma, sans-serif"
+    fontSize: "28px"
+    fontWeight: 700
+    lineHeight: 1.55
     letterSpacing: "0"
   title:
-    fontFamily: "Estedad, Tahoma, sans-serif"
+    fontFamily: "Vazirmatn, Tahoma, sans-serif"
     fontSize: "20px"
     fontWeight: 750
     lineHeight: 1.5
     letterSpacing: "0"
   body:
-    fontFamily: "Estedad, Tahoma, sans-serif"
+    fontFamily: "Vazirmatn, Tahoma, sans-serif"
     fontSize: "15px"
     fontWeight: 450
     lineHeight: 1.85
     letterSpacing: "0"
   label:
-    fontFamily: "Estedad, Tahoma, sans-serif"
+    fontFamily: "Vazirmatn, Tahoma, sans-serif"
     fontSize: "13px"
     fontWeight: 700
     lineHeight: 1.6
@@ -127,15 +127,14 @@ The palette combines neutral operational surfaces, a dark decision anchor, profi
 
 ## Typography
 
-**Display Font:** Estedad, backed by Tahoma
-**Body Font:** Estedad, backed by Tahoma
+**Product Font:** Vazirmatn, backed by Tahoma
 
 **Character:** A single Persian sans family creates continuity across executive summaries, dense tables, forms, and mixed-direction data. Weight and spacing establish hierarchy; letter-spacing always remains zero for Persian text.
 
 ### Hierarchy
 
-- **Display** (800, 64px, 1.18): public-site hero only; never used inside the dashboard.
-- **Headline** (800, 32px, 1.35): public sections and major page titles.
+- **Display** (720, 40px, 1.5): public-site hero only; never used inside the dashboard.
+- **Headline** (700, 28px, 1.55): public sections and major page titles.
 - **Title** (750, 20px, 1.5): panel and workflow headings.
 - **Body** (450, 15px, 1.85): explanatory copy with a maximum reading measure of 68 characters.
 - **Label** (700, 13px, 1.6, natural case): controls, status, and compact metadata.

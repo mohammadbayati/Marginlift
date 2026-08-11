@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#f5f5f7">
+    <meta name="theme-color" content="#f2f4f7">
     <meta name="description" content="MarginLift؛ موتور تصمیم‌گیری برای کاهش هدررفت تخفیف و افزایش سود افزایشی.">
     <link rel="icon" href="data:,">
     <title>MarginLift | مرکز تصمیم سود</title>
@@ -15,37 +15,23 @@
     <a class="skip-link" href="#mainContent">رفتن به محتوای اصلی</a>
 
     <section class="auth-shell" id="authShell" aria-label="ورود به MarginLift">
-      <a class="auth-home-link" href="/" aria-label="بازگشت به صفحه اصلی MarginLift">
-        <span class="brand-symbol" aria-hidden="true">M</span>
-        <bdi>MarginLift</bdi>
-      </a>
+      <header class="auth-header">
+        <a class="auth-home-link" href="/" aria-label="بازگشت به صفحه اصلی MarginLift">
+          <span class="brand-symbol" aria-hidden="true">M</span>
+          <span><bdi>MarginLift</bdi><small>مرکز تصمیم سود</small></span>
+        </a>
+        <div class="auth-trust"><span class="status-dot" aria-hidden="true"></span><span>ورود امن به فضای کاری</span></div>
+      </header>
 
-      <div class="auth-story">
-        <div class="auth-story-copy">
-          <p class="section-kicker">مرکز تصمیم سود</p>
-          <h1>قبل از خرج‌کردن بودجه، اثر واقعی را ببینید.</h1>
-          <p>MarginLift مشخص می‌کند کدام مشتری به مشوق نیاز دارد، کدام هزینه قابل حذف است و هر تصمیم بر چه شواهدی تکیه دارد.</p>
-        </div>
-        <div class="auth-signal" aria-label="نمونه خروجی محصول">
-          <div class="auth-signal-head"><span>فرصت این دوره</span><span class="status-dot"></span></div>
-          <strong class="number">۵۷۲ میلیون تومان</strong>
-          <p>هزینه مشوق قابل بررسی برای حذف یا بازتخصیص</p>
-          <div class="signal-rule"><span style="width:72%"></span></div>
-          <div class="auth-signal-meta"><span>سطح شواهد</span><strong>برآورد پایلوت</strong></div>
-        </div>
-        <div class="auth-proof-line">
-          <span>آمادگی داده</span><span>طراحی holdout</span><span>اندازه‌گیری سود افزایشی</span>
-        </div>
-      </div>
-
-      <div class="auth-panel-wrap">
+      <div class="auth-layout">
+        <div class="auth-panel-wrap">
         <div class="auth-panel">
           <div class="auth-panel-heading">
-            <p class="section-kicker">فضای کاری امن</p>
-            <h2>به MarginLift خوش آمدید.</h2>
-            <p>برای ادامه وارد شوید. فضای کاری پایلوت پس از هماهنگی با تیم MarginLift ساخته می‌شود.</p>
+            <p class="section-kicker">ورود سازمانی</p>
+            <h1>به فضای تصمیم خود وارد شوید.</h1>
+            <p>گزارش‌ها، صف اقدام و شواهد پایلوت در فضای اختصاصی کسب‌وکار شما نگه‌داری می‌شوند.</p>
           </div>
-          <div class="auth-tabs" role="tablist" aria-label="ورود یا ثبت‌نام">
+          <div class="auth-tabs" id="authTabs" role="tablist" aria-label="ورود یا ثبت‌نام">
             <button class="auth-tab active" type="button" role="tab" aria-selected="true" data-auth-tab="login">ورود</button>
             <button class="auth-tab" type="button" role="tab" aria-selected="false" data-auth-tab="signup" hidden>ثبت‌نام</button>
           </div>
@@ -68,7 +54,43 @@
             <button class="primary-button" type="submit">ساخت فضای کاری</button>
             <p class="auth-hint" id="signupMessage" role="status">کارت بانکی لازم نیست؛ پایلوت با داده ناشناس شروع می‌شود.</p>
           </form>
+          <div class="auth-session-note"><span aria-hidden="true">✓</span><p><strong>دسترسی کنترل‌شده</strong><small>حساب‌های آزمایشی فقط امکان مشاهده دارند و تاریخ انقضا برای آن‌ها ثبت می‌شود.</small></p></div>
           <div class="auth-legal">با ادامه، <a href="/terms.html">شرایط استفاده</a> و <a href="/privacy.html">حریم خصوصی</a> را می‌پذیرید.</div>
+        </div>
+      </div>
+
+        <div class="auth-story">
+          <div class="auth-story-copy">
+            <p class="section-kicker">از داده تا تصمیم قابل دفاع</p>
+            <h2>قبل از افزایش بودجه، بدانید چه چیزی واقعاً نتیجه ساخته است.</h2>
+            <p>MarginLift ریسک ریزش، هزینه مشوق و نتیجه پایلوت را در یک مسیر تصمیم کنار هم قرار می‌دهد.</p>
+          </div>
+
+          <div class="auth-product-preview" aria-label="نمونه تصمیم مدیریتی MarginLift">
+            <div class="auth-preview-bar">
+              <div><span class="status-dot" aria-hidden="true"></span><strong>پلتفرم مصرفی نمونه</strong></div>
+              <span>گزارش پایلوت</span>
+            </div>
+            <div class="auth-preview-decision">
+              <div class="auth-decision-label"><span>تصمیم پیشنهادی</span><bdi>verified incremental</bdi></div>
+              <h3>پیش از افزایش بودجه، سیاست هدف‌گیری بازبینی شود.</h3>
+              <p>پایلوت سود مثبت ثبت کرده، اما فاصله نتیجه واقعی با پیش‌بینی برای توسعه کمپین قابل‌قبول نیست.</p>
+            </div>
+            <div class="auth-preview-metrics">
+              <div><span>سود افزایشی مشاهده‌شده</span><strong class="number">۶۵۳٬۱۰۰ تومان</strong></div>
+              <div><span>بازده پایلوت</span><strong class="number">۲٫۷×</strong></div>
+              <div><span>سطح اعتماد</span><strong>نیازمند بازبینی</strong></div>
+            </div>
+            <ol class="auth-evidence-route" aria-label="مسیر شواهد">
+              <li class="complete"><span>۱</span><div><strong>داده معتبر</strong><small>قرارداد داده کامل</small></div></li>
+              <li class="complete"><span>۲</span><div><strong>پایلوت کنترل‌شده</strong><small>Outcome دریافت شد</small></div></li>
+              <li class="current"><span>۳</span><div><strong>تصمیم مدیریتی</strong><small>بازبینی پیش از توسعه</small></div></li>
+            </ol>
+          </div>
+
+          <div class="auth-proof-line">
+            <span>آمادگی داده</span><span>کنترل تماس</span><span>Holdout معتبر</span><span>سود افزایشی</span>
+          </div>
         </div>
       </div>
     </section>
@@ -123,6 +145,7 @@
           <div class="topbar-actions">
             <span class="live-status"><span class="status-dot"></span>داده نمونه فعال</span>
             <button class="icon-button" id="exportReportButton" type="button" title="دریافت گزارش" aria-label="دریافت گزارش">↓</button>
+            <div class="topbar-user" aria-label="کاربر فعال"><span class="topbar-avatar" id="topbarAvatar" aria-hidden="true">م</span><div><strong id="topbarUser">کاربر MarginLift</strong><small id="topbarRole">مشاهده‌گر</small></div></div>
             <button class="text-button" id="logoutButton" type="button">خروج</button>
           </div>
         </header>

@@ -28,6 +28,25 @@ async function run() {
     await cdp.send("Page.enable");
     await cdp.send("Runtime.enable");
     await cdp.send("Network.enable");
+    const navigation = await cdp.send("Page.navigate", { url: `${baseUrl}/login` });
+    if (navigation.errorText && navigation.errorText !== "net::ERR_ABORTED") {
+      throw new Error(`Navigation failed: ${navigation.errorText}`);
+    }
+    await delay(2500);
+
+    await capture(cdp, 1440, 960, "qa-login-desktop.png", false, ".auth-shell");
+    await capture(cdp, 390, 844, "qa-login-mobile.png", true, ".auth-shell");
+    const authDiagnostics = await evaluate(cdp, `({
+      viewport: { width: document.documentElement.clientWidth, height: document.documentElement.clientHeight },
+      documentWidth: document.documentElement.scrollWidth,
+      horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      hasDecisionPreview: Boolean(document.querySelector('.auth-product-preview')),
+      hasVisibleLogin: Boolean(document.querySelector('#loginForm.active'))
+    })`);
+    if (authDiagnostics.horizontalOverflow || !authDiagnostics.hasDecisionPreview || !authDiagnostics.hasVisibleLogin) {
+      throw new Error(`Auth UI diagnostics failed: ${JSON.stringify(authDiagnostics)}`);
+    }
+
     const [cookieName, cookieValue] = sessionCookie.split("=");
     await cdp.send("Network.setCookie", {
       name: cookieName,
@@ -35,10 +54,7 @@ async function run() {
       url: baseUrl,
       path: "/"
     });
-    const navigation = await cdp.send("Page.navigate", { url: `${baseUrl}/login` });
-    if (navigation.errorText && navigation.errorText !== "net::ERR_ABORTED") {
-      throw new Error(`Navigation failed: ${navigation.errorText}`);
-    }
+    await cdp.send("Page.navigate", { url: `${baseUrl}/login` });
     await delay(2500);
 
     await capture(cdp, 1440, 1000, "qa-command-desktop.png", false, "#command");
@@ -65,12 +81,13 @@ async function run() {
       documentWidth: document.documentElement.scrollWidth,
       horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
       missingContactGate: !document.querySelector('#contactGateMetrics'),
-      emptyContactChecks: document.querySelectorAll('.contact-gate-check').length === 0
+      emptyContactChecks: document.querySelectorAll('.contact-gate-check').length === 0,
+      untranslatedFileControls: [...document.querySelectorAll('.file-control-button')].some(button => button.textContent.trim() !== 'انتخاب فایل')
     })`);
-    if (diagnostics.horizontalOverflow || diagnostics.missingContactGate || diagnostics.emptyContactChecks) {
+    if (diagnostics.horizontalOverflow || diagnostics.missingContactGate || diagnostics.emptyContactChecks || diagnostics.untranslatedFileControls) {
       throw new Error(`UI diagnostics failed: ${JSON.stringify(diagnostics)}`);
     }
-    console.log(JSON.stringify(diagnostics));
+    console.log(JSON.stringify({ auth: authDiagnostics, product: diagnostics }));
     cdp.close();
   } finally {
     chrome.kill();

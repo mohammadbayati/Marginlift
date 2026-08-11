@@ -106,6 +106,35 @@ function setButtonBusy(button, busy, busyLabel = "در حال انجام...") {
   button.removeAttribute("aria-busy");
 }
 
+function syncFileControls() {
+  document.querySelectorAll("input[type='file'][data-file-control-bound='true']").forEach(input => {
+    const control = input.nextElementSibling;
+    if (!control?.classList.contains("file-control")) return;
+    const button = control.querySelector("button");
+    const filename = control.querySelector("span");
+    button.disabled = input.disabled;
+    filename.textContent = input.files?.[0]?.name || "فایلی انتخاب نشده است";
+  });
+}
+
+function setupFileControls() {
+  document.querySelectorAll("input[type='file']").forEach(input => {
+    if (input.dataset.fileControlBound === "true") return;
+    input.dataset.fileControlBound = "true";
+    input.classList.add("native-file-input");
+
+    const control = document.createElement("div");
+    control.className = "file-control";
+    control.innerHTML = `<button class="file-control-button" type="button">انتخاب فایل</button><span aria-live="polite">فایلی انتخاب نشده است</span>`;
+    input.insertAdjacentElement("afterend", control);
+    control.querySelector("button").addEventListener("click", () => {
+      if (!input.disabled) input.click();
+    });
+    input.addEventListener("change", syncFileControls);
+  });
+  syncFileControls();
+}
+
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -128,6 +157,7 @@ function setAuthMode(mode) {
 async function configurePublicSignup() {
   const signupTab = document.querySelector("[data-auth-tab='signup']");
   const signupForm = document.getElementById("signupForm");
+  const authTabs = document.getElementById("authTabs");
   let enabled = false;
   try {
     const config = await apiRequest("/api/public-config");
@@ -137,6 +167,7 @@ async function configurePublicSignup() {
   }
   if (signupTab) signupTab.hidden = !enabled;
   if (signupForm) signupForm.hidden = !enabled;
+  if (authTabs) authTabs.hidden = !enabled;
   if (!enabled) setAuthMode("login");
 }
 
@@ -759,6 +790,10 @@ async function enterApp() {
     currentSession = session;
     document.getElementById("workspaceName").textContent = session.organization.name;
     document.getElementById("sidebarWorkspace").textContent = session.organization.name;
+    const displayName = session.user?.name || session.user?.email || "کاربر MarginLift";
+    document.getElementById("topbarUser").textContent = displayName;
+    document.getElementById("topbarRole").textContent = ({ viewer: "مشاهده‌گر", analyst: "تحلیل‌گر", admin: "مدیر", owner: "مالک فضای کاری" })[session.role] || session.role;
+    document.getElementById("topbarAvatar").textContent = displayName.trim().slice(0, 1) || "م";
     applyRoleAccess();
     await loadDashboard();
   } catch (error) {
@@ -778,6 +813,7 @@ function applyRoleAccess() {
     .forEach(control => { control.disabled = isViewer; });
   document.querySelectorAll("#retentionConfigForm input, #retentionConfigForm select, #retentionConfigForm button, #retentionUploadForm input, #retentionUploadForm select, #retentionUploadForm button")
     .forEach(control => { control.disabled = isViewer; });
+  syncFileControls();
   if (isViewer) {
     setMessage("uploadMessage", "این حساب برای مشاهده دمو ساخته شده است و داده‌ها را تغییر نمی‌دهد.", "");
     setMessage("outcomeMessage", "نتیجه پایلوت نمونه در حالت فقط‌خواندنی نمایش داده می‌شود.", "");
@@ -1136,6 +1172,7 @@ function setupActions() {
 async function init() {
   await configurePublicSignup();
   setupAuth();
+  setupFileControls();
   setupNavigation();
   setupUpload();
   setupActions();
