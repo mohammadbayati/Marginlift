@@ -14,7 +14,7 @@
 | Screen reader | نام قابل‌فهم برای کنترل‌ها و درخت AX بدون کنترل بی‌نام | ممیزی `Accessibility.getFullAXTree` در همه صفحات | قبول |
 | داده مرزی | متن و عدد بلند بدون شکست رابط | سناریوی edge-content در `npm run ui:qa` | قبول |
 | تست کاربر واقعی | حداقل سه شرکت‌کننده از نقش‌های هدف و ثبت شواهد | پروتکل و scorecard آماده؛ جلسه‌ها اجرا نشده‌اند | در انتظار اجرا |
-| Production | سلامت، امنیت، font/asset، login و RBAC | `scripts/verify-production.js` پس از انتشار اجرا می‌شود | نیازمند انتشار نسخه جاری |
+| Production | سلامت، امنیت، font/asset، login و RBAC | smoke دامنه برای commit `4639973`: سلامت PostgreSQL، CSP، assetها، login و RBAC | قبول |
 
 ## ورودی‌های خارجی باقی‌مانده
 
