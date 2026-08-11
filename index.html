@@ -91,16 +91,17 @@
           <span class="nav-group-label">امروز</span>
           <a class="active" href="#command"><span class="nav-index">۰۱</span>مرکز فرمان</a>
           <a href="#retention"><span class="nav-index">۰۲</span>حفظ مشتری</a>
-          <a href="#customers"><span class="nav-index">۰۳</span>صف تصمیم</a>
-          <a href="#decisions"><span class="nav-index">۰۴</span>سیاست اقدام</a>
+          <a href="#behavioral"><span class="nav-index">۰۳</span>رفتار و مداخله</a>
+          <a href="#customers"><span class="nav-index">۰۴</span>صف تصمیم</a>
+          <a href="#decisions"><span class="nav-index">۰۵</span>سیاست اقدام</a>
           <span class="nav-group-label">تحلیل</span>
-          <a href="#uplift"><span class="nav-index">۰۵</span>اثر افزایشی</a>
-          <a href="#customer360"><span class="nav-index">۰۶</span>مشتریان</a>
-          <a href="#experiments"><span class="nav-index">۰۷</span>شواهد و آزمایش</a>
-          <a href="#governance"><span class="nav-index">۰۸</span>سلامت مدل</a>
+          <a href="#uplift"><span class="nav-index">۰۶</span>اثر افزایشی</a>
+          <a href="#customer360"><span class="nav-index">۰۷</span>مشتریان</a>
+          <a href="#experiments"><span class="nav-index">۰۸</span>شواهد و آزمایش</a>
+          <a href="#governance"><span class="nav-index">۰۹</span>سلامت مدل</a>
           <span class="nav-group-label">عملیات</span>
-          <a href="#operations"><span class="nav-index">۰۹</span>اعتماد و دسترسی</a>
-          <a href="#data"><span class="nav-index">۱۰</span>داده و پایلوت</a>
+          <a href="#operations"><span class="nav-index">۱۰</span>اعتماد و دسترسی</a>
+          <a href="#data"><span class="nav-index">۱۱</span>داده و پایلوت</a>
         </nav>
 
         <div class="sidebar-footer">
@@ -240,6 +241,32 @@
             <div class="retention-demo-tools"><span>برای ارائه، یک سناریوی تمیز و برچسب‌خورده بارگذاری کنید؛ داده‌های قبلی حذف نمی‌شوند.</span><select id="retentionDemoPreset" aria-label="سناریوی نمایشی"><option value="generic_ecommerce">فروشگاه اینترنتی</option><option value="super_app_packages">خرید بسته اینترنت</option><option value="subscription_services">تمدید اشتراک</option></select><button class="secondary-button" id="retentionDemoResetButton" type="button">بارگذاری سناریوی نمونه</button></div>
             <p class="auth-hint" id="retentionShadowMessage" role="status">اجرای زنده فقط پس از تأیید طرح آزمایش مجاز است.</p>
           </article>
+        </section>
+
+        <section class="content-section behavioral-section" id="behavioral">
+          <div class="section-heading">
+            <div><p class="section-kicker">Behavioral Decision Layer</p><h2>رفتار را فرضیه‌سازی کنید، نه شخصیت را.</h2><p>هر مداخله رفتاری در سطح سیاست یا سگمنت تعریف می‌شود و فقط با آزمایش کنترل‌شده می‌تواند به ادعای اثر تبدیل شود.</p></div>
+            <span class="section-tag" id="behavioralStatus">در حال ارزیابی</span>
+          </div>
+          <section class="panel behavioral-principle">
+            <div><span class="mini-label">اصل غیرقابل‌مذاکره</span><h3>MarginLift ذهن مشتری را تشخیص نمی‌دهد.</h3><p>سامانه از رفتار مشاهده‌شده برای ساخت فرضیه استفاده می‌کند؛ هیچ فردی با برچسب روان‌شناختی، شخصیت یا «سوگیری» طبقه‌بندی نمی‌شود.</p></div>
+            <div class="behavioral-score"><span>آمادگی اجرای مسئولانه</span><strong class="number" id="behavioralReadiness">—</strong><small id="behavioralEvidence">فرضیه رفتاری</small></div>
+          </section>
+          <div class="behavioral-layout">
+            <article class="panel behavioral-interventions-panel">
+              <div class="panel-heading"><div><span class="mini-label">Intervention Library</span><h3>مداخله‌های قابل‌آزمایش</h3></div><span class="pill">کم‌هزینه‌ترین اقدام اول</span></div>
+              <div class="behavioral-interventions" id="behavioralInterventions"></div>
+            </article>
+            <article class="panel behavioral-guard-panel">
+              <div class="panel-heading"><div><span class="mini-label">Bias Guard</span><h3>محافظ سوگیری مدیر</h3></div><span class="pill warn">پیش از scale</span></div>
+              <div class="bias-guard-list" id="behavioralSafeguards"></div>
+            </article>
+          </div>
+          <section class="panel behavioral-contract-panel">
+            <div class="panel-heading"><div><span class="mini-label">Ethical Contract</span><h3>مجوز اجرای مداخله</h3></div><span class="pill" id="behavioralContractStatus">نیازمند تکمیل</span></div>
+            <div class="behavioral-contract" id="behavioralContract"></div>
+            <p class="behavioral-next-action" id="behavioralNextAction">—</p>
+          </section>
         </section>
 
         <section class="content-section" id="customers">

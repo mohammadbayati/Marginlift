@@ -24,6 +24,7 @@ const { closeStorage, enqueueJob, initializeStorage, listJobs, readDb, storageDr
 const { startJobWorker } = require("./job-worker");
 const { beginRequest, getMetrics, log } = require("./observability");
 const { buildDecisionOverview } = require("./decision-engine");
+const { buildBehavioralWorkspace } = require("./behavioral-policy");
 const { appendDecision, toPublicDecision, verifyDecisionLedger } = require("./decision-ledger");
 const { auditOutcomeRows, buildExperimentRecord, hashDataset, toPublicExperiment } = require("./experiment");
 const { buildModelGovernance, buildOutcomeMonitor, toPublicModelGovernance } = require("./model-governance");
@@ -294,6 +295,11 @@ async function handleApi(req, res, url) {
 
   if (url.pathname === "/api/retention/workspace" && req.method === "GET") {
     sendJson(res, 200, { data: await getRetentionWorkspace(auth.organization.id) });
+    return;
+  }
+
+  if (url.pathname === "/api/behavioral/workspace" && req.method === "GET") {
+    sendJson(res, 200, { data: await getBehavioralWorkspace(auth.organization.id) });
     return;
   }
 
@@ -867,6 +873,17 @@ async function getRetentionWorkspace(organizationId) {
       nextActionFa: "تنظیمات چرخه مشتری تغییر کرده است؛ فایل را دوباره تحلیل کنید."
     } : record.workspace
   };
+}
+
+async function getBehavioralWorkspace(organizationId) {
+  const [retentionState, campaign] = await Promise.all([
+    getRetentionWorkspace(organizationId),
+    getCurrentCampaign(organizationId)
+  ]);
+  return buildBehavioralWorkspace({
+    retentionState,
+    overview: buildDecisionOverview(campaign)
+  });
 }
 
 async function importRetentionAnalysis(organizationId, body, context = {}) {

@@ -227,6 +227,12 @@ async function run() {
     assert.strictEqual(retentionConfiguration.payload.data.configuration.presetKey, "super_app_packages");
     assert.ok(retentionConfiguration.payload.data.presets.length >= 2);
 
+    const behavioralWorkspace = await request("/api/behavioral/workspace", { cookie: viewerCookie });
+    assert.strictEqual(behavioralWorkspace.response.status, 200);
+    assert.strictEqual(behavioralWorkspace.payload.data.individualPsychologyInference, false);
+    assert.ok(behavioralWorkspace.payload.data.candidates.every(item => item.evidenceLevel === "hypothesis_only"));
+    assert.ok(behavioralWorkspace.payload.data.ethicalContract.some(item => item.key === "frequency_cap" && item.status === "blocked"));
+
     const retentionConfigurationUpdate = await request("/api/retention/configuration", {
       method: "PATCH",
       cookie,

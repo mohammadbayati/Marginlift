@@ -11,6 +11,7 @@ let currentSession = null;
 let currentOperations = null;
 let currentRetentionWorkspace = null;
 let currentRetentionShadow = null;
+let currentBehavioralWorkspace = null;
 let retentionPresets = [];
 let retentionCsvText = "";
 let retentionPreview = null;
@@ -606,8 +607,55 @@ function renderRetentionShadow() {
   </div>`;
 }
 
+function renderBehavioralWorkspace() {
+  const workspace = currentBehavioralWorkspace;
+  if (!workspace) return;
+  const statusLabels = {
+    available: "قابل استفاده",
+    shadow_ready: "آماده Shadow Mode",
+    experiment_ready: "آماده طراحی آزمایش",
+    needs_baseline: "نیازمند خط مبنا",
+    blocked: "مسدود تا تکمیل شواهد"
+  };
+  const statusClasses = {
+    available: "save",
+    shadow_ready: "save",
+    experiment_ready: "save",
+    needs_baseline: "warn",
+    blocked: "blocked"
+  };
+
+  document.getElementById("behavioralStatus").textContent = workspace.statusFa;
+  document.getElementById("behavioralReadiness").textContent = formatPercent(workspace.readinessScore);
+  document.getElementById("behavioralEvidence").textContent = workspace.evidenceLabelFa;
+  document.getElementById("behavioralNextAction").textContent = workspace.nextActionFa;
+
+  document.getElementById("behavioralInterventions").innerHTML = workspace.candidates.map(candidate => `
+    <article class="behavior-card">
+      <div class="behavior-card-head"><div><span>${escapeHtml(candidate.mechanismFa)}</span><h4>${escapeHtml(candidate.titleFa)}</h4></div><span class="pill ${statusClasses[candidate.status] || "warn"}">${escapeHtml(statusLabels[candidate.status] || candidate.status)}</span></div>
+      <p>${escapeHtml(candidate.treatmentFa)}</p>
+      <dl>
+        <div><dt>مخاطب سیاست</dt><dd>${escapeHtml(candidate.audienceFa)} / <bdi class="number">${formatNumber(candidate.audienceCount)}</bdi></dd></div>
+        <div><dt>کنترل</dt><dd>${escapeHtml(candidate.controlFa)}</dd></div>
+        <div><dt>معیار اصلی</dt><dd>${escapeHtml(candidate.primaryMetricFa)}</dd></div>
+        <div><dt>گاردریل</dt><dd>${escapeHtml(candidate.guardrailFa)}</dd></div>
+      </dl>
+      <footer><span>سطح ادعا</span><strong>فرضیه؛ نیازمند holdout</strong></footer>
+    </article>`).join("");
+
+  document.getElementById("behavioralSafeguards").innerHTML = workspace.safeguards.map(item => `
+    <div class="bias-guard-row ${item.status}"><span class="guard-state" aria-hidden="true">${item.status === "pass" ? "✓" : "!"}</span><div><strong>${escapeHtml(item.labelFa)}</strong><small>${escapeHtml(item.detailFa)}</small></div></div>`).join("");
+
+  const blockedCount = workspace.ethicalContract.filter(item => item.status === "blocked").length;
+  const contractStatus = document.getElementById("behavioralContractStatus");
+  contractStatus.textContent = blockedCount ? `${formatNumber(blockedCount)} گاردریل باز` : "مجوز اجرای کنترل‌شده";
+  contractStatus.className = `pill ${blockedCount ? "warn" : "save"}`;
+  document.getElementById("behavioralContract").innerHTML = workspace.ethicalContract.map(item => `
+    <div class="behavioral-check ${item.status}"><span aria-hidden="true">${item.status === "pass" ? "✓" : "!"}</span><div><strong>${escapeHtml(item.labelFa)}</strong><small>${escapeHtml(item.detailFa)}</small></div></div>`).join("");
+}
+
 async function loadDashboard() {
-  const [analysis, overview, customerAnalysis, history, pilotState, governance, operations, retentionWorkspace, retentionConfiguration, retentionShadow] = await Promise.all([
+  const [analysis, overview, customerAnalysis, history, pilotState, governance, operations, retentionWorkspace, retentionConfiguration, retentionShadow, behavioralWorkspace] = await Promise.all([
     apiRequest("/api/campaigns/current"),
     apiRequest("/api/decision-engine/overview"),
     apiRequest("/api/customers/current"),
@@ -617,7 +665,8 @@ async function loadDashboard() {
     loadOperationsData(),
     apiRequest("/api/retention/workspace"),
     apiRequest("/api/retention/configuration"),
-    apiRequest("/api/retention/shadow-workspace")
+    apiRequest("/api/retention/shadow-workspace"),
+    apiRequest("/api/behavioral/workspace")
   ]);
   currentAnalysis = analysis;
   currentOverview = overview;
@@ -628,6 +677,7 @@ async function loadDashboard() {
   currentOperations = operations;
   currentRetentionWorkspace = retentionWorkspace;
   currentRetentionShadow = retentionShadow;
+  currentBehavioralWorkspace = behavioralWorkspace;
   retentionPresets = retentionConfiguration.presets;
   renderDashboard();
   renderCustomerProduct();
@@ -637,6 +687,7 @@ async function loadDashboard() {
   renderOperations();
   renderRetentionWorkspace();
   renderRetentionShadow();
+  renderBehavioralWorkspace();
   window.MarginLiftMotion?.refresh(document.getElementById("appShell"));
 }
 

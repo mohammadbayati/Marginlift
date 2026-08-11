@@ -22,18 +22,7 @@
     ".workspace-bar > div",
     ".command-hero > *",
     ".snapshot-panel",
-    ".metric-card",
-    ".content-section > .section-heading",
-    ".content-section > .panel",
-    ".decision-layout > *",
-    ".action-card",
-    ".uplift-lab > *",
-    ".customer-product-grid > *",
-    ".pilot-grid > *",
-    ".stage-card",
-    ".readiness-check",
-    ".workspace-step",
-    ".history-item"
+    ".metric-card"
   ];
 
   let observer = null;

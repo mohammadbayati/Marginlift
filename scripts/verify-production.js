@@ -73,6 +73,7 @@ async function main() {
     "/api/pilot/workspace",
     "/api/model-governance/overview",
     "/api/retention/workspace",
+    "/api/behavioral/workspace",
     "/api/retention/shadow-workspace"
   ];
   for (const route of readableRoutes) {

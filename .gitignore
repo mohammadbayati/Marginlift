@@ -17,6 +17,8 @@ backups/
 *.log
 ~$*
 qa-*.png
+qa-design-audit/
+Cognitive_bias_codex_en.png
 .agents/
 .impeccable/
 skills-lock.json
