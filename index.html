@@ -212,13 +212,19 @@
 
         <section class="content-section retention-section" id="retention">
           <div class="section-heading">
-            <div><p class="section-kicker">فضای نگهداشت</p><h2>خرید بعدی را قبل از ازدست‌رفتن مشتری مدیریت کنید.</h2><p>هسته محصول برای همه کسب‌وکارها مشترک است؛ تعریف چرخه خرید، افق ریزش و قرارداد داده برای هر مشتری تنظیم می‌شود.</p></div>
+            <div><p class="section-kicker">پیش‌بینی و نگهداشت</p><h2>از داده ۶ ماه گذشته تا یک پایلوت قابل‌اندازه‌گیری</h2><p>یک فایل تراکنش وارد کنید؛ MarginLift ریسک عدم خرید مجدد، اقدام پیشنهادی و مرز استفاده از تخفیف را مشخص می‌کند.</p></div>
             <span class="section-tag" id="retentionStatus">در انتظار داده</span>
           </div>
 
+          <ol class="retention-simple-flow" aria-label="مسیر ساده نگهداشت">
+            <li id="retentionFlowData"><span>۱</span><div><strong>ورود داده</strong><small>CSV شش ماه گذشته</small></div></li>
+            <li id="retentionFlowDecision"><span>۲</span><div><strong>تصمیم نگهداشت</strong><small>ریسک، اقدام و تخفیف</small></div></li>
+            <li id="retentionFlowPilot"><span>۳</span><div><strong>پایلوت A/B</strong><small>اثبات اثر واقعی</small></div></li>
+          </ol>
+
           <div class="retention-setup-grid">
-            <article class="panel retention-config-panel">
-              <div class="panel-heading"><div><span class="mini-label">پروفایل کسب‌وکار</span><h3>تعریف چرخه مشتری</h3></div><span class="pill">قابل تنظیم</span></div>
+            <details class="panel retention-config-panel retention-advanced">
+              <summary><span><small>تنظیمات پیشرفته</small><strong>تعریف چرخه خرید</strong></span><span aria-hidden="true">+</span></summary>
               <form class="retention-config-form" id="retentionConfigForm">
                 <label>نوع کسب‌وکار<select id="retentionPreset" name="presetKey"></select></label>
                 <label>موضوع خرید مجدد<input id="retentionPurchaseObject" name="purchaseObjectFa" maxlength="60" required></label>
@@ -232,20 +238,21 @@
                 <button class="secondary-button" type="submit">ذخیره تعریف چرخه</button>
                 <p class="auth-hint" id="retentionConfigMessage" role="status">تغییر تعریف چرخه، تحلیل مجدد داده را الزامی می‌کند.</p>
               </form>
-            </article>
+            </details>
 
             <article class="panel retention-import-panel">
-              <div class="panel-heading"><div><span class="mini-label">داده تراکنش</span><h3>ساخت خط مبنای نگهداشت</h3></div><span class="pill" id="retentionEvidenceBadge">بدون شواهد</span></div>
+              <div class="panel-heading"><div><span class="mini-label">گام اول</span><h3>فایل تراکنش را وارد کنید</h3></div><span class="pill" id="retentionEvidenceBadge">بدون شواهد</span></div>
               <form class="upload-form retention-upload-form" id="retentionUploadForm">
-                <label>نام تحلیل<input id="retentionAnalysisName" value="تحلیل خرید مجدد مشتریان" required></label>
-                <label>تاریخ برش داده<input class="retention-date-input" id="retentionCutoff" type="text" inputmode="numeric" dir="ltr" placeholder="۲۰۲۶-۰۲-۰۱" required></label>
+                <input id="retentionAnalysisName" type="hidden" value="تحلیل خرید مجدد مشتریان">
+                <input class="retention-date-input" id="retentionCutoff" type="hidden">
                 <label>فایل تراکنش CSV<input id="retentionCsvFile" type="file" accept=".csv,text/csv" required></label>
+                <p class="retention-contract-note"><strong>برای شروع فقط ۴ ستون:</strong> شناسه ناشناس مشتری، شناسه تراکنش، تاریخ خرید و مبلغ.</p>
                 <section class="retention-file-preview" id="retentionFilePreview" hidden aria-live="polite">
                   <div class="retention-preview-summary" id="retentionPreviewSummary"></div>
                   <div class="retention-mapping-heading"><div><strong>تطبیق ستون‌ها</strong><span>موارد ضروری را کنترل کنید؛ ستون‌های اختیاری کیفیت تصمیم را بیشتر می‌کنند.</span></div><span class="pill" id="retentionMappingStatus">در حال بررسی</span></div>
                   <div class="retention-mapping-fields" id="retentionMappingFields"></div>
                 </section>
-                <button class="primary-button" id="retentionImportButton" type="submit">بررسی داده و ساخت فضای تصمیم</button>
+                <button class="primary-button" id="retentionImportButton" type="submit">تحلیل داده و ساخت تصمیم</button>
                 <p class="auth-hint">نمونه‌ها: <a href="/synthetic-ecommerce-transactions.csv" download>فروشگاه اینترنتی</a> یا <a href="/synthetic-package-transactions.csv" download>سوپراپ</a>.</p>
                 <p class="auth-hint" id="retentionUploadMessage" role="status">شناسه مشتری باید ناشناس باشد؛ شماره موبایل یا ایمیل وارد نکنید.</p>
               </form>
@@ -254,10 +261,11 @@
 
           <article class="panel retention-analysis-panel">
             <div class="retention-decision-line">
-              <div><span class="mini-label">برداشت اجرایی</span><h3 id="retentionHeadline">چرخه خرید را با داده واقعی اندازه‌گیری کنید.</h3><p id="retentionNextAction">فایل تراکنش را وارد کنید تا قدم بعدی مشخص شود.</p></div>
+              <div><span class="mini-label">گام دوم</span><h3 id="retentionHeadline">چرخه خرید را با داده واقعی اندازه‌گیری کنید.</h3><p id="retentionNextAction">فایل تراکنش را وارد کنید تا قدم بعدی مشخص شود.</p></div>
               <span class="retention-proof" id="retentionProof">برآورد تاریخی</span>
             </div>
             <div class="retention-metrics" id="retentionMetrics"></div>
+            <div class="retention-decision-summary" id="retentionDecisionSummary" aria-label="خلاصه تصمیم‌های نگهداشت"></div>
             <div class="retention-lifecycle" aria-label="توزیع وضعیت چرخه مشتری">
               <div class="retention-subheading"><h3>وضعیت چرخه مشتری</h3><span>بر اساس موعد اختصاصی خرید بعدی</span></div>
               <div class="retention-state-bars" id="retentionStateBars"></div>
@@ -266,27 +274,30 @@
           </article>
 
           <article class="panel retention-queue-panel">
-            <div class="panel-heading"><div><span class="mini-label">اقدام بعدی پیشنهادی</span><h3>صف اقدام نگهداشت</h3></div><div class="retention-export-tools"><select id="retentionReadoutRole" aria-label="مخاطب گزارش"><option value="executive">مدیریت ارشد</option><option value="crm">CRM و رشد</option><option value="finance">مدیریت مالی</option><option value="data">داده و تحلیل</option></select><button class="secondary-button" id="retentionReadoutButton" type="button">گزارش نقش‌محور</button><button class="secondary-button" id="retentionAudienceButton" type="button">خروجی CRM</button></div></div>
-            <div class="decision-table-wrap"><table class="decision-table"><thead><tr><th>شناسه ناشناس</th><th>وضعیت</th><th>فاصله از موعد</th><th>سابقه خرید</th><th>اقدام پیشنهادی</th><th>مجوز تماس</th><th>دلیل تصمیم</th></tr></thead><tbody id="retentionQueueRows"></tbody></table></div>
+            <div class="panel-heading"><div><span class="mini-label">خروجی قابل اجرا</span><h3>چه کسی، چه اقدامی، با چه تخفیفی؟</h3></div><div class="retention-export-tools"><select id="retentionReadoutRole" aria-label="مخاطب گزارش"><option value="executive">مدیریت ارشد</option><option value="crm">CRM و رشد</option><option value="finance">مدیریت مالی</option><option value="data">داده و تحلیل</option></select><button class="secondary-button" id="retentionReadoutButton" type="button">گزارش نقش‌محور</button><button class="secondary-button" id="retentionAudienceButton" type="button">خروجی CRM</button></div></div>
+            <div class="decision-table-wrap"><table class="decision-table"><thead><tr><th>شناسه ناشناس</th><th>ریسک عدم خرید</th><th>اقدام پیشنهادی</th><th>تصمیم تخفیف</th><th>دلیل</th></tr></thead><tbody id="retentionQueueRows"></tbody></table></div>
           </article>
 
           <article class="panel retention-shadow-panel">
-            <div class="panel-heading"><div><span class="mini-label">Shadow Mode</span><h3>تمرین اجرای CRM بدون تماس با مشتری</h3></div><span class="pill" id="retentionShadowStatus">هنوز اجرا نشده</span></div>
+            <div class="panel-heading"><div><span class="mini-label">گام سوم</span><h3>پایلوت کوچک بسازید؛ سپس نتیجه را بسنجید</h3></div><span class="pill" id="retentionShadowStatus">هنوز اجرا نشده</span></div>
             <div class="retention-shadow-layout">
-              <div class="retention-shadow-summary" id="retentionShadowSummary"><p>صف تصمیم را با ظرفیت واقعی CRM بررسی کنید؛ این مرحله هیچ پیام یا مشوقی ارسال نمی‌کند.</p></div>
+              <div class="retention-shadow-summary" id="retentionShadowSummary"><p>ابتدا مخاطبان واجد شرایط را بدون ارسال پیام بررسی کنید. سپس گروه کنترل را نگه دارید تا اثر واقعی قابل اندازه‌گیری باشد.</p></div>
               <form class="retention-shadow-controls" id="retentionShadowForm">
                 <label>ظرفیت این چرخه<input id="retentionShadowCapacity" type="number" min="1" max="1000000" value="1000"><span>مشتری</span></label>
-                <button class="primary-button" type="submit">اجرای سایه</button>
+                <button class="primary-button" type="submit">آماده‌سازی مخاطبان پایلوت</button>
               </form>
             </div>
-            <div class="retention-experiment-tools">
-              <div><span class="mini-label">فرض‌های طرح آزمایش</span><strong>حجم نمونه و Brief قبل از اجرای زنده</strong></div>
-              <label>نرخ پایه<input id="retentionBaselineRate" type="number" min="0.1" max="99" step="0.1" value="20"><span>٪</span></label>
-              <label>حداقل اثر<input id="retentionMde" type="number" min="0.1" max="50" step="0.1" value="3"><span>واحد درصد</span></label>
-              <label>پنجره نتیجه<input id="retentionOutcomeWindow" type="number" min="7" max="365" value="30"><span>روز</span></label>
-              <label>گروه کنترل<input id="retentionHoldoutRate" type="number" min="1" max="50" step="1" value="20"><span>٪</span></label>
-              <button class="secondary-button" id="retentionExperimentBriefButton" type="button">دریافت طرح آزمایش</button>
-            </div>
+            <details class="retention-advanced retention-experiment-settings">
+              <summary><span><small>تنظیمات پیشرفته</small><strong>فرض‌های آماری پایلوت</strong></span><span aria-hidden="true">+</span></summary>
+              <div class="retention-experiment-tools">
+                <div><span class="mini-label">طراحی از پیش ثبت‌شده</span><strong>یک متغیر، یک معیار اصلی، یک گروه کنترل</strong></div>
+                <label>نرخ پایه<input id="retentionBaselineRate" type="number" min="0.1" max="99" step="0.1" value="20"><span>٪</span></label>
+                <label>حداقل اثر<input id="retentionMde" type="number" min="0.1" max="50" step="0.1" value="3"><span>واحد درصد</span></label>
+                <label>پنجره نتیجه<input id="retentionOutcomeWindow" type="number" min="7" max="365" value="30"><span>روز</span></label>
+                <label>گروه کنترل<input id="retentionHoldoutRate" type="number" min="1" max="50" step="1" value="20"><span>٪</span></label>
+                <button class="secondary-button" id="retentionExperimentBriefButton" type="button">دریافت طرح آزمایش</button>
+              </div>
+            </details>
             <div class="retention-demo-tools"><span>برای ارائه، یک سناریوی تمیز و برچسب‌خورده بارگذاری کنید؛ داده‌های قبلی حذف نمی‌شوند.</span><select id="retentionDemoPreset" aria-label="سناریوی نمایشی"><option value="generic_ecommerce">فروشگاه اینترنتی</option><option value="super_app_packages">خرید بسته اینترنت</option><option value="subscription_services">تمدید اشتراک</option></select><button class="secondary-button" id="retentionDemoResetButton" type="button">بارگذاری سناریوی نمونه</button></div>
             <p class="auth-hint" id="retentionShadowMessage" role="status">اجرای زنده فقط پس از تأیید طرح آزمایش مجاز است.</p>
           </article>

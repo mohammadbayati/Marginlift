@@ -692,6 +692,13 @@ function renderRetentionWorkspace() {
   document.getElementById("retentionEvidenceBadge").textContent = workspace.evidenceLevel === "no_evidence" ? "بدون شواهد" : "برآورد تاریخی";
   document.getElementById("retentionProof").textContent = toPersianDigits(stale ? "تعریف چرخه تغییر کرده" : (workspace.evidenceLabelFa || "هنوز تحلیلی ثبت نشده است"));
 
+  const hasAnalysis = Boolean(analysis);
+  const hasDecision = workspace.queue.length > 0;
+  const hasPilot = Boolean(currentRetentionShadow?.latestRun);
+  setRetentionFlowState("retentionFlowData", hasAnalysis ? "done" : "current");
+  setRetentionFlowState("retentionFlowDecision", hasDecision ? "done" : hasAnalysis ? "current" : "pending");
+  setRetentionFlowState("retentionFlowPilot", hasPilot ? "done" : hasDecision ? "current" : "pending");
+
   const metrics = [
     ["واحد مشتری قابل بررسی", workspace.metrics.units],
     ["مجاز برای تماس", workspace.metrics.contactAllowed || 0],
@@ -699,6 +706,16 @@ function renderRetentionWorkspace() {
     ["در صف اقدام", workspace.metrics.queueSize]
   ];
   document.getElementById("retentionMetrics").innerHTML = metrics.map(([label, value]) => `<div><span>${escapeHtml(label)}</span><strong class="number">${escapeHtml(typeof value === "number" ? formatNumber(value) : value)}</strong></div>`).join("");
+
+  const decisionBuckets = [
+    { key: "no_discount", labelFa: "بدون تخفیف", detailFa: "یادآوری یا پیام بازگشت", className: "is-safe" },
+    { key: "experiment_only", labelFa: "تخفیف فقط در A/B", detailFa: "همراه گروه کنترل", className: "is-test" },
+    { key: "no_action", labelFa: "فعلاً بدون اقدام", detailFa: "بودجه تخصیص ندهید", className: "is-hold" }
+  ];
+  document.getElementById("retentionDecisionSummary").innerHTML = decisionBuckets.map(bucket => {
+    const count = workspace.queue.filter(item => item.incentivePolicy === bucket.key).length;
+    return `<div class="${bucket.className}"><span>${escapeHtml(bucket.labelFa)}</span><strong class="number">${formatNumber(count)}</strong><small>${escapeHtml(bucket.detailFa)}</small></div>`;
+  }).join("");
 
   document.getElementById("retentionStateBars").innerHTML = workspace.states.map(state => `<div class="retention-state-row">
     <div><span>${escapeHtml(state.labelFa)}</span><strong class="number">${formatNumber(state.count)}</strong></div>
@@ -721,14 +738,19 @@ function renderRetentionWorkspace() {
   document.getElementById("retentionQueueRows").innerHTML = workspace.queue.length
     ? workspace.queue.map(item => `<tr>
       <td><bdi>${escapeHtml(item.customerIdHash)}</bdi></td>
-      <td><span class="queue-state queue-state-${escapeHtml(item.state)}">${escapeHtml(item.stateFa)}</span></td>
-      <td><bdi class="number">${formatNumber(item.daysFromDue)} روز</bdi></td>
-      <td><bdi class="number">${formatNumber(item.purchaseCount)}</bdi></td>
+      <td><span class="queue-state risk-${escapeHtml(item.riskBand || "unknown")}">${escapeHtml(item.riskLabelFa || item.stateFa)}</span></td>
       <td><strong>${escapeHtml(item.recommendedActionFa)}</strong></td>
-      <td><span class="queue-state ${item.actionAllowed ? "queue-state-due" : ""}">${item.actionAllowed ? `مجاز / ${escapeHtml(item.contactSafety?.preferredChannel || "")}` : "مسدود"}</span></td>
+      <td><span class="incentive-policy incentive-${escapeHtml(item.incentivePolicy || "no_action")}">${escapeHtml(item.incentivePolicyFa || "نیازمند بررسی")}</span></td>
       <td>${escapeHtml(item.decisionReasonFa)}</td>
     </tr>`).join("")
-    : `<tr><td colspan="7" class="retention-empty">پس از ورود داده، مشتریان واجد شرایط اینجا نمایش داده می‌شوند.</td></tr>`;
+    : `<tr><td colspan="5" class="retention-empty">پس از ورود داده، مشتریان واجد شرایط اینجا نمایش داده می‌شوند.</td></tr>`;
+}
+
+function setRetentionFlowState(id, state) {
+  const element = document.getElementById(id);
+  if (!element) return;
+  element.classList.remove("is-done", "is-current", "is-pending");
+  element.classList.add(`is-${state}`);
 }
 
 function renderRetentionShadow() {
@@ -1136,10 +1158,17 @@ function renderRetentionPreview(preview) {
 
   const emptyOption = `<option value="">ستونی انتخاب نشده</option>`;
   const columnOptions = preview.columns.map(column => `<option value="${escapeHtml(column)}">${escapeHtml(column)}</option>`).join("");
-  document.getElementById("retentionMappingFields").innerHTML = preview.fields.map(field => `<label class="retention-mapping-field ${field.required ? "is-required" : ""}">
+  const renderMappingField = field => `<label class="retention-mapping-field ${field.required ? "is-required" : ""}">
     <span><strong>${escapeHtml(field.labelFa)}</strong><small>${field.required ? "ضروری" : "اختیاری"}</small></span>
     <select data-retention-mapping="${escapeHtml(field.key)}" aria-label="ستون ${escapeHtml(field.labelFa)}">${emptyOption}${columnOptions}</select>
-  </label>`).join("");
+  </label>`;
+  const requiredFields = preview.fields.filter(field => field.required);
+  const optionalFields = preview.fields.filter(field => !field.required);
+  document.getElementById("retentionMappingFields").innerHTML = `${requiredFields.map(renderMappingField).join("")}
+    <details class="retention-optional-mapping">
+      <summary>ستون‌های اختیاری برای پایلوت زنده</summary>
+      <div>${optionalFields.map(renderMappingField).join("")}</div>
+    </details>`;
 
   preview.fields.forEach(field => {
     const select = document.querySelector(`[data-retention-mapping="${field.key}"]`);

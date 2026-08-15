@@ -67,7 +67,7 @@ async function run() {
       path: "/"
     });
     await cdp.send("Page.navigate", { url: `${baseUrl}/login` });
-    await waitForProductReady(cdp);
+    await waitForProductReady(cdp, role);
     const usabilityAccess = await evaluate(cdp, `(() => {
       const link = document.getElementById('usabilityConsoleLink');
       return { exists: Boolean(link), hidden: Boolean(link?.hidden), href: link?.getAttribute('href') || '' };
@@ -390,17 +390,20 @@ async function auditSkipLink(cdp, label) {
   return { target: firstStop.href, firstFocusable: true, visibleOnFocus: true, movedFocus: true };
 }
 
-async function waitForProductReady(cdp, timeoutMs = 15000) {
+async function waitForProductReady(cdp, expectedRole, timeoutMs = 15000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const ready = await evaluate(cdp, `(() => {
       const app = document.getElementById('appShell');
       const main = document.getElementById('mainContent');
       const skipLink = document.querySelector('.skip-link');
+      const usabilityLink = document.getElementById('usabilityConsoleLink');
       return Boolean(
         app
         && main
         && skipLink
+        && usabilityLink
+        && usabilityLink.hidden === (${JSON.stringify(expectedRole)} !== 'owner')
         && !app.classList.contains('is-hidden')
         && main.getClientRects().length
         && skipLink.getAttribute('href') === '#mainContent'

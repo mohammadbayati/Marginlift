@@ -432,6 +432,10 @@ function toQueueItem(snapshot, config, policyVersion) {
     averageContributionMargin: snapshot.averageContributionMargin,
     recommendedAction: action.key,
     recommendedActionFa: action.labelFa,
+    riskBand: action.riskBand,
+    riskLabelFa: action.riskLabelFa,
+    incentivePolicy: action.incentivePolicy,
+    incentivePolicyFa: action.incentivePolicyFa,
     decisionReasonFa: action.reasonFa,
     incentiveAllowed: false,
     policyVersion,
@@ -450,10 +454,42 @@ function retentionPolicyVersion(config) {
 }
 
 function actionForState(state) {
-  if (state === "due") return { key: "reminder_test", labelFa: "آزمون یادآوری", reasonFa: "موعد خرید نزدیک است؛ ابتدا اقدام کم‌هزینه را بیازمایید." };
-  if (state === "lapsed") return { key: "channel_nudge_test", labelFa: "آزمون بازگشت", reasonFa: "چرخه معمول گذشته است؛ پیام بازگشت بدون تخفیف نقطه شروع است." };
-  if (state === "dormant") return { key: "offer_eligibility_review", labelFa: "بررسی صلاحیت مشوق", reasonFa: "مشوق فقط با holdout و پس از اثبات اثر افزایشی مجاز است." };
-  return { key: "no_action", labelFa: "فعلاً بدون اقدام", reasonFa: "احتمال بازگشت و ارزش اقدام هنوز برای هزینه‌کرد قابل دفاع نیست." };
+  if (state === "due") return {
+    key: "reminder_test",
+    labelFa: "یادآوری بدون تخفیف",
+    riskBand: "medium",
+    riskLabelFa: "ریسک متوسط",
+    incentivePolicy: "no_discount",
+    incentivePolicyFa: "تخفیف ندهید",
+    reasonFa: "موعد خرید نزدیک است؛ ابتدا یک یادآوری کم‌هزینه را بیازمایید."
+  };
+  if (state === "lapsed") return {
+    key: "channel_nudge_test",
+    labelFa: "پیام بازگشت بدون تخفیف",
+    riskBand: "high",
+    riskLabelFa: "ریسک بالا",
+    incentivePolicy: "no_discount",
+    incentivePolicyFa: "فعلاً تخفیف ندهید",
+    reasonFa: "چرخه معمول گذشته است؛ پیام بازگشت بدون تخفیف نقطه شروع است."
+  };
+  if (state === "dormant") return {
+    key: "offer_eligibility_review",
+    labelFa: "آزمایش مشوق هدفمند",
+    riskBand: "high",
+    riskLabelFa: "ریسک بالا",
+    incentivePolicy: "experiment_only",
+    incentivePolicyFa: "فقط در پایلوت A/B",
+    reasonFa: "این مشتری می‌تواند وارد آزمایش مشوق شود؛ تخفیف خارج از گروه کنترل مجاز نیست."
+  };
+  return {
+    key: "no_action",
+    labelFa: "فعلاً بدون اقدام",
+    riskBand: "very_high",
+    riskLabelFa: "ریسک بسیار بالا",
+    incentivePolicy: "no_action",
+    incentivePolicyFa: "بودجه تخصیص ندهید",
+    reasonFa: "فاصله زیاد از چرخه خرید، هزینه‌کرد بدون شواهد را توجیه نمی‌کند."
+  };
 }
 
 function lifecycleStates(config, snapshots) {

@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | هویت اختصاصی | نشان، favicon و کاربرد یکسان در محصول و سایت | `brand-mark.svg`، ممیزی همه سطوح و تست static asset | قبول |
 | تایپوگرافی فارسی | IRANSansX لایسنس‌دار، WOFF2، fallback و QA | runtime، اعتبارسنج مجوز، نصب خصوصی VM و browser QA آماده است؛ فایل مجاز موجود نیست | در انتظار فایل و مجوز |
-| UX سازمانی | تصمیم، اثر مالی، شواهد و اقدام در viewport اول | QA تصویری صفحه فروش، ورود، محصول و گزارش؛ کنسول تست نیز به مسیر سه‌مرحله‌ای و تک‌کار تبدیل شد | قبول فنی |
+| UX سازمانی | تصمیم، اثر مالی، شواهد و اقدام در viewport اول | QA تصویری صفحه فروش، ورود، محصول و گزارش؛ مسیر نگهداشت به سه گام CSV، تصمیم و پایلوت تبدیل شد و کنسول تست نیز سه‌مرحله‌ای است | قبول فنی |
 | Desktop / Mobile | بدون overlap و overflow در viewportهای هدف | تصاویر `qa-*.png` و `docs/ui-quality-audit-latest.json` | قبول |
 | Keyboard | ترتیب تمرکز، focus visible و اجرای فرم بدون ماوس | آزمون واقعی Tab در `npm run ui:qa` | قبول |
 | Screen reader | نام، landmark، ترتیب خواندن و اجرای مسیر با Narrator/NVDA | AX Tree، یک main در هر صفحه و Skip Link پاس شده؛ آزمون صوتی انسانی اجرا نشده | قبول فنی؛ در انتظار تست انسانی |
@@ -32,3 +32,12 @@
 - نتیجه هر جلسه با `usability-session-console-fa.html` ثبت و CSV استاندارد خروجی گرفته شود؛ قالب متنی فقط مدرک پشتیبان است.
 - حداقل یک جلسه با Narrator یا NVDA طبق `screen-reader-test-protocol-fa.md` اجرا شود.
 - `npm run usability:evaluate` باید status برابر `pass` برگرداند.
+
+## شواهد آخرین Refinement نگهداشت
+
+- ورودی اولیه به چهار ستون ضروری محدود و ستون‌های تکمیلی پایلوت با progressive disclosure پنهان شد.
+- خروجی هر مشتری به سه سیاست قابل فهم تبدیل شد: بدون تخفیف، تخفیف فقط در A/B و فعلاً بدون اقدام.
+- تنظیمات چرخه خرید و فرض‌های آماری در بخش پیشرفته قرار گرفتند و مسیر اصلی سه گام ثابت دارد.
+- `npm test` شامل منطق ریسک، سیاست مشوق، API، RBAC و داده مرزی پاس شد.
+- `npm run ui:qa` روی دسکتاپ و موبایل بدون overflow، کنترل بی‌نام یا شکست keyboard/AX Tree پاس شد.
+- تصاویر مستقیم `qa-retention-desktop.png`، `qa-retention-mobile.png`، `qa-retention-onboarding-mobile.png` و `qa-retention-analysis-mobile.png` بازبینی شدند.

@@ -1089,7 +1089,7 @@ function buildRetentionAudienceCsv(record) {
   const modelVersion = record.baseline?.modelCard?.modelVersion || record.baseline?.baselineVersion || "";
   const headers = [
     "customer_id_hash", "state", "days_from_due", "purchase_count", "average_contribution_margin",
-    "recommended_action", "preferred_channel", "contact_count_30d", "action_allowed", "incentive_allowed", "evidence_level", "decision_reason_fa", "policy_version",
+    "risk_band", "recommended_action", "incentive_policy", "preferred_channel", "contact_count_30d", "action_allowed", "incentive_allowed", "evidence_level", "decision_reason_fa", "policy_version",
     "dataset_version", "model_version", "analysis_id"
   ];
   const rows = queue.map(item => [
@@ -1098,7 +1098,9 @@ function buildRetentionAudienceCsv(record) {
     item.daysFromDue,
     item.purchaseCount,
     item.averageContributionMargin ?? "",
+    item.riskBand || "",
     item.recommendedAction,
+    item.incentivePolicy || "no_action",
     item.contactSafety?.preferredChannel || "",
     item.contactSafety?.contactCount30d ?? "",
     item.actionAllowed ? "true" : "false",

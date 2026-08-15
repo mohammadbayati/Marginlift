@@ -436,7 +436,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--decision); outli
 .retention-metrics > div { padding: 15px 13px; }
 .retention-state-track { height: 6px; background: #e7ebf0; }
 .retention-state-track span { background: var(--decision); }
-.retention-queue-panel .decision-table { min-width: 1040px; }
+.retention-queue-panel .decision-table { min-width: 760px; }
 .retention-export-tools { gap: 7px; }
 
 .behavioral-principle { border: 1px solid #202630; background: #151a21; box-shadow: var(--shadow-low); }
@@ -695,4 +695,70 @@ body.presentation-mode #experiments .flow-panel { display: none; }
   .app-shell { display: block; }
   .dashboard { padding: 0; }
   .panel, .metric-card { box-shadow: none; break-inside: avoid; }
+}
+
+.retention-simple-flow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0 0 10px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--line);
+  list-style: none;
+}
+.retention-simple-flow li { display: flex; gap: 11px; align-items: center; min-width: 0; padding: 14px 16px; background: #fff; }
+.retention-simple-flow li > span { display: grid; place-items: center; flex: 0 0 28px; width: 28px; height: 28px; border: 1px solid var(--line-strong); border-radius: 50%; color: var(--muted); font-size: .66rem; font-weight: 850; }
+.retention-simple-flow strong, .retention-simple-flow small { display: block; }
+.retention-simple-flow strong { color: var(--ink); font-size: .69rem; }
+.retention-simple-flow small { margin-block-start: 2px; color: var(--muted); font-size: .57rem; }
+.retention-simple-flow .is-current { background: #f3faf8; }
+.retention-simple-flow .is-current > span { border-color: var(--decision); color: #fff; background: var(--decision); }
+.retention-simple-flow .is-done > span { border-color: var(--profit); color: var(--profit-deep); background: var(--profit-soft); }
+.retention-simple-flow .is-done > span::before { content: "✓"; }
+.retention-simple-flow .is-done > span { font-size: 0; }
+.retention-simple-flow .is-done > span::before { font-size: .72rem; }
+
+.retention-advanced { overflow: hidden; }
+.retention-advanced > summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; cursor: pointer; list-style: none; }
+.retention-advanced > summary::-webkit-details-marker { display: none; }
+.retention-advanced > summary small, .retention-advanced > summary strong { display: block; }
+.retention-advanced > summary small { color: var(--decision); font-size: .57rem; font-weight: 800; }
+.retention-advanced > summary strong { margin-block-start: 3px; color: var(--ink); font-size: .76rem; }
+.retention-advanced > summary > span:last-child { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid var(--line-strong); border-radius: 50%; color: var(--muted); font-size: 1rem; transition: transform .2s ease; }
+.retention-advanced[open] > summary > span:last-child { transform: rotate(45deg); }
+.retention-config-panel .retention-config-form { margin-block-start: 18px; padding-block-start: 16px; border-block-start: 1px solid var(--line); }
+.retention-contract-note { margin: 0; padding: 11px 13px; border-inline-start: 2px solid var(--decision); color: var(--muted); background: var(--surface-subtle); font-size: .62rem; line-height: 1.8; }
+.retention-contract-note strong { color: var(--ink); }
+
+.retention-optional-mapping { grid-column: 1 / -1; margin-block-start: 8px; border-block-start: 1px solid var(--line); }
+.retention-optional-mapping > summary { padding: 11px 2px 3px; cursor: pointer; color: var(--decision); font-size: .62rem; font-weight: 800; }
+.retention-optional-mapping > div { display: grid; }
+
+.retention-decision-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin-block: 16px; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--line); }
+.retention-decision-summary > div { position: relative; min-width: 0; padding: 15px; background: #fff; }
+.retention-decision-summary > div::before { content: ""; position: absolute; inset-block: 0; inset-inline-start: 0; width: 3px; background: var(--line-strong); }
+.retention-decision-summary .is-safe::before { background: var(--profit); }
+.retention-decision-summary .is-test::before { background: #d28a18; }
+.retention-decision-summary .is-hold::before { background: #68717d; }
+.retention-decision-summary span, .retention-decision-summary strong, .retention-decision-summary small { display: block; }
+.retention-decision-summary span { color: var(--ink-soft); font-size: .62rem; font-weight: 800; }
+.retention-decision-summary strong { margin-block: 5px 2px; color: var(--ink); font-size: 1.05rem; }
+.retention-decision-summary small { color: var(--muted); font-size: .56rem; }
+.risk-medium { color: #73500c; background: #fff4d8; }
+.risk-high, .risk-very_high { color: #8e2d33; background: #fff0f1; }
+.incentive-policy { display: inline-flex; padding: 5px 8px; border-radius: var(--radius-sm); font-size: .58rem; font-weight: 800; white-space: nowrap; }
+.incentive-no_discount { color: var(--profit-deep); background: var(--profit-soft); }
+.incentive-experiment_only { color: #73500c; background: #fff4d8; }
+.incentive-no_action { color: var(--muted); background: var(--surface-strong); }
+.retention-experiment-settings { border-block-end: 1px solid var(--line); }
+.retention-experiment-settings > summary { padding-block: 15px; }
+.retention-experiment-settings .retention-experiment-tools { border-block: 1px solid var(--line); border-block-end: 0; }
+
+@media (max-width: 720px) {
+  .retention-simple-flow { grid-template-columns: 1fr; }
+  .retention-simple-flow li { min-height: 62px; }
+  .retention-decision-summary { grid-template-columns: 1fr; }
 }
