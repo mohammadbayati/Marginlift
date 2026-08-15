@@ -144,6 +144,7 @@
             <div><p class="eyebrow">مرکز فرمان</p><p class="topbar-date" id="topbarDate">آخرین به‌روزرسانی: امروز</p></div>
           </div>
           <div class="topbar-actions">
+            <button class="presentation-launch-button" id="presentationModeButton" type="button" aria-pressed="false">شروع ارائه</button>
             <span class="live-status"><span class="status-dot"></span>داده نمونه فعال</span>
             <button class="icon-button" id="exportReportButton" type="button" title="دریافت گزارش" aria-label="دریافت گزارش">↓</button>
             <div class="topbar-user" aria-label="کاربر فعال"><span class="topbar-avatar" id="topbarAvatar" aria-hidden="true">م</span><div><strong id="topbarUser">کاربر MarginLift</strong><small id="topbarRole">مشاهده‌گر</small></div></div>
@@ -156,6 +157,28 @@
           <div><span>قرارداد تصمیم</span><strong id="contractStatus">ریزش ۳۰ روزه / سود افزایشی</strong></div>
           <div><span>منبع داده</span><strong id="dataSource">کمپین‌های ۹۰ روز اخیر</strong></div>
           <div class="workspace-readiness"><span>آمادگی پایلوت</span><strong class="number" id="readinessValue">—</strong></div>
+        </section>
+
+        <section class="presentation-guide" id="presentationGuide" aria-labelledby="presentationTitle" hidden>
+          <div class="presentation-guide-head">
+            <div>
+              <p class="presentation-kicker" id="presentationKicker">دموی سه‌دقیقه‌ای</p>
+              <h1 id="presentationTitle">از مسئله تا تصمیم قابل دفاع</h1>
+              <p id="presentationSummary">سه پاسخ برای تصمیم امروز؛ بدون ورود به جزئیات فنی.</p>
+            </div>
+            <button class="presentation-close" id="presentationCloseButton" type="button" aria-label="پایان ارائه">×</button>
+          </div>
+          <ol class="presentation-steps" aria-label="مراحل ارائه">
+            <li><button type="button" data-presentation-step="0"><span>۱</span><strong>مسئله</strong><small>چه کسی در خطر است؟</small></button></li>
+            <li><button type="button" data-presentation-step="1"><span>۲</span><strong>تصمیم</strong><small>کجا اقدام کنیم؟</small></button></li>
+            <li><button type="button" data-presentation-step="2"><span>۳</span><strong>اثبات</strong><small>چرا اعتماد کنیم؟</small></button></li>
+          </ol>
+          <div class="presentation-guide-actions">
+            <button class="secondary-button" id="presentationPreviousButton" type="button">مرحله قبل</button>
+            <div class="presentation-progress" role="progressbar" aria-label="پیشرفت ارائه" aria-valuemin="1" aria-valuemax="3" aria-valuenow="1"><span id="presentationProgressBar"></span></div>
+            <button class="primary-button" id="presentationNextButton" type="button">مرحله بعد</button>
+            <button class="secondary-button" id="presentationReportButton" type="button" hidden>گزارش مدیریتی</button>
+          </div>
         </section>
 
         <section class="command-hero" id="command" aria-labelledby="pulseHeadline">

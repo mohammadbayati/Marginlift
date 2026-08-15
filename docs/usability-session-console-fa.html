@@ -47,6 +47,11 @@
     .brand strong { display: block; font-size: 18px; line-height: 1.25; }
     .brand span { display: block; color: var(--muted); font-size: 13px; }
     .privacy-note { max-width: 48ch; margin: 0; color: var(--muted); font-size: 13px; text-align: start; }
+    .console-boundary { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 14px 28px; border-bottom: 1px solid #d7e1f3; background: #f1f5ff; }
+    .console-boundary div { display: grid; gap: 2px; }
+    .console-boundary strong { color: #214a9d; font-size: 14px; }
+    .console-boundary span { color: #53647d; font-size: 12px; }
+    .console-boundary a { flex: 0 0 auto; min-height: 40px; display: inline-flex; align-items: center; padding: 8px 14px; border: 1px solid #9eb4df; border-radius: 4px; color: #173f8e; background: #fff; font-size: 13px; font-weight: 720; text-decoration: none; }
 
     .intro { padding: 46px 28px 34px; background: var(--ink); color: #fff; display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr); gap: 36px; align-items: end; }
     .eyebrow { margin: 0 0 8px; color: #62e1ba; font-size: 13px; font-weight: 700; }
@@ -130,6 +135,8 @@
       .shell { width: 100%; margin: 0; border-inline: 0; box-shadow: none; }
       .topbar, .intro, form > section, .saved-section, .form-actions { padding-inline: 18px; }
       .topbar { align-items: flex-start; flex-direction: column; }
+      .console-boundary { align-items: stretch; flex-direction: column; padding-inline: 18px; }
+      .console-boundary a { justify-content: center; }
       .intro { grid-template-columns: 1fr; }
       .session-clock { border-inline-start: 0; border-top: 1px solid #3b4650; padding: 20px 0 0; }
       .clock-value { text-align: start; }
@@ -170,6 +177,11 @@
       </div>
       <p class="privacy-note">نام، ایمیل یا داده سازمانی شرکت‌کننده را وارد نکنید. تمام اطلاعات این صفحه فقط در همین مرورگر ذخیره می‌شود.</p>
     </header>
+
+    <aside class="console-boundary" aria-label="تفکیک ارائه و آزمون">
+      <div><strong>این صفحه برای ارائه به مشتری نیست.</strong><span>برای دمو، حالت سه‌مرحله‌ای محصول را باز کنید. این کنسول فقط بعداً برای QA داخلی استفاده می‌شود.</span></div>
+      <a href="https://marginlift.ir/login?present=1" target="_blank" rel="noopener">بازکردن حالت ارائه</a>
+    </aside>
 
     <main id="mainContent" tabindex="-1">
       <section class="intro" aria-labelledby="pageTitle">

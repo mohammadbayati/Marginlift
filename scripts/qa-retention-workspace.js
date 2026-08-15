@@ -69,6 +69,7 @@ async function run() {
     await cdp.send("Page.navigate", { url: `${baseUrl}/login` });
     await waitForProductReady(cdp);
     const typography = await auditRenderedTypography(cdp, typographyStatus);
+    const presentation = await auditPresentationMode(cdp);
 
     const productSkipLink = await auditSkipLink(cdp, "product");
     await capture(cdp, 1440, 1000, "qa-command-desktop.png", false, "#command");
@@ -158,6 +159,7 @@ async function run() {
       authSkipLink,
       authKeyboard,
       authAccessibility,
+      presentation,
       product: diagnostics,
       productSkipLink,
       productKeyboard,
@@ -180,6 +182,59 @@ async function run() {
       // Windows can keep the headless profile locked briefly after Chrome exits.
     }
   }
+}
+
+async function auditPresentationMode(cdp) {
+  const results = [];
+  const expectedVisibleCounts = [3, 2, 1];
+  for (const viewport of [
+    { name: "desktop", width: 1440, height: 1000, mobile: false },
+    { name: "mobile", width: 390, height: 844, mobile: true }
+  ]) {
+    await cdp.send("Emulation.setDeviceMetricsOverride", {
+      width: viewport.width,
+      height: viewport.height,
+      deviceScaleFactor: 1,
+      mobile: viewport.mobile,
+      screenWidth: viewport.width,
+      screenHeight: viewport.height
+    });
+    await evaluate(cdp, "setPresentationMode(true)");
+    await delay(350);
+
+    for (let step = 0; step < 3; step += 1) {
+      await evaluate(cdp, `presentationStepIndex = ${step}; renderPresentationStep(false)`);
+      await delay(250);
+      const diagnostics = await evaluate(cdp, `(() => {
+        const candidates = ['command', 'snapshot', 'metricGrid', 'customers', 'decisions', 'experiments'];
+        const visible = candidates.filter(id => {
+          const element = document.getElementById(id);
+          if (!element) return false;
+          const style = getComputedStyle(element);
+          const rect = element.getBoundingClientRect();
+          return style.display !== 'none' && rect.width > 0 && rect.height > 0;
+        });
+        const report = document.getElementById('presentationReportButton');
+        return {
+          modeActive: document.body.classList.contains('presentation-mode'),
+          guideVisible: getComputedStyle(document.getElementById('presentationGuide')).display !== 'none',
+          sidebarHidden: getComputedStyle(document.getElementById('productSidebar')).display === 'none',
+          activeStepCount: document.querySelectorAll('[data-presentation-step].active').length,
+          currentContentCount: document.querySelectorAll('.is-presentation-current').length,
+          visible,
+          reportVisible: getComputedStyle(report).display !== 'none',
+          horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth
+        };
+      })()`);
+      if (!diagnostics.modeActive || !diagnostics.guideVisible || !diagnostics.sidebarHidden || diagnostics.activeStepCount !== 1 || diagnostics.currentContentCount !== expectedVisibleCounts[step] || diagnostics.visible.length !== expectedVisibleCounts[step] || diagnostics.reportVisible !== (step === 2) || diagnostics.horizontalOverflow) {
+        throw new Error(`Presentation diagnostics failed: ${viewport.name}/step-${step + 1} ${JSON.stringify(diagnostics)}`);
+      }
+      results.push({ viewport: viewport.name, step: step + 1, ...diagnostics });
+      await capture(cdp, viewport.width, viewport.height, `qa-presentation-${viewport.name}-step-${step + 1}.png`, viewport.mobile, "#presentationGuide");
+    }
+    await evaluate(cdp, "setPresentationMode(false)");
+  }
+  return results;
 }
 
 async function prepareDemoWorkspace() {

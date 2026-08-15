@@ -464,6 +464,129 @@ button:disabled { cursor: not-allowed; opacity: .48; box-shadow: none !important
 .limitations-panel { margin-block-start: 38px; border-color: #ead8b8; background: #fffcf6; }
 .dashboard-footer { margin-block-start: 20px; border-block-start: 1px solid var(--line); }
 
+/* Presentation mode: one decision story, three steps, no operational noise. */
+.presentation-launch-button {
+  min-height: 34px;
+  padding-inline: 12px;
+  border: 1px solid #b9c9ee;
+  border-radius: var(--radius-md);
+  color: var(--decision-deep);
+  background: #f8faff;
+  font: 650 .64rem/1.4 var(--font-fa);
+  cursor: pointer;
+  transition: color var(--motion-fast), border-color var(--motion-fast), background-color var(--motion-fast), transform 100ms var(--ease-standard);
+}
+.presentation-launch-button:hover { border-color: #8fa8e5; background: var(--decision-soft); }
+.presentation-launch-button[aria-pressed="true"] { color: #fff; border-color: var(--decision); background: var(--decision); }
+.presentation-guide[hidden] { display: none !important; }
+.presentation-guide {
+  position: sticky;
+  z-index: 35;
+  top: 68px;
+  width: min(100%, var(--content-width));
+  margin: 14px auto 12px;
+  padding: 17px 19px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, .97);
+  box-shadow: 0 12px 32px rgba(18, 22, 29, .1);
+  backdrop-filter: blur(18px) saturate(125%);
+}
+.presentation-guide-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  gap: 20px;
+  align-items: start;
+}
+.presentation-kicker { margin: 0 0 3px; color: var(--profit); font-size: .62rem; font-weight: 720; }
+.presentation-guide h1 { max-width: 44ch; margin: 0; font-size: 1.12rem; font-weight: 720; line-height: 1.55; }
+.presentation-guide-head p:last-child { max-width: 76ch; margin: 4px 0 0; color: var(--muted); font-size: .69rem; line-height: 1.8; }
+.presentation-close {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  color: var(--muted);
+  background: var(--surface-subtle);
+  font: 500 1.15rem/1 var(--font-fa);
+  cursor: pointer;
+}
+.presentation-close:hover { color: var(--ink); border-color: var(--line-strong); background: #fff; }
+.presentation-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin: 13px 0;
+  padding: 0;
+  list-style: none;
+}
+.presentation-steps button {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 9px;
+  width: 100%;
+  min-height: 55px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  color: var(--ink-soft);
+  background: var(--surface-subtle);
+  text-align: start;
+  cursor: pointer;
+}
+.presentation-steps button > span {
+  grid-row: 1 / 3;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  align-self: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  color: var(--muted);
+  background: #fff;
+  font-size: .64rem;
+  font-weight: 700;
+}
+.presentation-steps strong { align-self: end; font-size: .67rem; font-weight: 680; }
+.presentation-steps small { align-self: start; color: var(--muted); font-size: .57rem; }
+.presentation-steps button:hover { border-color: #afbad0; background: #fff; }
+.presentation-steps button.active { color: var(--decision-deep); border-color: #a9bce9; background: var(--decision-soft); }
+.presentation-steps button.active > span { color: #fff; border-color: var(--decision); background: var(--decision); }
+.presentation-guide-actions {
+  display: grid;
+  grid-template-columns: auto minmax(120px, 1fr) auto auto;
+  gap: 9px;
+  align-items: center;
+}
+.presentation-guide-actions .primary-button,
+.presentation-guide-actions .secondary-button { min-height: 36px; padding-inline: 13px; font-size: .63rem; }
+#presentationReportButton[hidden] { display: none !important; }
+.presentation-progress { height: 5px; overflow: hidden; border-radius: 5px; background: var(--surface-strong); }
+.presentation-progress > span { display: block; width: 33.333%; height: 100%; background: var(--profit); transition: width var(--motion-base) var(--ease-standard); }
+
+body.presentation-mode .sidebar,
+body.presentation-mode .sidebar-scrim,
+body.presentation-mode .workspace-bar,
+body.presentation-mode .dashboard > .command-hero,
+body.presentation-mode .dashboard > .snapshot-panel,
+body.presentation-mode .dashboard > .metric-grid,
+body.presentation-mode .dashboard > .content-section,
+body.presentation-mode .dashboard > .limitations-panel,
+body.presentation-mode .dashboard > .dashboard-footer { display: none; }
+body.presentation-mode .app-shell { grid-template-columns: minmax(0, 1fr); }
+body.presentation-mode .dashboard { width: 100%; max-width: 1500px; margin-inline: auto; }
+body.presentation-mode .topbar { position: sticky; z-index: 40; top: 0; }
+body.presentation-mode .dashboard > .command-hero.is-presentation-current { display: grid; margin-block-start: 0; }
+body.presentation-mode .dashboard > .snapshot-panel.is-presentation-current { display: block; }
+body.presentation-mode .dashboard > .metric-grid.is-presentation-current { display: grid; }
+body.presentation-mode .dashboard > .content-section.is-presentation-current { display: block; padding-block-start: 16px; }
+body.presentation-mode #experiments .flow-panel { display: none; }
+
 /* Data movement is state feedback, not page-load theatre. */
 .motion-enabled .qini-track span,
 .motion-enabled .signal-rule span,
@@ -511,6 +634,7 @@ button:disabled { cursor: not-allowed; opacity: .48; box-shadow: none !important
 
   .dashboard { padding-block-end: 30px; }
   .topbar-actions { gap: 4px; }
+  .presentation-launch-button { padding-inline: 9px; }
   .live-status { display: none; }
   .topbar-user { display: none; }
   .workspace-bar { margin-block-end: 9px; }
@@ -534,6 +658,15 @@ button:disabled { cursor: not-allowed; opacity: .48; box-shadow: none !important
   .contact-gate-metrics > div + div { border-block-start: 1px solid var(--line); }
   .retention-export-tools { display: grid; grid-template-columns: 1fr; width: 100%; }
   .retention-export-tools select, .retention-export-tools button { width: 100%; }
+
+  .presentation-guide { position: static; margin-block-start: 10px; padding: 14px; }
+  .presentation-guide h1 { font-size: .96rem; }
+  .presentation-steps { grid-template-columns: 1fr; }
+  .presentation-steps button { min-height: 48px; }
+  .presentation-guide-actions { grid-template-columns: 1fr 1fr; }
+  .presentation-progress { grid-column: 1 / -1; grid-row: 1; }
+  .presentation-guide-actions .primary-button,
+  .presentation-guide-actions .secondary-button { width: 100%; }
 }
 
 @media (max-width: 430px) {
@@ -543,6 +676,7 @@ button:disabled { cursor: not-allowed; opacity: .48; box-shadow: none !important
   .auth-decision-label { align-items: flex-start; flex-direction: column; }
   .auth-preview-decision h3 { font-size: .96rem; }
   .topbar .text-button { display: none; }
+  .presentation-launch-button { min-height: 32px; font-size: .59rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

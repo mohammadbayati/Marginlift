@@ -15,6 +15,8 @@ let currentBehavioralWorkspace = null;
 let retentionPresets = [];
 let retentionCsvText = "";
 let retentionPreview = null;
+let presentationStepIndex = 0;
+const presentationRequested = new URLSearchParams(window.location.search).get("present") === "1";
 const MAX_IMPORT_FILE_BYTES = 1800000;
 
 function formatNumber(value) {
@@ -220,6 +222,116 @@ function setupNavigation() {
 
   const dateTarget = document.getElementById("topbarDate");
   if (dateTarget) dateTarget.textContent = `آخرین به‌روزرسانی: ${new Date().toLocaleDateString("fa-IR")}`;
+}
+
+function getPresentationSteps() {
+  const audience = currentOverview?.summary?.atRiskAudience || 0;
+  const queueSize = currentOverview?.decisionQueue?.length || 0;
+  const readiness = currentOverview?.readiness?.score || 0;
+  const outcome = currentPilotState?.outcome;
+  const snapshot = currentPilotState?.savingsSnapshot;
+  const outcomeTitle = outcome?.summary?.recommendationFa
+    ? `نتیجه پایلوت: ${outcome.summary.recommendationFa}`
+    : "پیش از افزایش بودجه، اثر واقعی باید با گروه کنترل سنجیده شود.";
+  const outcomeSummary = outcome
+    ? `${snapshot?.evidenceTagFa || "نتیجه پایلوت"}؛ سود افزایشی مشاهده‌شده ${formatMoney(outcome.summary.observedIncrementalProfit)} است و محدودیت تصمیم کنار آن نمایش داده می‌شود.`
+    : "هر عدد مالی با نوع شواهد نمایش داده می‌شود؛ برآورد تاریخی جای نتیجه افزایشی تأییدشده را نمی‌گیرد.";
+
+  return [
+    {
+      kicker: "۱ از ۳ · مسئله",
+      title: `${formatNumber(audience)} مشتری در معرض ریزش‌اند؛ اما ریسک بالا به‌تنهایی مجوز تخفیف نیست.`,
+      summary: `آمادگی داده اکنون ${formatPercent(readiness)} است. ابتدا کیفیت شواهد و ارزش اقتصادی هر تصمیم بررسی می‌شود.`,
+      contentIds: ["command", "snapshot", "metricGrid"]
+    },
+    {
+      kicker: "۲ از ۳ · تصمیم",
+      title: `برای ${formatNumber(queueSize)} گروه مشتری، اقدام متناسب با سود و قابلیت نجات پیشنهاد شده است.`,
+      summary: "خروجی اصلی یک صف اقدام است: بدون اقدام، تماس کم‌هزینه، آزمایش بیشتر یا مشوق هدفمند؛ نه تخفیف یکسان برای همه.",
+      contentIds: ["customers", "decisions"]
+    },
+    {
+      kicker: "۳ از ۳ · اثبات",
+      title: outcomeTitle,
+      summary: outcomeSummary,
+      contentIds: ["experiments"]
+    }
+  ];
+}
+
+function renderPresentationStep(shouldScroll = true) {
+  if (!document.body.classList.contains("presentation-mode")) return;
+  const steps = getPresentationSteps();
+  const step = steps[presentationStepIndex];
+  document.getElementById("presentationKicker").textContent = step.kicker;
+  document.getElementById("presentationTitle").textContent = step.title;
+  document.getElementById("presentationSummary").textContent = step.summary;
+
+  document.querySelectorAll(".is-presentation-current").forEach(element => element.classList.remove("is-presentation-current"));
+  step.contentIds.forEach(id => document.getElementById(id)?.classList.add("is-presentation-current"));
+
+  document.querySelectorAll("[data-presentation-step]").forEach(button => {
+    const active = Number(button.dataset.presentationStep) === presentationStepIndex;
+    button.classList.toggle("active", active);
+    if (active) button.setAttribute("aria-current", "step");
+    else button.removeAttribute("aria-current");
+  });
+
+  const previousButton = document.getElementById("presentationPreviousButton");
+  const nextButton = document.getElementById("presentationNextButton");
+  const reportButton = document.getElementById("presentationReportButton");
+  const progress = document.querySelector(".presentation-progress");
+  previousButton.disabled = presentationStepIndex === 0;
+  nextButton.textContent = presentationStepIndex === steps.length - 1 ? "پایان ارائه" : "مرحله بعد";
+  reportButton.hidden = presentationStepIndex !== steps.length - 1;
+  document.getElementById("presentationProgressBar").style.width = `${((presentationStepIndex + 1) / steps.length) * 100}%`;
+  progress?.setAttribute("aria-valuenow", String(presentationStepIndex + 1));
+
+  if (shouldScroll) {
+    requestAnimationFrame(() => document.getElementById("presentationGuide")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
+}
+
+function setPresentationMode(active) {
+  const button = document.getElementById("presentationModeButton");
+  const guide = document.getElementById("presentationGuide");
+  document.body.classList.toggle("presentation-mode", active);
+  guide.hidden = !active;
+  button.setAttribute("aria-pressed", String(active));
+  button.textContent = active ? "پایان ارائه" : "شروع ارائه";
+  if (active) {
+    presentationStepIndex = 0;
+    renderPresentationStep();
+  } else {
+    document.querySelectorAll(".is-presentation-current").forEach(element => element.classList.remove("is-presentation-current"));
+    document.getElementById("command")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
+function setupPresentationMode() {
+  const modeButton = document.getElementById("presentationModeButton");
+  modeButton.addEventListener("click", () => setPresentationMode(!document.body.classList.contains("presentation-mode")));
+  document.getElementById("presentationCloseButton").addEventListener("click", () => setPresentationMode(false));
+  document.getElementById("presentationPreviousButton").addEventListener("click", () => {
+    presentationStepIndex = Math.max(0, presentationStepIndex - 1);
+    renderPresentationStep();
+  });
+  document.getElementById("presentationNextButton").addEventListener("click", () => {
+    const finalStep = getPresentationSteps().length - 1;
+    if (presentationStepIndex === finalStep) return setPresentationMode(false);
+    presentationStepIndex += 1;
+    renderPresentationStep();
+  });
+  document.getElementById("presentationReportButton").addEventListener("click", () => {
+    window.open("/executive-report.html", "_blank", "noopener");
+  });
+  document.querySelectorAll("[data-presentation-step]").forEach(button => button.addEventListener("click", () => {
+    presentationStepIndex = Number(button.dataset.presentationStep);
+    renderPresentationStep();
+  }));
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && document.body.classList.contains("presentation-mode")) setPresentationMode(false);
+  });
 }
 
 function renderMetrics() {
@@ -740,6 +852,7 @@ async function loadDashboard() {
   renderRetentionWorkspace();
   renderRetentionShadow();
   renderBehavioralWorkspace();
+  if (document.body.classList.contains("presentation-mode")) renderPresentationStep(false);
   window.MarginLiftMotion?.refresh(document.getElementById("appShell"));
 }
 
@@ -797,6 +910,7 @@ async function enterApp() {
     document.getElementById("topbarAvatar").textContent = displayName.trim().slice(0, 1) || "م";
     applyRoleAccess();
     await loadDashboard();
+    if (presentationRequested) setPresentationMode(true);
   } catch (error) {
     setMessage("loginMessage", error.message, "error");
   }
@@ -1175,6 +1289,7 @@ async function init() {
   setupAuth();
   setupFileControls();
   setupNavigation();
+  setupPresentationMode();
   setupUpload();
   setupActions();
   setupRetentionWorkspace();

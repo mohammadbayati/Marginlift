@@ -95,6 +95,8 @@ async function run() {
     const productLogin = await request("/login");
     assert(productLogin.payload.includes('id="authShell"'));
     assert(productLogin.payload.includes('id="appShell"'));
+    assert(productLogin.payload.includes('id="presentationModeButton"'));
+    assert(productLogin.payload.includes('id="presentationGuide"'));
 
     const fontAsset = await request("/fonts/Estedad-Variable.woff2");
     assert.strictEqual(fontAsset.response.status, 200);

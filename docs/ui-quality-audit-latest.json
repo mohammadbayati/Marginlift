@@ -1,8 +1,8 @@
 {
   "environment": {
-    "baseUrl": "https://marginlift.ir",
-    "readOnly": true,
-    "expectedFont": "Vazirmatn"
+    "baseUrl": "http://127.0.0.1:3004",
+    "readOnly": false,
+    "expectedFont": null
   },
   "auth": {
     "viewport": {
@@ -40,13 +40,105 @@
     "visibleFocusFailures": 0
   },
   "authAccessibility": {
-    "nodes": 151,
+    "nodes": 158,
     "mains": 1,
     "headings": 3,
     "buttons": 2,
     "links": 4,
     "unnamedControls": 0
   },
+  "presentation": [
+    {
+      "viewport": "desktop",
+      "step": 1,
+      "modeActive": true,
+      "guideVisible": true,
+      "sidebarHidden": true,
+      "activeStepCount": 1,
+      "currentContentCount": 3,
+      "visible": [
+        "command",
+        "snapshot",
+        "metricGrid"
+      ],
+      "reportVisible": false,
+      "horizontalOverflow": false
+    },
+    {
+      "viewport": "desktop",
+      "step": 2,
+      "modeActive": true,
+      "guideVisible": true,
+      "sidebarHidden": true,
+      "activeStepCount": 1,
+      "currentContentCount": 2,
+      "visible": [
+        "customers",
+        "decisions"
+      ],
+      "reportVisible": false,
+      "horizontalOverflow": false
+    },
+    {
+      "viewport": "desktop",
+      "step": 3,
+      "modeActive": true,
+      "guideVisible": true,
+      "sidebarHidden": true,
+      "activeStepCount": 1,
+      "currentContentCount": 1,
+      "visible": [
+        "experiments"
+      ],
+      "reportVisible": true,
+      "horizontalOverflow": false
+    },
+    {
+      "viewport": "mobile",
+      "step": 1,
+      "modeActive": true,
+      "guideVisible": true,
+      "sidebarHidden": true,
+      "activeStepCount": 1,
+      "currentContentCount": 3,
+      "visible": [
+        "command",
+        "snapshot",
+        "metricGrid"
+      ],
+      "reportVisible": false,
+      "horizontalOverflow": false
+    },
+    {
+      "viewport": "mobile",
+      "step": 2,
+      "modeActive": true,
+      "guideVisible": true,
+      "sidebarHidden": true,
+      "activeStepCount": 1,
+      "currentContentCount": 2,
+      "visible": [
+        "customers",
+        "decisions"
+      ],
+      "reportVisible": false,
+      "horizontalOverflow": false
+    },
+    {
+      "viewport": "mobile",
+      "step": 3,
+      "modeActive": true,
+      "guideVisible": true,
+      "sidebarHidden": true,
+      "activeStepCount": 1,
+      "currentContentCount": 1,
+      "visible": [
+        "experiments"
+      ],
+      "reportVisible": true,
+      "horizontalOverflow": false
+    }
+  ],
   "product": {
     "viewport": {
       "width": 390,
@@ -74,10 +166,10 @@
     "visibleFocusFailures": 0
   },
   "productAccessibility": {
-    "nodes": 3481,
+    "nodes": 4015,
     "mains": 1,
-    "headings": 57,
-    "buttons": 22,
+    "headings": 59,
+    "buttons": 24,
     "links": 20,
     "unnamedControls": 0
   },
@@ -261,9 +353,9 @@
         "movedFocus": true
       },
       "accessibility": {
-        "nodes": 216,
+        "nodes": 544,
         "mains": 1,
-        "headings": 11,
+        "headings": 14,
         "buttons": 1,
         "links": 2,
         "unnamedControls": 0
