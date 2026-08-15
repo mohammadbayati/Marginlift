@@ -1,10 +1,14 @@
-const { initializeStorage, storageDriver, storageHealth } = require("../src/storage");
+const { closeStorage, initializeStorage, storageDriver, storageHealth } = require("../src/storage");
 
 async function run() {
-  await initializeStorage();
-  const health = await storageHealth();
-  if (health.status !== "ok") throw new Error("Storage migration health check failed.");
-  console.log(`MarginLift storage is ready on ${storageDriver}.`);
+  try {
+    await initializeStorage();
+    const health = await storageHealth();
+    if (health.status !== "ok") throw new Error("Storage migration health check failed.");
+    console.log(`MarginLift storage is ready on ${storageDriver}.`);
+  } finally {
+    await closeStorage();
+  }
 }
 
 run().catch(error => {

@@ -102,7 +102,7 @@ mv "$STAGE_DIR" "$APP_DIR"
 cd "$APP_DIR"
 chmod +x ops/vm/deploy.sh ops/vm/backup.sh ops/vm/verify-backup.sh ops/vm/install-backup-timer.sh
 docker compose -f docker-compose.production.yml up -d postgres
-docker compose -f docker-compose.production.yml run --rm app npm run db:migrate
+timeout 120s docker compose -f docker-compose.production.yml run --rm app npm run db:migrate
 docker compose -f docker-compose.production.yml up -d --force-recreate app
 docker compose -f docker-compose.production.yml up -d caddy
 docker compose -f docker-compose.production.yml exec -T app \
