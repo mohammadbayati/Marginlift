@@ -907,6 +907,7 @@ async function enterApp() {
     const displayName = session.user?.name || session.user?.email || "کاربر MarginLift";
     document.getElementById("topbarUser").textContent = displayName;
     document.getElementById("topbarRole").textContent = ({ viewer: "مشاهده‌گر", analyst: "تحلیل‌گر", admin: "مدیر", owner: "مالک فضای کاری" })[session.role] || session.role;
+    document.getElementById("usabilityConsoleLink").hidden = session.role !== "owner";
     document.getElementById("topbarAvatar").textContent = displayName.trim().slice(0, 1) || "م";
     applyRoleAccess();
     await loadDashboard();

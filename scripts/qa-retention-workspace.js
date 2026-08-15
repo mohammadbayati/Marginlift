@@ -10,7 +10,7 @@ const outputDir = path.join(__dirname, "..");
 const profileDir = path.join(os.tmpdir(), `marginlift-qa-${Date.now()}`);
 
 async function run() {
-  const { cookie: sessionCookie, readOnly } = await prepareDemoWorkspace();
+  const { cookie: sessionCookie, readOnly, role } = await prepareDemoWorkspace();
   const typographyResponse = await fetch(`${baseUrl}/api/font-status`);
   if (!typographyResponse.ok) throw new Error(`Typography status failed: ${typographyResponse.status}`);
   const typographyStatus = (await typographyResponse.json()).data;
@@ -68,6 +68,13 @@ async function run() {
     });
     await cdp.send("Page.navigate", { url: `${baseUrl}/login` });
     await waitForProductReady(cdp);
+    const usabilityAccess = await evaluate(cdp, `(() => {
+      const link = document.getElementById('usabilityConsoleLink');
+      return { exists: Boolean(link), hidden: Boolean(link?.hidden), href: link?.getAttribute('href') || '' };
+    })()`);
+    if (!usabilityAccess.exists || usabilityAccess.href !== "/internal/usability-test" || usabilityAccess.hidden !== (role !== "owner")) {
+      throw new Error(`Usability console role visibility failed: ${JSON.stringify({ role, usabilityAccess })}`);
+    }
     const typography = await auditRenderedTypography(cdp, typographyStatus);
     const presentation = await auditPresentationMode(cdp);
 
@@ -153,7 +160,7 @@ async function run() {
     }
     const publicSurfaces = await auditPublicSurfaces(cdp);
     const report = {
-      environment: { baseUrl, readOnly, expectedFont: expectedFont || null },
+      environment: { baseUrl, readOnly, role, expectedFont: expectedFont || null },
       auth: authDiagnostics,
       typography,
       authSkipLink,
@@ -249,7 +256,10 @@ async function prepareDemoWorkspace() {
   if (!login.ok) throw new Error(`Demo login failed: ${login.status}`);
   const cookie = login.headers.get("set-cookie")?.split(";")[0];
   if (!cookie) throw new Error("Demo session cookie was not returned.");
-  if (readOnly) return { cookie, readOnly: true };
+  const sessionResponse = await fetch(`${baseUrl}/api/session`, { headers: { Cookie: cookie } });
+  if (!sessionResponse.ok) throw new Error(`Demo session lookup failed: ${sessionResponse.status}`);
+  const role = (await sessionResponse.json()).data?.role || "viewer";
+  if (readOnly) return { cookie, readOnly: true, role };
   const headers = { "Content-Type": "application/json", Cookie: cookie };
   const configuration = await fetch(`${baseUrl}/api/retention/configuration`, {
     method: "PATCH",
@@ -268,7 +278,7 @@ async function prepareDemoWorkspace() {
     body: JSON.stringify({ name: "دموی نگهداشت بسته اینترنت", cutoff: "2026-02-01", csvText })
   });
   if (!analysis.ok) throw new Error(`Retention import failed: ${analysis.status}`);
-  return { cookie, readOnly: false };
+  return { cookie, readOnly: false, role };
 }
 
 async function capture(cdp, width, height, filename, mobile = false, selector = "#retention") {

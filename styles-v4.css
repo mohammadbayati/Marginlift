@@ -253,6 +253,7 @@ button:active:not(:disabled), .button-link:active { transform: scale(.98); }
 }
 .side-nav a:hover { color: #f3f5f7; background: #202630; }
 .side-nav a.active { color: #fff; background: #272e38; box-shadow: inset -2px 0 var(--profit-bright); font-weight: 650; }
+.side-nav a[hidden] { display: none !important; }
 .nav-index { display: none; }
 .sidebar-footer { border-color: rgba(255,255,255,.08); }
 .sidebar-footer > span, .sidebar-footer p { color: #747f8d; }
