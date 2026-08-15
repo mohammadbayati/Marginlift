@@ -41,3 +41,5 @@
 - `npm test` شامل منطق ریسک، سیاست مشوق، API، RBAC و داده مرزی پاس شد.
 - `npm run ui:qa` روی دسکتاپ و موبایل بدون overflow، کنترل بی‌نام یا شکست keyboard/AX Tree پاس شد.
 - تصاویر مستقیم `qa-retention-desktop.png`، `qa-retention-mobile.png`، `qa-retention-onboarding-mobile.png` و `qa-retention-analysis-mobile.png` بازبینی شدند.
+- QA پس از استقرار نیز با `baseUrl=https://marginlift.ir` و نقش `viewer` اجرا شد: صفحه ورود و محصول بدون overflow، تمام شش حالت Presentation در دسکتاپ و موبایل، ۲۰ بررسی صفحات عمومی، Skip Link، Tab، AX Tree و edge content همگی پاس شدند.
+- AX Tree تولید شامل یک `main`، ۵۷ heading، ۲۱ button و ۲۰ link بود و هیچ کنترل بی‌نامی گزارش نشد.
