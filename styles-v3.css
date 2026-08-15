@@ -100,7 +100,7 @@ bdi, code, [dir="ltr"] { direction: ltr; }
 .motion-enabled .pulse-meter span {
   transform: scaleX(0);
   transform-origin: right center;
-  transition: width var(--motion-base) var(--ease-standard), transform var(--motion-slow) var(--ease-standard);
+  transition: transform var(--motion-slow) var(--ease-standard);
 }
 
 .motion-enabled .motion-data-ready span { transform: scaleX(1); }
@@ -567,7 +567,7 @@ main[tabindex="-1"]:focus { outline: none; }
 .pulse-score strong { color: var(--ink); font-size: 2.5rem; line-height: 1; }
 .pulse-score span { color: var(--muted); font-size: .72rem; }
 .pulse-meter { height: 5px; overflow: hidden; background: var(--line); border-radius: 999px; }
-.pulse-meter span { display: block; width: 0; height: 100%; background: var(--profit); transition: width 220ms cubic-bezier(.22, 1, .36, 1); }
+.pulse-meter span { display: block; width: 0; height: 100%; background: var(--profit); }
 .pulse-foot { margin-block-start: auto; padding-block-start: 20px; color: var(--muted); font-size: .72rem; }
 .pulse-foot strong { color: var(--ink); font-size: 1rem; }
 
@@ -1250,7 +1250,7 @@ main[tabindex="-1"]:focus { outline: none; }
 .retention-state-row > div:first-child strong { color: var(--ink); }
 .retention-state-row > bdi { color: var(--muted); font-size: .63rem; text-align: left; }
 .retention-state-track { height: 8px; overflow: hidden; border-radius: 4px; background: var(--surface-strong); }
-.retention-state-track span { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--profit); transition: width var(--motion-slow) var(--ease-standard); }
+.retention-state-track span { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--profit); }
 .retention-state-row:nth-child(2) .retention-state-track span { background: var(--decision); }
 .retention-state-row:nth-child(3) .retention-state-track span { background: #d28a18; }
 .retention-state-row:nth-child(4) .retention-state-track span { background: var(--danger); }
