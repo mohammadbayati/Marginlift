@@ -106,6 +106,8 @@ async function run() {
     const missingLicensedFont = await request("/fonts/IRANSansX-Variable.woff2");
     assert.strictEqual(missingLicensedFont.response.status, 404);
     assert.strictEqual(missingLicensedFont.payload.error.code, "LICENSED_FONT_NOT_READY");
+    const anonymousUsabilityConsole = await request("/internal/usability-test");
+    assert.strictEqual(anonymousUsabilityConsole.response.status, 401);
 
     const signup = await request("/api/auth/signup", {
       method: "POST",
@@ -135,6 +137,14 @@ async function run() {
     assert.strictEqual(tamperedSession.response.status, 200);
     assert.strictEqual(tamperedSession.payload.data, null);
 
+    const ownerUsabilityConsole = await request("/internal/usability-test", { cookie });
+    assert.strictEqual(ownerUsabilityConsole.response.status, 200);
+    assert.match(String(ownerUsabilityConsole.payload), /سه جلسه واقعی، یک تصمیم قابل دفاع/);
+    assert.match(String(ownerUsabilityConsole.payload), /\/internal\/usability-session\.js/);
+    const ownerUsabilityScript = await request("/internal/usability-session.js", { cookie });
+    assert.strictEqual(ownerUsabilityScript.response.status, 200);
+    assert.match(String(ownerUsabilityScript.payload), /MarginLiftUsability/);
+
     const memberEmail = `viewer-${Date.now()}@marginlift.ir`;
     const member = await request("/api/access/members", {
       method: "POST",
@@ -160,6 +170,8 @@ async function run() {
     assert.strictEqual(viewerWrite.payload.error.code, "INSUFFICIENT_ROLE");
     const viewerOps = await request("/api/ops/metrics", { cookie: viewerCookie });
     assert.strictEqual(viewerOps.response.status, 403);
+    const viewerUsabilityConsole = await request("/internal/usability-test", { cookie: viewerCookie });
+    assert.strictEqual(viewerUsabilityConsole.response.status, 403);
 
     const expiredMemberEmail = `expired-${Date.now()}@marginlift.ir`;
     const expiredMember = await request("/api/access/members", {

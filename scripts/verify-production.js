@@ -104,6 +104,16 @@ async function main() {
   assert.strictEqual(session.payload.data.role, expectedRole);
   evidence.push(`login:${expectedRole}`);
 
+  const usabilityConsole = await request("/internal/usability-test", { cookie });
+  if (expectedRole === "owner") {
+    expectStatus(usabilityConsole, 200, "owner usability console");
+    assert.match(String(usabilityConsole.payload), /سه جلسه واقعی، یک تصمیم قابل دفاع/);
+    evidence.push("usability-console:owner-only:200");
+  } else {
+    expectStatus(usabilityConsole, 403, "viewer usability console");
+    evidence.push("usability-console:viewer-forbidden:403");
+  }
+
   const readableRoutes = [
     "/api/campaigns/current",
     "/api/decision-engine/overview",

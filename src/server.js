@@ -116,6 +116,17 @@ async function handleRequest(req, res) {
       return;
     }
 
+    if (url.pathname === "/internal/usability-test" || url.pathname === "/internal/usability-session.js") {
+      if (req.method !== "GET" && req.method !== "HEAD") {
+        sendJson(res, 405, { error: { code: "METHOD_NOT_ALLOWED", message: "این مسیر فقط برای مشاهده است." } });
+        return;
+      }
+      const auth = await requireSession(req);
+      requireRole(auth, "owner");
+      serveInternalUsability(url.pathname, req, res);
+      return;
+    }
+
     if (req.method !== "GET" && req.method !== "HEAD") {
       sendJson(res, 405, { error: { code: "METHOD_NOT_ALLOWED", message: "این مسیر فقط برای خواندن فایل‌های دمو است." } });
       return;
@@ -2352,6 +2363,20 @@ function serveStatic(requestPath, req, res) {
   }
   const extension = path.extname(filePath);
   serveFile(filePath, req, res, contentTypes[extension] || "application/octet-stream");
+}
+
+function serveInternalUsability(requestPath, req, res) {
+  if (requestPath === "/internal/usability-session.js") {
+    serveFile(path.join(publicRoot, "src", "usability-session.js"), req, res, "application/javascript; charset=utf-8");
+    return;
+  }
+  const source = fs.readFileSync(path.join(publicRoot, "docs", "usability-session-console-fa.html"), "utf8");
+  const html = source.replace(
+    '<script src="../src/usability-session.js"></script>',
+    '<script src="/internal/usability-session.js"></script>'
+  );
+  res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });
+  res.end(req.method === "HEAD" ? undefined : html);
 }
 
 function serveFile(filePath, req, res, contentType) {

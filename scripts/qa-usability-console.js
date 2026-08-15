@@ -80,8 +80,9 @@ async function run() {
       const screenshot = await cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
       fs.writeFileSync(path.join(rootDir, `qa-usability-console-${viewport.name}.png`), Buffer.from(screenshot.data, "base64"));
       const keyboard = await auditKeyboard(cdp, viewport.name);
+      const workflow = await auditWorkflow(cdp, viewport.name);
       const interaction = await auditInteraction(cdp);
-      results.push({ viewport: viewport.name, ...diagnostics, accessibility, keyboard, interaction });
+      results.push({ viewport: viewport.name, ...diagnostics, accessibility, keyboard, workflow, interaction });
     }
 
     const failures = results.flatMap(result => {
@@ -92,6 +93,7 @@ async function run() {
       if (result.horizontalOverflow || result.offenders.length) items.push(`${result.viewport}: overflow ${JSON.stringify(result.offenders)}`);
       if (result.accessibility.unnamedControls.length) items.push(`${result.viewport}: unnamed controls ${JSON.stringify(result.accessibility.unnamedControls)}`);
       if (!result.keyboard.firstFocusIsSkipLink || result.keyboard.invisibleFocus.length) items.push(`${result.viewport}: keyboard ${JSON.stringify(result.keyboard)}`);
+      if (!result.workflow.setupOnly || !result.workflow.tasksOnly || !result.workflow.singleTaskVisible || !result.workflow.finalOnly || !result.workflow.sessionTimerStarted || !result.workflow.durationCaptured || result.workflow.activeIndicator !== "workflowIndicator3") items.push(`${result.viewport}: workflow ${JSON.stringify(result.workflow)}`);
       if (!result.interaction.issueAdded || !result.interaction.screenReaderFieldsVisible || !result.interaction.screenReaderFieldsRequired || !result.interaction.sessionSaved || !result.interaction.issueLogCaptured || !result.interaction.exportEnabled) items.push(`${result.viewport}: interactions ${JSON.stringify(result.interaction)}`);
       return items;
     });
@@ -153,6 +155,56 @@ async function auditKeyboard(cdp, label) {
     }
   }
   return { label, checkedStops: stops.length, firstFocusIsSkipLink: stops[0]?.text === "رفتن به محتوای اصلی", invisibleFocus };
+}
+
+async function auditWorkflow(cdp, label) {
+  const setup = await evaluate(cdp, `(() => {
+    const setValue = (selector, value) => {
+      const control = document.querySelector(selector);
+      control.value = value;
+      control.dispatchEvent(new Event('input', { bubbles: true }));
+      control.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    setValue('#role', 'executive');
+    setValue('#moderatorId', 'M01');
+    setValue('#device', 'Windows laptop');
+    setValue('#browser', 'Chrome QA');
+    setValue('#inputMethod', 'keyboard and mouse');
+    setValue('#recordingConsent', 'no');
+    setValue('#evidenceReference', 'local/P01-session-notes.md');
+    const visibleBefore = [...document.querySelectorAll('[data-workflow-step]')].filter(node => !node.hidden).map(node => node.dataset.workflowStep);
+    document.querySelector('#startTestButton').click();
+    const visibleAfter = [...document.querySelectorAll('[data-workflow-step]')].filter(node => !node.hidden).map(node => node.dataset.workflowStep);
+    document.querySelector('#tasksTitle').scrollIntoView({ block: 'start' });
+    return {
+      setupOnly: visibleBefore.length === 2 && visibleBefore.every(step => step === '1'),
+      tasksOnly: visibleAfter.length === 1 && visibleAfter[0] === '2',
+      singleTaskVisible: [...document.querySelectorAll('.task-row')].filter(node => !node.hidden).length === 1,
+      sessionTimerStarted: document.querySelector('#sessionTimerButton').getAttribute('aria-pressed') === 'true'
+    };
+  })()`);
+  const tasksScreenshot = await cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
+  fs.writeFileSync(path.join(rootDir, `qa-usability-console-${label}-tasks.png`), Buffer.from(tasksScreenshot.data, "base64"));
+
+  const final = await evaluate(cdp, `(() => {
+    for (let index = 1; index <= 5; index += 1) {
+      const row = document.querySelector('[data-task="' + index + '"]');
+      row.querySelector('input[type="number"]').value = String(30 + index);
+      row.querySelector('input[type="checkbox"]').checked = true;
+      document.querySelector('#nextTaskButton').click();
+    }
+    document.querySelector('#durationMinutes').value = '25';
+    const visible = [...document.querySelectorAll('[data-workflow-step]')].filter(node => !node.hidden).map(node => node.dataset.workflowStep);
+    document.querySelector('#evidenceTitle').scrollIntoView({ block: 'start' });
+    return {
+      finalOnly: visible.length === 4 && visible.every(step => step === '3'),
+      durationCaptured: Number(document.querySelector('#durationMinutes').value) >= 1,
+      activeIndicator: document.querySelector('[aria-current="step"]')?.id || ''
+    };
+  })()`);
+  const finalScreenshot = await cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
+  fs.writeFileSync(path.join(rootDir, `qa-usability-console-${label}-review.png`), Buffer.from(finalScreenshot.data, "base64"));
+  return { ...setup, ...final };
 }
 
 async function auditInteraction(cdp) {

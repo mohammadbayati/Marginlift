@@ -36,6 +36,7 @@
     button, input, select, textarea { min-height: 44px; }
     button { cursor: pointer; }
     :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+    h2[tabindex="-1"]:focus-visible { outline: 0; }
     input[type="date"]:focus { outline: 3px solid var(--focus); outline-offset: 3px; }
     .skip-link { position: fixed; inset-block-start: 12px; inset-inline-start: 12px; z-index: 20; transform: translateY(-160%); background: var(--ink); color: #fff; padding: 10px 16px; }
     .skip-link:focus { transform: translateY(0); }
@@ -70,11 +71,21 @@
     .status-value.good { color: var(--mint); }
     .status-value.waiting { color: var(--amber); }
 
+    .workflow-nav { padding: 18px 28px; border-bottom: 1px solid var(--line); background: #fff; }
+    .workflow-nav ol { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
+    .workflow-nav li { min-height: 58px; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); color: var(--muted); background: var(--soft); }
+    .workflow-nav li::before { content: attr(data-step); flex: 0 0 30px; width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid #aebac1; color: var(--ink); background: #fff; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .workflow-nav li[aria-current="step"] { border-color: var(--mint); color: var(--ink); background: var(--mint-light); font-weight: 760; }
+    .workflow-nav li[aria-current="step"]::before { border-color: var(--ink); color: #fff; background: var(--ink); }
+    .workflow-nav li[data-complete="true"]::before { content: "✓"; border-color: var(--mint); color: #fff; background: var(--mint); }
+
     form > section, .saved-section { padding: 34px 28px; border-bottom: 1px solid var(--line); }
+    .workflow-step[hidden], .workflow-actions[hidden], .task-row[hidden] { display: none !important; }
     .section-head { display: flex; justify-content: space-between; gap: 24px; align-items: start; margin-bottom: 24px; }
     .section-index { flex: 0 0 38px; width: 38px; height: 38px; display: grid; place-items: center; background: var(--ink); color: #fff; font-weight: 800; font-variant-numeric: tabular-nums; }
     .section-title { flex: 1; }
     h2 { margin: 0; font-size: 23px; line-height: 1.3; }
+    h2[id] { scroll-margin-block-start: 18px; }
     .section-title p { max-width: 72ch; margin: 7px 0 0; color: var(--muted); font-size: 14px; text-wrap: pretty; }
 
     .field-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
@@ -103,6 +114,12 @@
     .seconds-field input { direction: ltr; text-align: center; font-variant-numeric: tabular-nums; padding-inline-end: 42px; }
     .seconds-field span { position: absolute; inset-inline-end: 11px; inset-block-start: 50%; transform: translateY(-50%); color: var(--muted); font-size: 12px; pointer-events: none; }
     .pass-check { min-height: 44px; display: flex; align-items: center; gap: 9px; font-size: 13px; }
+    .task-progress { color: var(--muted); font-size: 13px; font-weight: 700; }
+
+    .step-footer { padding: 22px 28px; display: flex; justify-content: space-between; align-items: center; gap: 16px; border-top: 1px solid var(--line); background: #fbfcfc; }
+    .step-footer-group { display: flex; align-items: center; gap: 12px; }
+    .step-message { margin: 0; color: var(--danger); font-size: 13px; font-weight: 700; }
+    .step-message.good { color: var(--mint); }
 
     .evidence-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
     .screen-reader-fields { grid-column: 1 / -1; padding: 20px; background: var(--soft); border-inline-start: 4px solid var(--mint); }
@@ -133,7 +150,7 @@
 
     @media (max-width: 840px) {
       .shell { width: 100%; margin: 0; border-inline: 0; box-shadow: none; }
-      .topbar, .intro, form > section, .saved-section, .form-actions { padding-inline: 18px; }
+      .topbar, .intro, .workflow-nav, form > section, .saved-section, .form-actions, .step-footer { padding-inline: 18px; }
       .topbar { align-items: flex-start; flex-direction: column; }
       .console-boundary { align-items: stretch; flex-direction: column; padding-inline: 18px; }
       .console-boundary a { justify-content: center; }
@@ -144,6 +161,8 @@
       .status-item { padding: 12px; border-bottom: 1px solid var(--line); }
       .status-item:nth-child(2) { border-inline-end: 0; }
       .status-item:nth-child(3), .status-item:nth-child(4) { border-bottom: 0; }
+      .workflow-nav ol { grid-template-columns: 1fr; }
+      .workflow-nav li { min-height: 48px; }
       .field-grid, .evidence-grid { grid-template-columns: 1fr; }
       .field-wide, .screen-reader-fields { grid-column: auto; }
       .task-row { grid-template-columns: 36px minmax(0, 1fr); }
@@ -151,6 +170,8 @@
       .issue-row { grid-template-columns: 1fr; }
       .remove-issue { justify-self: end; }
       .form-actions { align-items: stretch; flex-direction: column; }
+      .form-actions { position: static; }
+      .step-footer, .step-footer-group { align-items: stretch; flex-direction: column; }
       .primary-button { width: 100%; }
       .saved-row { grid-template-columns: 72px 1fr 44px; padding-block: 12px; }
       .saved-row .session-date, .saved-row .evidence-state { grid-column: 2; }
@@ -204,8 +225,16 @@
         <div class="status-item"><span class="status-label">کیفیت شواهد</span><strong class="status-value waiting" id="evidenceGate">در انتظار جلسه</strong></div>
       </section>
 
+      <nav class="workflow-nav" aria-label="مراحل ثبت جلسه">
+        <ol>
+          <li id="workflowIndicator1" data-step="۱" aria-current="step">آماده‌سازی</li>
+          <li id="workflowIndicator2" data-step="۲">اجرای کارها</li>
+          <li id="workflowIndicator3" data-step="۳">جمع‌بندی و ثبت</li>
+        </ol>
+      </nav>
+
       <form id="sessionForm" novalidate>
-        <section aria-labelledby="setupTitle">
+        <section class="workflow-step" data-workflow-step="1" aria-labelledby="setupTitle">
           <div class="section-head">
             <span class="section-index" aria-hidden="true">۱</span>
             <div class="section-title"><h2 id="setupTitle">مشخصات ناشناس جلسه</h2><p>فقط اطلاعاتی را ثبت کنید که برای اثبات واقعی‌بودن و تکرارپذیری آزمون لازم است.</p></div>
@@ -216,7 +245,6 @@
             <div class="field"><label for="sessionDate">تاریخ جلسه</label><input class="bidi" id="sessionDate" name="session_date" type="date" required></div>
             <div class="field"><label for="moderatorId">شناسه مجری</label><input id="moderatorId" name="moderator_id" placeholder="مثلاً M01" autocomplete="off" required></div>
             <div class="field"><label for="sessionMode">شیوه برگزاری</label><select id="sessionMode" name="session_mode" required><option value="moderated_remote">آنلاین با مجری</option><option value="moderated_in_person">حضوری با مجری</option></select></div>
-            <div class="field"><label for="durationMinutes">مدت جلسه، دقیقه</label><input class="bidi" id="durationMinutes" name="duration_minutes" type="number" min="15" max="60" inputmode="numeric" required></div>
             <div class="field"><label for="device">دستگاه</label><input id="device" name="device" placeholder="لپ‌تاپ ویندوز" required></div>
             <div class="field"><label for="browser">مرورگر و نسخه</label><input id="browser" name="browser" placeholder="Chrome 140" required></div>
             <div class="field"><label for="inputMethod">روش تعامل</label><input id="inputMethod" name="input_method" placeholder="کیبورد و ماوس" required></div>
@@ -225,7 +253,12 @@
           </div>
         </section>
 
-        <section aria-labelledby="tasksTitle">
+        <div class="step-footer workflow-step" data-workflow-step="1">
+          <p class="step-message" id="setupStepMessage" role="alert" aria-live="assertive"></p>
+          <button class="primary-button" id="startTestButton" type="button">شروع آزمون</button>
+        </div>
+
+        <section class="workflow-step" data-workflow-step="2" aria-labelledby="tasksTitle" hidden>
           <div class="section-head">
             <span class="section-index" aria-hidden="true">۲</span>
             <div class="section-title"><h2 id="tasksTitle">پنج کار بدون راهنمایی</h2><p>دکمه شروع را هنگام خواندن هر سناریو بزنید؛ با توقف، زمان به‌صورت خودکار ثبت می‌شود.</p></div>
@@ -237,9 +270,17 @@
             <div class="task-row" data-task="4"><span class="task-number">۴</span><div class="task-copy"><strong>اقدام بعدی</strong><span>قدم، مالک و مانع فعلی را پیدا کند.</span></div><button class="timer-button task-timer" type="button" aria-pressed="false">شروع زمان</button><div class="seconds-field"><label class="sr-only" for="task4Seconds">زمان کار ۴</label><input id="task4Seconds" name="task_4_seconds" type="number" min="1" inputmode="numeric" required><span>ثانیه</span></div><label class="pass-check"><input name="task_4_pass" type="checkbox">موفق، بدون کمک</label></div>
             <div class="task-row" data-task="5"><span class="task-number">۵</span><div class="task-copy"><strong>خروجی قابل ارسال</strong><span>گزارش مدیرعامل یا مدیر مالی را پیدا و تصمیم صفحه اول را بیان کند.</span></div><button class="timer-button task-timer" type="button" aria-pressed="false">شروع زمان</button><div class="seconds-field"><label class="sr-only" for="task5Seconds">زمان کار ۵</label><input id="task5Seconds" name="task_5_seconds" type="number" min="1" inputmode="numeric" required><span>ثانیه</span></div><label class="pass-check"><input name="task_5_pass" type="checkbox">موفق، بدون کمک</label></div>
           </div>
+          <div class="step-footer">
+            <button class="secondary-button" id="backToSetupButton" type="button">بازگشت به آماده‌سازی</button>
+            <div class="step-footer-group">
+              <span class="task-progress" id="taskProgress" aria-live="polite">کار ۱ از ۵</span>
+              <p class="step-message" id="taskStepMessage" role="alert" aria-live="assertive"></p>
+              <button class="primary-button" id="nextTaskButton" type="button">کار بعدی</button>
+            </div>
+          </div>
         </section>
 
-        <section aria-labelledby="evidenceTitle">
+        <section class="workflow-step" data-workflow-step="3" aria-labelledby="evidenceTitle" hidden>
           <div class="section-head">
             <span class="section-index" aria-hidden="true">۳</span>
             <div class="section-title"><h2 id="evidenceTitle">اعتبار برداشت و دسترس‌پذیری</h2><p>این بخش مشخص می‌کند کاربر فقط مسیر را طی کرده یا واقعاً تصمیم را درست فهمیده است.</p></div>
@@ -248,12 +289,13 @@
             <fieldset><legend>نوع شواهد را درست تشخیص داد؟</legend><div class="choice-row"><label class="choice"><input type="radio" name="evidence_interpretation_correct" value="yes" required>بله</label><label class="choice"><input type="radio" name="evidence_interpretation_correct" value="no">خیر</label></div></fieldset>
             <fieldset><legend>اقدام بعدی را درست پیدا کرد؟</legend><div class="choice-row"><label class="choice"><input type="radio" name="next_action_correct" value="yes" required>بله</label><label class="choice"><input type="radio" name="next_action_correct" value="no">خیر</label></div></fieldset>
             <div class="field"><label for="confidence">اطمینان برای اقدام، از ۱ تا ۵</label><input class="bidi" id="confidence" name="confidence_1_to_5" type="number" min="1" max="5" inputmode="numeric" required></div>
+            <div class="field"><label for="durationMinutes">مدت جلسه، دقیقه</label><input class="bidi" id="durationMinutes" name="duration_minutes" type="number" min="15" max="60" inputmode="numeric" required><p class="hint">با توقف زمان‌سنج خودکار تکمیل می‌شود.</p></div>
             <label class="choice field-wide"><input id="screenReaderUsed" name="screen_reader_used" type="checkbox">این جلسه واقعاً با Narrator یا NVDA اجرا شد</label>
             <fieldset class="screen-reader-fields" id="screenReaderFields" hidden><legend>مدرک آزمون صفحه‌خوان</legend><div class="field-grid"><div class="field"><label for="screenReaderName">صفحه‌خوان</label><select id="screenReaderName" name="screen_reader_name"><option value="">انتخاب کنید</option><option value="Narrator">Narrator</option><option value="NVDA">NVDA</option></select></div><div class="field"><label for="screenReaderVersion">نسخه</label><input class="bidi" id="screenReaderVersion" name="screen_reader_version" placeholder="مثلاً 2025.3"></div><fieldset><legend>نتیجه مسیر بدون تصویر</legend><div class="choice-row"><label class="choice"><input type="radio" name="screen_reader_pass" value="yes">پاس</label><label class="choice"><input type="radio" name="screen_reader_pass" value="no">رد</label></div></fieldset></div></fieldset>
           </div>
         </section>
 
-        <section aria-labelledby="issuesTitle">
+        <section class="workflow-step" data-workflow-step="3" aria-labelledby="issuesTitle" hidden>
           <div class="issues-head">
             <div class="section-head" style="margin:0"><span class="section-index" aria-hidden="true">۴</span><div class="section-title"><h2 id="issuesTitle">یافته‌های مشاهده‌شده</h2><p>هر یافته باید رفتار واقعی و پیامد تصمیم را توصیف کند.</p></div></div>
             <button class="secondary-button" id="addIssueButton" type="button">افزودن یافته</button>
@@ -261,18 +303,18 @@
           <div class="issues" id="issues"><p class="empty-state">هنوز یافته‌ای ثبت نشده است. نبود یافته فقط وقتی معتبر است که تمام پنج کار واقعاً مشاهده شده باشند.</p></div>
         </section>
 
-        <section aria-labelledby="notesTitle">
+        <section class="workflow-step" data-workflow-step="3" aria-labelledby="notesTitle" hidden>
           <div class="section-head"><span class="section-index" aria-hidden="true">۵</span><div class="section-title"><h2 id="notesTitle">یادداشت رفتاری جلسه</h2><p>مکث‌ها، واژه‌های نامفهوم، تصمیمی که بیان شد و نشانه‌های اعتماد یا تردید را بنویسید.</p></div></div>
           <div class="field"><label for="observationNotes">مشاهده مجری</label><textarea id="observationNotes" name="observation_notes" minlength="40" required placeholder="مثال: شرکت‌کننده پس از ورود ۱۸ ثانیه روی عدد ROI مکث کرد و ابتدا آن را درآمد قطعی تفسیر کرد..."></textarea><p class="hint">حداقل ۴۰ نویسه؛ قضاوت کلی مانند «خوب بود» مدرک محسوب نمی‌شود.</p></div>
         </section>
 
-        <div class="form-actions">
+        <div class="form-actions workflow-actions" data-workflow-step="3" hidden>
           <div><p class="action-note">با ثبت جلسه، اطلاعات فقط در Local Storage همین مرورگر می‌ماند.</p><p class="message" id="formMessage" role="alert" aria-live="assertive"></p></div>
-          <button class="primary-button" type="submit">ثبت این جلسه</button>
+          <div class="step-footer-group"><button class="secondary-button" id="backToTasksButton" type="button">بازگشت به کارها</button><button class="primary-button" type="submit">ثبت این جلسه</button></div>
         </div>
       </form>
 
-      <section class="saved-section" aria-labelledby="savedTitle">
+      <section class="saved-section" id="savedSection" aria-labelledby="savedTitle" hidden>
         <div class="section-head"><span class="section-index" aria-hidden="true">۶</span><div class="section-title"><h2 id="savedTitle">جلسه‌های ثبت‌شده</h2><p>بعد از سه جلسه، CSV را خروجی بگیرید و با گیت رسمی MarginLift ارزیابی کنید.</p></div></div>
         <div class="saved-list" id="savedSessions"></div>
         <div class="saved-actions"><button class="primary-button" id="exportButton" type="button" disabled>دریافت CSV استاندارد</button><button class="danger-button" id="clearButton" type="button">پاک‌کردن همه جلسه‌ها</button></div>
@@ -304,6 +346,8 @@
       const timers = new Map();
       let sessionTimerStartedAt = 0;
       let sessionTimerInterval = null;
+      let workflowStep = 1;
+      let activeTaskIndex = 0;
 
       const roleLabels = { executive: "مدیر تصمیم‌گیر", crm_growth: "مالک CRM / Growth", data_finance: "مالک داده / مالی" };
       const faNumber = value => new Intl.NumberFormat("fa-IR").format(value);
@@ -316,20 +360,21 @@
       document.querySelector("#sessionDate").value = new Date().toISOString().slice(0, 10);
       setNextParticipantId();
       renderSessions();
+      showWorkflowStep(1, false);
 
       document.querySelector("#sessionTimerButton").addEventListener("click", event => {
         if (!sessionTimerStartedAt) {
-          sessionTimerStartedAt = Date.now();
-          event.currentTarget.textContent = "توقف جلسه";
-          event.currentTarget.setAttribute("aria-pressed", "true");
-          sessionTimerInterval = setInterval(updateSessionClock, 1000);
-          updateSessionClock();
+          startSessionTimer();
         } else {
           stopSessionTimer();
         }
       });
 
       document.querySelectorAll(".task-timer").forEach(button => button.addEventListener("click", () => toggleTaskTimer(button)));
+      document.querySelector("#startTestButton").addEventListener("click", startTest);
+      document.querySelector("#backToSetupButton").addEventListener("click", () => showWorkflowStep(1));
+      document.querySelector("#backToTasksButton").addEventListener("click", () => showWorkflowStep(2));
+      document.querySelector("#nextTaskButton").addEventListener("click", advanceTask);
       document.querySelector("#addIssueButton").addEventListener("click", addIssue);
       screenReaderUsed.addEventListener("change", syncScreenReaderFields);
       document.querySelector("#exportButton").addEventListener("click", exportCsv);
@@ -365,6 +410,88 @@
         message.textContent = "جلسه با شواهد کامل ثبت شد.";
         document.querySelector("#participantId").focus();
       });
+
+      function startTest() {
+        const invalid = [...document.querySelectorAll('[data-workflow-step="1"] input[required], [data-workflow-step="1"] select[required]')]
+          .find(control => !control.checkValidity());
+        if (invalid) {
+          document.querySelector("#setupStepMessage").textContent = "فقط فیلد مشخص‌شده را کامل کنید.";
+          invalid.reportValidity();
+          invalid.focus();
+          return;
+        }
+        document.querySelector("#setupStepMessage").textContent = "";
+        if (!sessionTimerStartedAt) startSessionTimer();
+        activeTaskIndex = firstIncompleteTaskIndex();
+        showWorkflowStep(2);
+      }
+
+      function advanceTask() {
+        const row = document.querySelectorAll(".task-row")[activeTaskIndex];
+        const index = row.dataset.task;
+        const seconds = Number(row.querySelector("input[type='number']").value);
+        const taskMessage = document.querySelector("#taskStepMessage");
+        if (timers.has(index)) {
+          taskMessage.textContent = "ابتدا زمان این کار را متوقف کنید.";
+          row.querySelector(".task-timer").focus();
+          return;
+        }
+        if (!Number.isFinite(seconds) || seconds < 1) {
+          taskMessage.textContent = "زمان این کار هنوز ثبت نشده است.";
+          row.querySelector(".task-timer").focus();
+          return;
+        }
+        taskMessage.textContent = "";
+        if (activeTaskIndex < 4) {
+          activeTaskIndex += 1;
+          showTask(activeTaskIndex, true);
+          return;
+        }
+        if (sessionTimerStartedAt) stopSessionTimer();
+        showWorkflowStep(3);
+      }
+
+      function firstIncompleteTaskIndex() {
+        const rows = [...document.querySelectorAll(".task-row")];
+        const index = rows.findIndex(row => Number(row.querySelector("input[type='number']").value) < 1);
+        return index < 0 ? 4 : index;
+      }
+
+      function showWorkflowStep(step, moveFocus = true) {
+        workflowStep = step;
+        document.querySelectorAll("[data-workflow-step]").forEach(panel => {
+          panel.hidden = Number(panel.dataset.workflowStep) !== step;
+        });
+        for (let index = 1; index <= 3; index += 1) {
+          const indicator = document.querySelector(`#workflowIndicator${index}`);
+          if (index === step) indicator.setAttribute("aria-current", "step");
+          else indicator.removeAttribute("aria-current");
+          indicator.dataset.complete = index < step ? "true" : "false";
+        }
+        if (step === 2) showTask(activeTaskIndex, false);
+        if (!moveFocus) return;
+        const heading = document.querySelector(step === 1 ? "#setupTitle" : step === 2 ? "#tasksTitle" : "#evidenceTitle");
+        heading.setAttribute("tabindex", "-1");
+        heading.focus();
+        heading.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+      }
+
+      function showTask(index, moveFocus = false) {
+        const rows = [...document.querySelectorAll(".task-row")];
+        rows.forEach((row, rowIndex) => row.hidden = rowIndex !== index);
+        document.querySelector("#taskProgress").textContent = `کار ${faNumber(index + 1)} از ۵`;
+        document.querySelector("#nextTaskButton").textContent = index === 4 ? "رفتن به جمع‌بندی" : "کار بعدی";
+        if (moveFocus) rows[index].querySelector(".task-timer").focus();
+      }
+
+      function startSessionTimer() {
+        sessionTimerStartedAt = Date.now();
+        const button = document.querySelector("#sessionTimerButton");
+        button.textContent = "توقف جلسه";
+        button.setAttribute("aria-pressed", "true");
+        sessionTimerInterval = setInterval(updateSessionClock, 1000);
+        updateSessionClock();
+      }
 
       function toggleTaskTimer(button) {
         const row = button.closest("[data-task]");
@@ -464,6 +591,8 @@
         screenReaderFields.hidden = true;
         screenReaderFields.querySelectorAll("select, input").forEach(control => control.required = false);
         document.querySelector("#sessionClock").value = "00:00";
+        activeTaskIndex = 0;
+        showWorkflowStep(1, false);
         setNextParticipantId();
       }
 
@@ -477,6 +606,7 @@
       function renderSessions() {
         const sessions = loadSessions();
         const list = document.querySelector("#savedSessions");
+        document.querySelector("#savedSection").hidden = sessions.length === 0;
         list.innerHTML = "";
         if (!sessions.length) {
           list.innerHTML = '<p class="empty-state">هنوز جلسه معتبری ذخیره نشده است.</p>';
