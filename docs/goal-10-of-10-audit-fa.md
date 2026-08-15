@@ -14,7 +14,7 @@
 | Screen reader | نام، landmark، ترتیب خواندن و اجرای مسیر با Narrator/NVDA | AX Tree، یک main در هر صفحه و Skip Link پاس شده؛ آزمون صوتی انسانی اجرا نشده | قبول فنی؛ در انتظار تست انسانی |
 | داده مرزی | متن و عدد بلند بدون شکست رابط | سناریوی edge-content در `npm run ui:qa` | قبول |
 | تست کاربر واقعی | حداقل سه شرکت‌کننده از نقش‌های هدف و ثبت شواهد | حساب‌های مستقل P01 تا P03 و کنسول owner-only آماده‌اند؛ جلسه‌ها اجرا نشده‌اند | در انتظار اجرا |
-| Production | سلامت، امنیت، font/asset، login و RBAC | smoke دامنه برای commit `e49fb53`: سلامت PostgreSQL، CSP، assetها، login، RBAC و دسترسی owner-only کنسول | قبول |
+| Production | سلامت، امنیت، font/asset، login و RBAC | استقرار commit `f98390b` روی VM جدید: سلامت اپ و PostgreSQL، بکاپ و restore verification، تایمر فعال، دامنه و assetها | قبول |
 
 ## ورودی‌های خارجی باقی‌مانده
 
