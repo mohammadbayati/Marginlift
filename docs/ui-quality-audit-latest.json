@@ -1,8 +1,8 @@
 {
   "environment": {
-    "baseUrl": "http://127.0.0.1:3004",
+    "baseUrl": "http://127.0.0.1:3005",
     "readOnly": false,
-    "expectedFont": null
+    "expectedFont": "Vazirmatn"
   },
   "auth": {
     "viewport": {
@@ -55,11 +55,10 @@
       "guideVisible": true,
       "sidebarHidden": true,
       "activeStepCount": 1,
-      "currentContentCount": 3,
+      "currentContentCount": 2,
       "visible": [
         "command",
-        "snapshot",
-        "metricGrid"
+        "snapshot"
       ],
       "reportVisible": false,
       "horizontalOverflow": false
@@ -100,11 +99,10 @@
       "guideVisible": true,
       "sidebarHidden": true,
       "activeStepCount": 1,
-      "currentContentCount": 3,
+      "currentContentCount": 2,
       "visible": [
         "command",
-        "snapshot",
-        "metricGrid"
+        "snapshot"
       ],
       "reportVisible": false,
       "horizontalOverflow": false
