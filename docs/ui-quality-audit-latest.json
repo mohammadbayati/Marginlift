@@ -74,7 +74,7 @@
     "visibleFocusFailures": 0
   },
   "productAccessibility": {
-    "nodes": 3480,
+    "nodes": 3481,
     "mains": 1,
     "headings": 57,
     "buttons": 22,
@@ -235,7 +235,7 @@
         "movedFocus": true
       },
       "accessibility": {
-        "nodes": 211,
+        "nodes": 190,
         "mains": 1,
         "headings": 6,
         "buttons": 0,
@@ -261,9 +261,9 @@
         "movedFocus": true
       },
       "accessibility": {
-        "nodes": 603,
+        "nodes": 216,
         "mains": 1,
-        "headings": 14,
+        "headings": 11,
         "buttons": 1,
         "links": 2,
         "unnamedControls": 0

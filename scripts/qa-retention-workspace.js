@@ -67,7 +67,7 @@ async function run() {
       path: "/"
     });
     await cdp.send("Page.navigate", { url: `${baseUrl}/login` });
-    await delay(2500);
+    await waitForProductReady(cdp);
     const typography = await auditRenderedTypography(cdp, typographyStatus);
 
     const productSkipLink = await auditSkipLink(cdp, "product");
@@ -323,6 +323,28 @@ async function auditSkipLink(cdp, label) {
     throw new Error(`${label} skip-link audit failed: ${JSON.stringify({ firstStop, destination })}`);
   }
   return { target: firstStop.href, firstFocusable: true, visibleOnFocus: true, movedFocus: true };
+}
+
+async function waitForProductReady(cdp, timeoutMs = 15000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const ready = await evaluate(cdp, `(() => {
+      const app = document.getElementById('appShell');
+      const main = document.getElementById('mainContent');
+      const skipLink = document.querySelector('.skip-link');
+      return Boolean(
+        app
+        && main
+        && skipLink
+        && !app.classList.contains('is-hidden')
+        && main.getClientRects().length
+        && skipLink.getAttribute('href') === '#mainContent'
+      );
+    })()`);
+    if (ready) return;
+    await delay(200);
+  }
+  throw new Error("Product UI did not become ready before the accessibility audit.");
 }
 
 async function auditAccessibilityTree(cdp, label, requiredRoles = ["main", "heading", "button", "link"]) {
