@@ -90,7 +90,9 @@ test ! -f /root/marginlift-db.backup.json || \
   cp /root/marginlift-db.backup.json "$STAGE_DIR/data/db.json"
 
 chmod +x "$STAGE_DIR/ops/vm/deploy.sh" "$STAGE_DIR/ops/vm/backup.sh" "$STAGE_DIR/ops/vm/verify-backup.sh" "$STAGE_DIR/ops/vm/install-backup-timer.sh"
-docker build --pull --no-cache --tag marginlift-app:latest "$STAGE_DIR"
+# The production VM has 1 GB RAM. Reuse BuildKit layers during routine releases;
+# dependency and base-image refreshes belong in a separate maintenance deploy.
+docker build --tag marginlift-app:latest "$STAGE_DIR"
 docker run --rm --entrypoint sh marginlift-app:latest -lc \
   'test -f /app/src/retention-shadow.js && test -f /app/synthetic-subscription-transactions.csv'
 
