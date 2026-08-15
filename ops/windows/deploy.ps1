@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-  [string]$ServerHost = "188.213.196.248",
+  [string]$ServerHost = "91.107.139.20",
   [string]$ServerUser = "ubuntu",
   [string]$KeyPath = (Join-Path $HOME ".ssh\marginlift_deploy")
 )
@@ -90,8 +90,8 @@ test ! -f /root/marginlift-db.backup.json || \
   cp /root/marginlift-db.backup.json "$STAGE_DIR/data/db.json"
 
 chmod +x "$STAGE_DIR/ops/vm/deploy.sh" "$STAGE_DIR/ops/vm/backup.sh" "$STAGE_DIR/ops/vm/verify-backup.sh" "$STAGE_DIR/ops/vm/install-backup-timer.sh"
-# The production VM has 1 GB RAM. Reuse BuildKit layers during routine releases;
-# dependency and base-image refreshes belong in a separate maintenance deploy.
+# Reuse BuildKit layers during routine releases so deploys stay predictable on
+# the cost-optimized production VM.
 docker build --tag marginlift-app:latest "$STAGE_DIR"
 docker run --rm --entrypoint sh marginlift-app:latest -lc \
   'test -f /app/src/retention-shadow.js && test -f /app/synthetic-subscription-transactions.csv'

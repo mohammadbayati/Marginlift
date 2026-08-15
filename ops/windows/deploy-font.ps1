@@ -5,7 +5,7 @@ param(
   [Parameter(Mandatory = $true)][string]$LicenseHolder,
   [Parameter(Mandatory = $true)][string]$LicenseReference,
   [Parameter(Mandatory = $true)][switch]$ConfirmWebEmbedding,
-  [string]$ServerHost = "188.213.196.248",
+  [string]$ServerHost = "91.107.139.20",
   [string]$ServerUser = "ubuntu",
   [string]$KeyPath = (Join-Path $HOME ".ssh\marginlift_deploy")
 )
