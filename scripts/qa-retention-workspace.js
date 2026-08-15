@@ -186,7 +186,7 @@ async function run() {
 
 async function auditPresentationMode(cdp) {
   const results = [];
-  const expectedVisibleCounts = [3, 2, 1];
+  const expectedVisibleCounts = [2, 2, 1];
   for (const viewport of [
     { name: "desktop", width: 1440, height: 1000, mobile: false },
     { name: "mobile", width: 390, height: 844, mobile: true }

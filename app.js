@@ -242,7 +242,7 @@ function getPresentationSteps() {
       kicker: "۱ از ۳ · مسئله",
       title: `${formatNumber(audience)} مشتری در معرض ریزش‌اند؛ اما ریسک بالا به‌تنهایی مجوز تخفیف نیست.`,
       summary: `آمادگی داده اکنون ${formatPercent(readiness)} است. ابتدا کیفیت شواهد و ارزش اقتصادی هر تصمیم بررسی می‌شود.`,
-      contentIds: ["command", "snapshot", "metricGrid"]
+      contentIds: ["command", "snapshot"]
     },
     {
       kicker: "۲ از ۳ · تصمیم",
