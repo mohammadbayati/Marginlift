@@ -108,7 +108,7 @@ Cloudflare → Caddy (443) → Node.js app (:3000) → PostgreSQL
 ### ترجیح دادهٔ واقعی
 `retrain.py` اگر ≥ `MARGINLIFT_MIN_REAL_ROWS` (۲۰۰۰) ردیف واقعیِ قابل‌استفاده (هر دو arm + هر دو کلاس) موجود باشد، روی دادهٔ واقعی آموزش می‌بیند؛ وگرنه DGP سنتتیک. `data_source` در metrics ثبت می‌شود. `ops/vm/retrain.sh` اول export (کانتینر app) بعد retrain (scorer) را اجرا می‌کند و فقط در صورت تغییر production، scorer را restart می‌کند.
 
-**وضعیت صادقانه:** هنوز دادهٔ واقعی مشتری وجود ندارد، پس حلقه روی synthetic می‌چرخد تا وقتی CRMها outcome گزارش دهند. قدم بعدی یک تصمیم محصولی است (اجرای پایلوت با holdout تصادفی)، نه کار مهندسی.
+**وضعیت صادقانه:** هنوز دادهٔ واقعی مشتری وجود ندارد، پس حلقه روی synthetic می‌چرخد تا وقتی CRMها outcome گزارش دهند. قدم بعدی یک تصمیم محصولی است (اجرای پایلوت با holdout تصادفی)، نه کار مهندسی — راهنمای اجرایی: [pilot-holdout-runbook-fa.md](pilot-holdout-runbook-fa.md).
 
 ---
 
