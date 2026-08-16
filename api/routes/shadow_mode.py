@@ -13,7 +13,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
-from api.models.uplift_evaluator import (
+from models.uplift_evaluator import (
     Action,
     CustomerFeatures,
     ScoredCustomer,

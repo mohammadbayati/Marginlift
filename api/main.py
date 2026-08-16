@@ -5,7 +5,7 @@ Called by the Node.js gateway — not exposed externally.
 """
 
 from fastapi import FastAPI
-from api.routes.shadow_mode import router as shadow_router
+from routes.shadow_mode import router as shadow_router
 
 app = FastAPI(
     title="MarginLift Shadow Scorer",
