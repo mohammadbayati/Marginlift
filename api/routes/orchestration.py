@@ -83,6 +83,8 @@ class OrchestrationCommand(BaseModel):
     promotion: Optional[str] = None
     promotion_fa: Optional[str] = None
     uplift_score: float
+    expected_incremental_profit: float
+    avoided_cost: float
     reason: str
 
 
@@ -96,6 +98,8 @@ class OrchestrateResponse(BaseModel):
     scored_count: int
     send_count: int
     drop_count: int
+    saved_budget: float
+    net_incremental_profit: float
     decisions: list[OrchestrationCommand]
     latency_ms: float
 
@@ -114,19 +118,15 @@ async def orchestrate(request: OrchestrateRequest):
 
     decisions: list[OrchestrationCommand] = []
     send_count = 0
-    for s in scored:
-        if breaker_open:
-            decisions.append(OrchestrationCommand(
-                customer_id_hash=s.customer_id_hash,
-                command="DROP",
-                segment=s.segment,
-                segment_fa=s.segment_fa,
-                uplift_score=s.uplift_score,
-                reason="circuit_breaker_open",
-            ))
-        elif s.segment == Segment.PERSUADABLE:
+    saved_budget = 0.0
+    net_incremental_profit = 0.0
+    for customer, s in zip(request.audience, scored):
+        avoided_cost = customer.incentive_cost + customer.channel_cost
+        send = (not breaker_open) and s.segment == Segment.PERSUADABLE
+        if send:
             code, label = _promotion_for(s.uplift_score)
             send_count += 1
+            net_incremental_profit += s.expected_incremental_profit
             decisions.append(OrchestrationCommand(
                 customer_id_hash=s.customer_id_hash,
                 command="SEND",
@@ -135,16 +135,24 @@ async def orchestrate(request: OrchestrateRequest):
                 promotion=code,
                 promotion_fa=label,
                 uplift_score=s.uplift_score,
+                expected_incremental_profit=s.expected_incremental_profit,
+                avoided_cost=0.0,
                 reason="persuadable",
             ))
         else:
+            # DROP — the send cost is saved. Attribute the avoided spend to the
+            # client's realized savings (this is what the revenue share bills on).
+            saved_budget += avoided_cost
+            reason = "circuit_breaker_open" if breaker_open else "non_incremental"
             decisions.append(OrchestrationCommand(
                 customer_id_hash=s.customer_id_hash,
                 command="DROP",
                 segment=s.segment,
                 segment_fa=s.segment_fa,
                 uplift_score=s.uplift_score,
-                reason="non_incremental",
+                expected_incremental_profit=s.expected_incremental_profit,
+                avoided_cost=avoided_cost,
+                reason=reason,
             ))
 
     orch_id = hashlib.sha256(
@@ -161,6 +169,8 @@ async def orchestrate(request: OrchestrateRequest):
         scored_count=len(scored),
         send_count=send_count,
         drop_count=len(scored) - send_count,
+        saved_budget=round(saved_budget, 2),
+        net_incremental_profit=round(net_incremental_profit, 2),
         decisions=decisions,
         latency_ms=round(elapsed, 2),
     )

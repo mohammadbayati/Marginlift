@@ -67,6 +67,8 @@ async function orchestrateCampaign(organizationId, campaignId, audience, options
     scoredCount: result.scored_count,
     sendCount: result.send_count,
     dropCount: result.drop_count,
+    savedBudget: result.saved_budget,
+    netIncrementalProfit: result.net_incremental_profit,
     latencyMs,
     decisions: result.decisions,
   };

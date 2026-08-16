@@ -28,4 +28,6 @@ docker compose -f docker-compose.production.yml exec -T app node -e "fetch('http
 ./ops/vm/backup.sh
 ./ops/vm/verify-backup.sh
 ./ops/vm/install-backup-timer.sh
+chmod +x ops/vm/generate-report.sh ops/vm/install-report-timer.sh
+./ops/vm/install-report-timer.sh
 printf '\nMarginLift VM deployment is healthy.\n'

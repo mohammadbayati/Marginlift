@@ -40,6 +40,9 @@ const {
 const { buildRetentionExperimentBrief, buildRetentionShadowRun } = require("./retention-shadow");
 const { evaluateShadow, generateBudgetWasteReport } = require("./shadow-evaluator");
 const { orchestrateCampaign, evaluateCircuitBreaker } = require("./orchestrator");
+const { assertNoRawPii } = require("./pii-guard");
+const { assessOutcomeDrift, latestOutcomeForOrg } = require("./drift-monitor");
+const { generateMonthlyReport } = require("./billing-report");
 const { FONT_FILENAME, inspectTypography, renderTypographyCss } = require("./typography");
 const {
   analyzeOutcomeRows,
@@ -48,7 +51,7 @@ const {
   buildReadinessAudit,
   buildSavingsSnapshot
 } = require("./pilot");
-const { appOrigin, assertProductionConfig, isProduction, maxBodyBytes, orchestrationDriftThreshold, port: defaultPort, publicSignupEnabled, shadowScorerUrl, trustProxy } = require("./config");
+const { appOrigin, assertProductionConfig, isProduction, maxBodyBytes, orchestrationDriftThreshold, revenueShareRate, port: defaultPort, publicSignupEnabled, shadowScorerUrl, trustProxy } = require("./config");
 const { verifyJwt } = require("./auth");
 
 const publicRoot = path.join(__dirname, "..");
@@ -591,6 +594,7 @@ async function handleApi(req, res, url) {
       sendJson(res, 400, { error: { code: "INVALID_AUDIENCE", message: "لیست مخاطبان خالی یا نامعتبر است." } });
       return;
     }
+    assertNoRawPii(body.audience);
     const { shadowLog, scorerResult } = await evaluateShadow(
       jwtPayload.org,
       body.campaign_id || null,
@@ -634,9 +638,15 @@ async function handleApi(req, res, url) {
       sendJson(res, 400, { error: { code: "INVALID_AUDIENCE", message: "لیست مخاطبان خالی یا نامعتبر است." } });
       return;
     }
+    assertNoRawPii(body.audience);
     const orgId = jwtPayload.org;
-    const latch = ((await readDb()).orchestrationHalts || {})[orgId];
-    const causalDrift = Number(body.causal_drift) || 0;
+    const snapshot = await readDb();
+    const latch = (snapshot.orchestrationHalts || {})[orgId];
+    // Trust a caller-supplied reading if present; otherwise measure drift from
+    // the org's own verified outcomes so the breaker is autonomous.
+    const causalDrift = body.causal_drift != null
+      ? (Number(body.causal_drift) || 0)
+      : assessOutcomeDrift(latestOutcomeForOrg(snapshot, orgId)).drift;
     const breaker = evaluateCircuitBreaker({
       latchOpen: Boolean(latch && latch.open),
       causalDrift,
@@ -671,6 +681,23 @@ async function handleApi(req, res, url) {
       if (db.orchestrationHalts) delete db.orchestrationHalts[auth.organization.id];
     });
     sendJson(res, 200, { data: { reset: true, organizationId: auth.organization.id } });
+    return;
+  }
+
+  if (url.pathname === "/api/v1/billing/monthly-report" && req.method === "GET") {
+    requireRole(auth, "owner");
+    const db = await readDb();
+    const orgId = auth.organization.id;
+    const history = (db.monthlyReports || [])
+      .filter(r => r.organizationId === orgId)
+      .sort((a, b) => (a.period < b.period ? 1 : -1));
+    const now = new Date();
+    const current = generateMonthlyReport(
+      (db.shadowLogs || []).filter(l => l.organizationId === orgId),
+      (db.orchestrationLogs || []).filter(l => l.organizationId === orgId),
+      { year: now.getUTCFullYear(), month: now.getUTCMonth() + 1, revenueShareRate }
+    );
+    sendJson(res, 200, { data: { current, history } });
     return;
   }
 

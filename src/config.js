@@ -6,6 +6,8 @@ const jwtSecret = process.env.JWT_SECRET || (isProduction ? "" : "development-on
 const shadowScorerUrl = process.env.SHADOW_SCORER_URL || "http://localhost:8100";
 const parsedDriftThreshold = Number(process.env.ORCHESTRATION_DRIFT_THRESHOLD || 0.2);
 const orchestrationDriftThreshold = Number.isFinite(parsedDriftThreshold) && parsedDriftThreshold > 0 ? parsedDriftThreshold : 0.2;
+const parsedRevenueShareRate = Number(process.env.REVENUE_SHARE_RATE || 0.2);
+const revenueShareRate = Number.isFinite(parsedRevenueShareRate) && parsedRevenueShareRate >= 0 && parsedRevenueShareRate <= 1 ? parsedRevenueShareRate : 0.2;
 const maxBodyBytes = Number(process.env.MARGINLIFT_MAX_BODY_BYTES || 2 * 1024 * 1024);
 const publicSignupEnabled = process.env.MARGINLIFT_PUBLIC_SIGNUP === "true" || !isProduction;
 
@@ -47,6 +49,7 @@ module.exports = {
   jwtSecret,
   maxBodyBytes: Number.isFinite(maxBodyBytes) && maxBodyBytes > 0 ? maxBodyBytes : 2 * 1024 * 1024,
   orchestrationDriftThreshold,
+  revenueShareRate,
   port: Number(process.env.PORT || 3000),
   publicSignupEnabled,
   resolveDbPath,
