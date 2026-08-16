@@ -10,11 +10,27 @@ Uses the MarginLift four-quadrant uplift framework:
 from __future__ import annotations
 
 import hashlib
+import os
 from enum import Enum
 from typing import Sequence
 
+import joblib
 import numpy as np
 from pydantic import BaseModel, Field
+
+# UpliftSLearner must be importable here for joblib to unpickle the artifact.
+from models.uplift_model import UpliftSLearner, FEATURE_NAMES  # noqa: F401
+
+_MODEL_PATH = os.environ.get(
+    "MARGINLIFT_UPLIFT_MODEL",
+    os.path.join(os.path.dirname(__file__), "artifacts", "uplift_slearner.joblib"),
+)
+try:
+    _MODEL = joblib.load(_MODEL_PATH)
+    MODEL_SOURCE = "slearner"
+except Exception:  # missing/incompatible artifact -> deterministic heuristic
+    _MODEL = None
+    MODEL_SOURCE = "heuristic_fallback"
 
 
 class Segment(str, Enum):
@@ -113,8 +129,7 @@ def classify_segment(treatment_p: float, control_p: float) -> Segment:
     return Segment.LOST_CAUSE
 
 
-def score_customer(features: CustomerFeatures) -> ScoredCustomer:
-    treatment_p, control_p = _hash_features(features)
+def _build_scored(features: CustomerFeatures, treatment_p: float, control_p: float) -> ScoredCustomer:
     segment = classify_segment(treatment_p, control_p)
     action = SEGMENT_ACTION_MAP[segment]
     uplift = treatment_p - control_p
@@ -134,5 +149,28 @@ def score_customer(features: CustomerFeatures) -> ScoredCustomer:
     )
 
 
+def _features_matrix(customers: Sequence[CustomerFeatures]) -> np.ndarray:
+    return np.array(
+        [[getattr(c, name) for name in FEATURE_NAMES] for c in customers],
+        dtype=float,
+    )
+
+
+def score_customer(features: CustomerFeatures) -> ScoredCustomer:
+    if _MODEL is not None:
+        treatment_p, control_p = _MODEL.predict_probs(_features_matrix([features]))
+        return _build_scored(features, float(treatment_p[0]), float(control_p[0]))
+    treatment_p, control_p = _hash_features(features)
+    return _build_scored(features, treatment_p, control_p)
+
+
 def score_batch(customers: Sequence[CustomerFeatures]) -> list[ScoredCustomer]:
+    if not customers:
+        return []
+    if _MODEL is not None:
+        treatment_ps, control_ps = _MODEL.predict_probs(_features_matrix(customers))
+        return [
+            _build_scored(c, float(treatment_ps[i]), float(control_ps[i]))
+            for i, c in enumerate(customers)
+        ]
     return [score_customer(c) for c in customers]

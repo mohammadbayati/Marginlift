@@ -21,4 +21,5 @@ app.include_router(orchestration_router, prefix="/api/v1/orchestrate")
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "shadow-scorer"}
+    from models.uplift_evaluator import MODEL_SOURCE
+    return {"status": "ok", "service": "shadow-scorer", "model": MODEL_SOURCE}
