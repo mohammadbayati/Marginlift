@@ -2,6 +2,8 @@ const path = require("path");
 
 const isProduction = process.env.NODE_ENV === "production";
 const sessionSecret = process.env.SESSION_SECRET || (isProduction ? "" : "development-only-session-secret");
+const jwtSecret = process.env.JWT_SECRET || (isProduction ? "" : "development-only-jwt-secret");
+const shadowScorerUrl = process.env.SHADOW_SCORER_URL || "http://localhost:8100";
 const maxBodyBytes = Number(process.env.MARGINLIFT_MAX_BODY_BYTES || 2 * 1024 * 1024);
 const publicSignupEnabled = process.env.MARGINLIFT_PUBLIC_SIGNUP === "true" || !isProduction;
 
@@ -40,11 +42,13 @@ function resolveDbPath() {
 module.exports = {
   appOrigin: process.env.APP_ORIGIN || "",
   isProduction,
+  jwtSecret,
   maxBodyBytes: Number.isFinite(maxBodyBytes) && maxBodyBytes > 0 ? maxBodyBytes : 2 * 1024 * 1024,
   port: Number(process.env.PORT || 3000),
   publicSignupEnabled,
   resolveDbPath,
   sessionSecret,
+  shadowScorerUrl,
   trustProxy: process.env.TRUST_PROXY === "true",
   assertProductionConfig
 };

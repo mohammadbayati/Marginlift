@@ -1,5 +1,5 @@
 const crypto = require("crypto");
-const { isProduction, sessionSecret } = require("./config");
+const { isProduction, jwtSecret, sessionSecret } = require("./config");
 
 const SESSION_COOKIE = "marginlift_session";
 const HASH_ITERATIONS = 120000;
@@ -91,6 +91,44 @@ function clearSessionCookie() {
   return `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`;
 }
 
+function base64UrlDecode(str) {
+  const padded = str + "=".repeat((4 - str.length % 4) % 4);
+  return Buffer.from(padded.replace(/-/g, "+").replace(/_/g, "/"), "base64");
+}
+
+function verifyJwt(token) {
+  if (!jwtSecret || jwtSecret.length < 16) return null;
+  const parts = String(token || "").split(".");
+  if (parts.length !== 3) return null;
+
+  const expectedSig = crypto
+    .createHmac("sha256", jwtSecret)
+    .update(`${parts[0]}.${parts[1]}`)
+    .digest("base64url");
+
+  const sigBuffer = Buffer.from(parts[2]);
+  const expectedBuffer = Buffer.from(expectedSig);
+  if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(base64UrlDecode(parts[1]).toString("utf8"));
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
+    return payload;
+  } catch (_) {
+    return null;
+  }
+}
+
+function signJwt(payload, expiresInSeconds = 86400) {
+  const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
+  const now = Math.floor(Date.now() / 1000);
+  const body = Buffer.from(JSON.stringify({ ...payload, iat: now, exp: now + expiresInSeconds })).toString("base64url");
+  const signature = crypto.createHmac("sha256", jwtSecret).update(`${header}.${body}`).digest("base64url");
+  return `${header}.${body}.${signature}`;
+}
+
 module.exports = {
   SESSION_COOKIE,
   buildSessionCookie,
@@ -98,6 +136,8 @@ module.exports = {
   createId,
   hashPassword,
   parseCookies,
+  signJwt,
+  verifyJwt,
   verifyPassword,
   verifySessionCookie
 };

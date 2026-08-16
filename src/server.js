@@ -38,6 +38,7 @@ const {
   previewRetentionRows
 } = require("./retention-product");
 const { buildRetentionExperimentBrief, buildRetentionShadowRun } = require("./retention-shadow");
+const { evaluateShadow, generateBudgetWasteReport } = require("./shadow-evaluator");
 const { FONT_FILENAME, inspectTypography, renderTypographyCss } = require("./typography");
 const {
   analyzeOutcomeRows,
@@ -46,7 +47,8 @@ const {
   buildReadinessAudit,
   buildSavingsSnapshot
 } = require("./pilot");
-const { appOrigin, assertProductionConfig, isProduction, maxBodyBytes, port: defaultPort, publicSignupEnabled, trustProxy } = require("./config");
+const { appOrigin, assertProductionConfig, isProduction, maxBodyBytes, port: defaultPort, publicSignupEnabled, shadowScorerUrl, trustProxy } = require("./config");
+const { verifyJwt } = require("./auth");
 
 const publicRoot = path.join(__dirname, "..");
 const privateFontRoot = path.resolve(process.env.MARGINLIFT_FONT_DIR || path.join(publicRoot, "private", "fonts"));
@@ -565,6 +567,49 @@ async function handleApi(req, res, url) {
       "Content-Disposition": 'attachment; filename="marginlift-campaign-report.md"'
     });
     res.end(report);
+    return;
+  }
+
+  if (url.pathname === "/api/v1/evaluate/shadow" && req.method === "POST") {
+    const authHeader = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+    const jwtPayload = verifyJwt(authHeader);
+    if (!jwtPayload || !jwtPayload.org) {
+      sendJson(res, 401, { error: { code: "UNAUTHORIZED", message: "JWT نامعتبر یا منقضی‌شده." } });
+      return;
+    }
+    const body = await readJson(req);
+    if (!body.audience || !Array.isArray(body.audience) || body.audience.length === 0) {
+      sendJson(res, 400, { error: { code: "INVALID_AUDIENCE", message: "لیست مخاطبان خالی یا نامعتبر است." } });
+      return;
+    }
+    const { shadowLog, scorerResult } = await evaluateShadow(
+      jwtPayload.org,
+      body.campaign_id || null,
+      body.audience
+    );
+    await transact(db => {
+      if (!db.shadowLogs) db.shadowLogs = [];
+      db.shadowLogs.push(shadowLog);
+    });
+    sendJson(res, 200, { data: scorerResult });
+    return;
+  }
+
+  if (url.pathname === "/api/v1/shadow/waste-report" && req.method === "GET") {
+    const authHeader = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+    const jwtPayload = verifyJwt(authHeader);
+    let orgId;
+    if (jwtPayload && jwtPayload.org) {
+      orgId = jwtPayload.org;
+    } else {
+      const auth = await requireSession(req);
+      requireRole(auth, "analyst");
+      orgId = auth.organization.id;
+    }
+    const db = readDb();
+    const orgLogs = (db.shadowLogs || []).filter(l => l.organizationId === orgId);
+    const report = generateBudgetWasteReport(orgLogs);
+    sendJson(res, 200, { data: report });
     return;
   }
 
