@@ -227,7 +227,15 @@ async function handleApi(req, res, url) {
     return;
   }
 
-  const auth = await requireSession(req);
+  // These API paths authenticate via JWT bearer (enterprise CRM integration)
+  // or manage their own session fallback, so the shared session gate below
+  // must not hard-block them for callers that present no session cookie.
+  const jwtAuthenticatedApiPaths = new Set([
+    "/api/v1/evaluate/shadow",
+    "/api/v1/shadow/waste-report",
+    "/api/v1/orchestrate/trigger",
+  ]);
+  const auth = jwtAuthenticatedApiPaths.has(url.pathname) ? null : await requireSession(req);
 
   if (url.pathname === "/api/access/members" && req.method === "GET") {
     requireRole(auth, "admin");
@@ -607,7 +615,7 @@ async function handleApi(req, res, url) {
       requireRole(auth, "analyst");
       orgId = auth.organization.id;
     }
-    const db = readDb();
+    const db = await readDb();
     const orgLogs = (db.shadowLogs || []).filter(l => l.organizationId === orgId);
     const report = generateBudgetWasteReport(orgLogs);
     sendJson(res, 200, { data: report });
@@ -627,7 +635,7 @@ async function handleApi(req, res, url) {
       return;
     }
     const orgId = jwtPayload.org;
-    const latch = (readDb().orchestrationHalts || {})[orgId];
+    const latch = ((await readDb()).orchestrationHalts || {})[orgId];
     const causalDrift = Number(body.causal_drift) || 0;
     const breaker = evaluateCircuitBreaker({
       latchOpen: Boolean(latch && latch.open),
@@ -658,7 +666,6 @@ async function handleApi(req, res, url) {
   }
 
   if (url.pathname === "/api/v1/orchestrate/reset" && req.method === "POST") {
-    const auth = await requireSession(req);
     requireRole(auth, "owner");
     await transact(db => {
       if (db.orchestrationHalts) delete db.orchestrationHalts[auth.organization.id];
