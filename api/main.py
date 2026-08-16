@@ -6,6 +6,7 @@ Called by the Node.js gateway — not exposed externally.
 
 from fastapi import FastAPI
 from routes.shadow_mode import router as shadow_router
+from routes.orchestration import router as orchestration_router
 
 app = FastAPI(
     title="MarginLift Shadow Scorer",
@@ -15,6 +16,7 @@ app = FastAPI(
 )
 
 app.include_router(shadow_router, prefix="/api/v1/shadow")
+app.include_router(orchestration_router, prefix="/api/v1/orchestrate")
 
 
 @app.get("/health")

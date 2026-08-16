@@ -39,6 +39,7 @@ const {
 } = require("./retention-product");
 const { buildRetentionExperimentBrief, buildRetentionShadowRun } = require("./retention-shadow");
 const { evaluateShadow, generateBudgetWasteReport } = require("./shadow-evaluator");
+const { orchestrateCampaign, evaluateCircuitBreaker } = require("./orchestrator");
 const { FONT_FILENAME, inspectTypography, renderTypographyCss } = require("./typography");
 const {
   analyzeOutcomeRows,
@@ -47,7 +48,7 @@ const {
   buildReadinessAudit,
   buildSavingsSnapshot
 } = require("./pilot");
-const { appOrigin, assertProductionConfig, isProduction, maxBodyBytes, port: defaultPort, publicSignupEnabled, shadowScorerUrl, trustProxy } = require("./config");
+const { appOrigin, assertProductionConfig, isProduction, maxBodyBytes, orchestrationDriftThreshold, port: defaultPort, publicSignupEnabled, shadowScorerUrl, trustProxy } = require("./config");
 const { verifyJwt } = require("./auth");
 
 const publicRoot = path.join(__dirname, "..");
@@ -610,6 +611,59 @@ async function handleApi(req, res, url) {
     const orgLogs = (db.shadowLogs || []).filter(l => l.organizationId === orgId);
     const report = generateBudgetWasteReport(orgLogs);
     sendJson(res, 200, { data: report });
+    return;
+  }
+
+  if (url.pathname === "/api/v1/orchestrate/trigger" && req.method === "POST") {
+    const authHeader = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+    const jwtPayload = verifyJwt(authHeader);
+    if (!jwtPayload || !jwtPayload.org) {
+      sendJson(res, 401, { error: { code: "UNAUTHORIZED", message: "JWT نامعتبر یا منقضی‌شده." } });
+      return;
+    }
+    const body = await readJson(req);
+    if (!body.audience || !Array.isArray(body.audience) || body.audience.length === 0) {
+      sendJson(res, 400, { error: { code: "INVALID_AUDIENCE", message: "لیست مخاطبان خالی یا نامعتبر است." } });
+      return;
+    }
+    const orgId = jwtPayload.org;
+    const latch = (readDb().orchestrationHalts || {})[orgId];
+    const causalDrift = Number(body.causal_drift) || 0;
+    const breaker = evaluateCircuitBreaker({
+      latchOpen: Boolean(latch && latch.open),
+      causalDrift,
+      driftThreshold: orchestrationDriftThreshold,
+    });
+    const { orchestrationLog, result } = await orchestrateCampaign(
+      orgId,
+      body.campaign_id || null,
+      body.audience,
+      { causalDrift, driftThreshold: orchestrationDriftThreshold, forceHalt: breaker.halted }
+    );
+    if (breaker.halted) {
+      result.halt_reason = breaker.reason;
+      orchestrationLog.haltReason = breaker.reason;
+    }
+    await transact(db => {
+      if (!db.orchestrationLogs) db.orchestrationLogs = [];
+      // ponytail: unbounded like shadowLogs; rotate/cap when telecom volume actually lands
+      db.orchestrationLogs.push(orchestrationLog);
+      if (breaker.tripped) {
+        if (!db.orchestrationHalts) db.orchestrationHalts = {};
+        db.orchestrationHalts[orgId] = { open: true, reason: breaker.reason, drift: causalDrift, at: new Date().toISOString() };
+      }
+    });
+    sendJson(res, 200, { data: result });
+    return;
+  }
+
+  if (url.pathname === "/api/v1/orchestrate/reset" && req.method === "POST") {
+    const auth = await requireSession(req);
+    requireRole(auth, "owner");
+    await transact(db => {
+      if (db.orchestrationHalts) delete db.orchestrationHalts[auth.organization.id];
+    });
+    sendJson(res, 200, { data: { reset: true, organizationId: auth.organization.id } });
     return;
   }
 
