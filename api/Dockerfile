@@ -7,10 +7,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Train + validate the uplift model at build time. The training script asserts
-# the model ranks uplift better than random, so a degenerate model fails the
+# Train + validate the seed uplift model and self-check the registry/promotion
+# gate at build time. A degenerate model or a broken promotion gate fails the
 # build rather than shipping. Produces models/artifacts/uplift_slearner.joblib.
-RUN python train_uplift.py
+RUN python train_uplift.py && python -m mlops.selftest
 
 EXPOSE 8100
 

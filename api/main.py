@@ -23,3 +23,12 @@ app.include_router(orchestration_router, prefix="/api/v1/orchestrate")
 async def health():
     from models.uplift_evaluator import MODEL_SOURCE
     return {"status": "ok", "service": "shadow-scorer", "model": MODEL_SOURCE}
+
+
+@app.get("/internal/registry")
+async def registry_status():
+    import os
+    from mlops.registry import Registry
+    reg = Registry(os.environ.get("MARGINLIFT_MODEL_REGISTRY", "/models"))
+    index = reg.index()
+    return {"production": index.get("production"), "versions": index.get("versions", [])}

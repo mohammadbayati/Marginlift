@@ -1,0 +1,11 @@
+[Unit]
+Description=Run MarginLift model retraining weekly
+
+[Timer]
+OnCalendar=Mon *-*-* 04:30:00 UTC
+Persistent=true
+RandomizedDelaySec=20m
+Unit=marginlift-retrain.service
+
+[Install]
+WantedBy=timers.target

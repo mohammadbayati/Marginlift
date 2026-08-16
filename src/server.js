@@ -43,6 +43,7 @@ const { orchestrateCampaign, evaluateCircuitBreaker } = require("./orchestrator"
 const { assertNoRawPii } = require("./pii-guard");
 const { assessOutcomeDrift, latestOutcomeForOrg } = require("./drift-monitor");
 const { generateMonthlyReport } = require("./billing-report");
+const { getRegistry } = require("./model-registry");
 const { FONT_FILENAME, inspectTypography, renderTypographyCss } = require("./typography");
 const {
   analyzeOutcomeRows,
@@ -698,6 +699,12 @@ async function handleApi(req, res, url) {
       { year: now.getUTCFullYear(), month: now.getUTCMonth() + 1, revenueShareRate }
     );
     sendJson(res, 200, { data: { current, history } });
+    return;
+  }
+
+  if (url.pathname === "/api/v1/mlops/model-registry" && req.method === "GET") {
+    requireRole(auth, "owner");
+    sendJson(res, 200, { data: await getRegistry() });
     return;
   }
 

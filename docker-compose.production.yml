@@ -21,6 +21,10 @@ services:
       context: ./api
       dockerfile: Dockerfile
     restart: unless-stopped
+    environment:
+      MARGINLIFT_MODEL_REGISTRY: /models
+    volumes:
+      - model_registry:/models
     expose:
       - "8100"
     healthcheck:
@@ -83,3 +87,4 @@ volumes:
   artifact_data:
   caddy_data:
   caddy_config:
+  model_registry:

@@ -1,0 +1,11 @@
+[Unit]
+Description=MarginLift uplift-model retraining loop (champion/challenger)
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/marginlift
+ExecStart=/opt/marginlift/ops/vm/retrain.sh
+Nice=15

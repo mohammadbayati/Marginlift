@@ -28,6 +28,10 @@ docker compose -f docker-compose.production.yml exec -T app node -e "fetch('http
 ./ops/vm/backup.sh
 ./ops/vm/verify-backup.sh
 ./ops/vm/install-backup-timer.sh
-chmod +x ops/vm/generate-report.sh ops/vm/install-report-timer.sh
+chmod +x ops/vm/generate-report.sh ops/vm/install-report-timer.sh ops/vm/retrain.sh ops/vm/install-retrain-timer.sh
 ./ops/vm/install-report-timer.sh
+./ops/vm/install-retrain-timer.sh
+# Bootstrap / refresh the model registry (promotes on first run; restarts the
+# scorer if the production model changed). Never blocks the deploy.
+./ops/vm/retrain.sh || echo "retrain step skipped (non-fatal)"
 printf '\nMarginLift VM deployment is healthy.\n'

@@ -21,16 +21,31 @@ from pydantic import BaseModel, Field
 # UpliftSLearner must be importable here for joblib to unpickle the artifact.
 from models.uplift_model import UpliftSLearner, FEATURE_NAMES  # noqa: F401
 
-_MODEL_PATH = os.environ.get(
+_SEED_PATH = os.environ.get(
     "MARGINLIFT_UPLIFT_MODEL",
     os.path.join(os.path.dirname(__file__), "artifacts", "uplift_slearner.joblib"),
 )
-try:
-    _MODEL = joblib.load(_MODEL_PATH)
-    MODEL_SOURCE = "slearner"
-except Exception:  # missing/incompatible artifact -> deterministic heuristic
-    _MODEL = None
-    MODEL_SOURCE = "heuristic_fallback"
+_REGISTRY_ROOT = os.environ.get("MARGINLIFT_MODEL_REGISTRY", "/models")
+
+
+def _load_model():
+    """Prefer the registry's promoted production model; fall back to the
+    build-time seed artifact; fall back to the deterministic heuristic."""
+    try:
+        from mlops.registry import Registry
+        reg = Registry(_REGISTRY_ROOT)
+        model = reg.load_production()
+        if model is not None:
+            return model, f"registry:{reg.production_version()}"
+    except Exception:
+        pass
+    try:
+        return joblib.load(_SEED_PATH), "seed"
+    except Exception:
+        return None, "heuristic_fallback"
+
+
+_MODEL, MODEL_SOURCE = _load_model()
 
 
 class Segment(str, Enum):
