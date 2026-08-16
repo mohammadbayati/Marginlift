@@ -20,28 +20,52 @@ import os
 import sys
 import time
 
+import numpy as np
+
+from models.uplift_model import UpliftSLearner
 from mlops.registry import Registry
 from mlops.training import (
+    HOLDOUT_FRAC,
     bootstrap_qini_diff_lower,
+    build_dataset,
     evaluate,
+    load_real_dataset,
     qini_area,
-    train_candidate,
     validate_metrics,
 )
 
 REGISTRY_ROOT = os.environ.get("MARGINLIFT_MODEL_REGISTRY", "/models")
 TRAIN_N = int(os.environ.get("MARGINLIFT_RETRAIN_N", "60000"))
 PROMOTION_MARGIN = float(os.environ.get("MARGINLIFT_PROMOTION_MARGIN", "0.0"))
+REAL_DATA_PATH = os.environ.get("MARGINLIFT_TRAINING_DATA", "/training/examples.jsonl")
+MIN_REAL_ROWS = int(os.environ.get("MARGINLIFT_MIN_REAL_ROWS", "2000"))
+
+
+def _load_training(seed: int):
+    """Prefer real client-reported labels; fall back to the synthetic DGP.
+    Returns (train_tuple, holdout_tuple, source)."""
+    real = load_real_dataset(REAL_DATA_PATH, MIN_REAL_ROWS)
+    if real is not None:
+        X, w, y = real
+        rng = np.random.default_rng(seed)
+        idx = rng.permutation(len(X))
+        split = int(len(X) * (1 - HOLDOUT_FRAC))
+        tr, ho = idx[:split], idx[split:]
+        return (X[tr], w[tr], y[tr]), (X[ho], w[ho], y[ho], None), "real"
+    train, holdout = build_dataset(TRAIN_N, seed)
+    return train, holdout, "synthetic"
 
 
 def main() -> int:
     reg = Registry(REGISTRY_ROOT)
     seed = int(time.time()) % (2**31 - 1)
 
-    challenger, holdout = train_candidate(TRAIN_N, seed)
+    train, holdout, source = _load_training(seed)
+    challenger = UpliftSLearner().fit(*train)
     metrics = evaluate(challenger, holdout)
+    metrics["data_source"] = source
     validate_metrics(metrics)  # a challenger must at least be a real ranker
-    print(f"challenger metrics: {metrics}")
+    print(f"challenger metrics ({source}): {metrics}")
 
     champion = reg.load_production()
     if champion is None:

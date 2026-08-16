@@ -23,8 +23,10 @@ services:
     restart: unless-stopped
     environment:
       MARGINLIFT_MODEL_REGISTRY: /models
+      MARGINLIFT_TRAINING_DATA: /training/examples.jsonl
     volumes:
       - model_registry:/models
+      - training_data:/training:ro
     expose:
       - "8100"
     healthcheck:
@@ -48,6 +50,7 @@ services:
       MARGINLIFT_FONT_DIR: /app/private/fonts
       MARGINLIFT_JOB_WORKER: "true"
       SHADOW_SCORER_URL: http://shadow-scorer:8100
+      TRAINING_DATA_DIR: /training
     depends_on:
       postgres:
         condition: service_healthy
@@ -59,6 +62,7 @@ services:
       - ./data:/app/data
       - ./private/fonts:/app/private/fonts:ro
       - artifact_data:/app/private/artifacts
+      - training_data:/training
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 30s
@@ -88,3 +92,4 @@ volumes:
   caddy_data:
   caddy_config:
   model_registry:
+  training_data:

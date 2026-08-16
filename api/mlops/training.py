@@ -6,9 +6,12 @@ retraining loop (api/mlops/retrain.py) so the two never drift apart.
 
 from __future__ import annotations
 
+import json
+import os
+
 import numpy as np
 
-from models.uplift_model import UpliftSLearner, generate_training_data
+from models.uplift_model import UpliftSLearner, FEATURE_NAMES, generate_training_data
 
 HOLDOUT_FRAC = 0.25
 
@@ -64,9 +67,12 @@ def evaluate(model, holdout) -> dict:
     Xh, wh, yh, tau_h = holdout
     pred = model.predict_uplift(Xh)
     top, bottom = decile_uplift(yh, wh, pred)
+    # Real data has no ground-truth tau; correlation is only available on the
+    # synthetic DGP.
+    corr = None if tau_h is None else round(float(np.corrcoef(pred, tau_h)[0, 1]), 4)
     return {
         "n": int(len(Xh)),
-        "corr_true_tau": round(float(np.corrcoef(pred, tau_h)[0, 1]), 4),
+        "corr_true_tau": corr,
         "qini_area": round(qini_area(yh, wh, pred), 5),
         "top_decile_uplift": round(float(top), 4),
         "bottom_decile_uplift": round(float(bottom), 4),
@@ -75,9 +81,41 @@ def evaluate(model, holdout) -> dict:
 
 def validate_metrics(metrics: dict) -> None:
     """Hard gates — a model that fails these is not a real uplift ranker."""
-    assert metrics["corr_true_tau"] > 0.4, f"corr too low: {metrics['corr_true_tau']}"
     assert metrics["qini_area"] > 0, f"qini not above random: {metrics['qini_area']}"
     assert metrics["top_decile_uplift"] > metrics["bottom_decile_uplift"], "top decile not above bottom"
+    if metrics.get("corr_true_tau") is not None:
+        assert metrics["corr_true_tau"] > 0.4, f"corr too low: {metrics['corr_true_tau']}"
+
+
+def load_real_dataset(path: str, min_rows: int = 2000):
+    """Load labeled training rows reported by clients (JSONL of
+    {features:{...}, w, y}). Returns (X, w, y) or None when there is not yet
+    enough usable real data — in which case the caller falls back to the
+    synthetic DGP.
+    """
+    if not path or not os.path.exists(path):
+        return None
+    X, w, y = [], [], []
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+                feats = row.get("features") or {}
+                X.append([float(feats.get(name, 0.0)) for name in FEATURE_NAMES])
+                w.append(int(row.get("w", 0)))
+                y.append(int(row.get("y", 0)))
+            except (ValueError, TypeError):
+                continue
+    if len(X) < min_rows:
+        return None
+    Xa, wa, ya = np.array(X, dtype=float), np.array(w), np.array(y)
+    # Need both arms and both outcome classes to fit an S-Learner meaningfully.
+    if wa.sum() == 0 or (1 - wa).sum() == 0 or ya.sum() == 0 or (1 - ya).sum() == 0:
+        return None
+    return Xa, wa, ya
 
 
 def bootstrap_qini_diff_lower(y, w, model_a, X, model_b, b: int = 300, alpha: float = 0.05, seed: int = 0) -> float:

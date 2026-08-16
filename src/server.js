@@ -44,6 +44,7 @@ const { assertNoRawPii } = require("./pii-guard");
 const { assessOutcomeDrift, latestOutcomeForOrg } = require("./drift-monitor");
 const { generateMonthlyReport } = require("./billing-report");
 const { getRegistry } = require("./model-registry");
+const { buildTrainingExamples, appendExamples } = require("./training-store");
 const { FONT_FILENAME, inspectTypography, renderTypographyCss } = require("./typography");
 const {
   analyzeOutcomeRows,
@@ -238,6 +239,7 @@ async function handleApi(req, res, url) {
     "/api/v1/evaluate/shadow",
     "/api/v1/shadow/waste-report",
     "/api/v1/orchestrate/trigger",
+    "/api/v1/outcomes/report",
   ]);
   const auth = jwtAuthenticatedApiPaths.has(url.pathname) ? null : await requireSession(req);
 
@@ -705,6 +707,26 @@ async function handleApi(req, res, url) {
   if (url.pathname === "/api/v1/mlops/model-registry" && req.method === "GET") {
     requireRole(auth, "owner");
     sendJson(res, 200, { data: await getRegistry() });
+    return;
+  }
+
+  if (url.pathname === "/api/v1/outcomes/report" && req.method === "POST") {
+    const authHeader = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+    const jwtPayload = verifyJwt(authHeader);
+    if (!jwtPayload || !jwtPayload.org) {
+      sendJson(res, 401, { error: { code: "UNAUTHORIZED", message: "JWT نامعتبر یا منقضی‌شده." } });
+      return;
+    }
+    const body = await readJson(req);
+    if (!body.results || !Array.isArray(body.results) || body.results.length === 0) {
+      sendJson(res, 400, { error: { code: "INVALID_RESULTS", message: "results باید آرایه‌ای غیرخالی باشد." } });
+      return;
+    }
+    assertNoRawPii(body.results);
+    const examples = buildTrainingExamples(jwtPayload.org, body.campaign_id || null, body.results);
+    let total = 0;
+    await transact(db => { total = appendExamples(db, examples); });
+    sendJson(res, 200, { data: { accepted: examples.length, totalExamples: total } });
     return;
   }
 

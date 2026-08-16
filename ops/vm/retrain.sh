@@ -6,6 +6,11 @@ set -Eeuo pipefail
 APP_DIR="${MARGINLIFT_APP_DIR:-/opt/marginlift}"
 cd "$APP_DIR"
 
+# Export the latest client-reported training examples to the shared volume so
+# the trainer can use real data once enough has accumulated (non-fatal).
+docker compose -f docker-compose.production.yml exec -T app node scripts/export-training-data.js || \
+  echo "training export skipped (non-fatal)"
+
 set +e
 docker compose -f docker-compose.production.yml exec -T shadow-scorer python -m mlops.retrain
 code=$?
