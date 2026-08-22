@@ -1,0 +1,3 @@
+campaign_id,segment_fa,campaign_group,users,conversion_rate,incentive_cost_per_user_toman,estimated_revenue_toman,gross_margin_rate,channel_cost_per_user_toman,baseline_policy,recommended_action_fa
+FIX-SMOKE-001,Fixture Smoke,control,20,0.10,0,2000000,0.40,100,small_discount,holdout
+FIX-SMOKE-001,Fixture Smoke,small_discount,20,0.18,5000,3900000,0.40,100,small_discount,small_discount

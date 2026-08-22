@@ -1,0 +1,9 @@
+campaign_id,segment_fa,campaign_group,users,conversion_rate,incentive_cost_per_user_toman,estimated_revenue_toman,gross_margin_rate,channel_cost_per_user_toman,baseline_policy,recommended_action_fa
+FIX-REG-001,Fixture Loyal,control,40,0.18,0,7200000,0.42,100,high_incentive,holdout
+FIX-REG-001,Fixture Loyal,push_only,40,0.20,0,8000000,0.42,100,high_incentive,push_only
+FIX-REG-001,Fixture Loyal,small_discount,40,0.24,4000,9800000,0.42,100,high_incentive,small_discount
+FIX-REG-001,Fixture Dormant,control,30,0.05,0,1500000,0.35,120,high_incentive,holdout
+FIX-REG-001,Fixture Dormant,high_incentive,30,0.16,12000,5200000,0.35,120,high_incentive,high_incentive
+FIX-REG-001,Fixture Sensitive,control,30,0.08,0,2400000,0.38,100,small_discount,holdout
+FIX-REG-001,Fixture Sensitive,small_discount,30,0.18,5000,6100000,0.38,100,small_discount,small_discount
+FIX-REG-001,Fixture Sensitive,high_incentive,30,0.19,15000,6500000,0.38,100,small_discount,small_discount

@@ -1,0 +1,3 @@
+customer_id,segment_fa,days_since_last_purchase,orders_90d,revenue_90d_toman,gross_margin_rate,treatment,exposed,converted,outcome_revenue_toman,incentive_cost_toman,channel_cost_toman,churned,channel
+hash_0000000000000000000000000000000000000000000000000000000000000001,Fixture Loyal,12,3,900000,0.40,control,false,false,0,0,0,false,push
+hash_0000000000000000000000000000000000000000000000000000000000000002,Fixture Loyal,14,3,910000,0.40,small_discount,true,true,220000,5000,100,false,push

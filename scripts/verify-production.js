@@ -1,4 +1,5 @@
 const assert = require("assert");
+const { validateFixtureLayer } = require("../src/fixture-strategy");
 
 const baseUrl = String(process.env.MARGINLIFT_BASE_URL || "https://marginlift.ir").replace(/\/$/, "");
 const email = String(process.env.MARGINLIFT_DEMO_EMAIL || "").trim();
@@ -34,6 +35,9 @@ async function main() {
   }
 
   const evidence = [];
+  const fixtureSnapshot = validateFixtureLayer("production-smoke");
+  evidence.push(`fixtures:production-smoke:${fixtureSnapshot.digest}`);
+
   const publicSurfaces = [
     ["/", "siteMain"],
     ["/login", "authShell"],
