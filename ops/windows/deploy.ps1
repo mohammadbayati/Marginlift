@@ -132,7 +132,7 @@ rm -f "$RELEASE" "$CHECKSUM"
     $fontResponse.StatusCode -ne 200 -or
     $retentionSampleResponse.StatusCode -ne 200 -or
     $healthResponse.data.status -ne "ok" -or
-    $healthResponse.data.storage.driver -ne "postgres"
+    $healthResponse.data.service -ne "marginlift"
   ) {
     throw "Production verification failed."
   }

@@ -51,6 +51,9 @@ async function run() {
   try {
     const health = await request("/api/health");
     assert.strictEqual(health.response.status, 200);
+    assert.strictEqual(health.payload.data.status, "ok");
+    assert.strictEqual(health.payload.data.service, "marginlift");
+    assert.strictEqual(health.payload.data.storage, undefined);
     assert.strictEqual(health.response.headers.get("x-content-type-options"), "nosniff");
     assert.strictEqual(health.response.headers.get("x-frame-options"), "DENY");
     assert.match(health.response.headers.get("content-security-policy"), /default-src 'self'/);

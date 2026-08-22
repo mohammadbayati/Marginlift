@@ -44,6 +44,7 @@ const { assertNoRawPii } = require("./pii-guard");
 const { assessOutcomeDrift, latestOutcomeForOrg } = require("./drift-monitor");
 const { generateMonthlyReport } = require("./billing-report");
 const { getRegistry } = require("./model-registry");
+const { buildOperationalHealth, publicLiveness } = require("./operational-health");
 const { buildTrainingExamples, appendExamples } = require("./training-store");
 const { FONT_FILENAME, inspectTypography, renderTypographyCss } = require("./typography");
 const {
@@ -160,8 +161,7 @@ async function handleRequest(req, res) {
 
 async function handleApi(req, res, url) {
   if (url.pathname === "/api/health" && (req.method === "GET" || req.method === "HEAD")) {
-    const storage = await storageHealth();
-    sendJson(res, storage.status === "ok" ? 200 : 503, { data: { status: storage.status, storage } });
+    sendJson(res, 200, { data: publicLiveness() });
     return;
   }
 
@@ -298,6 +298,13 @@ async function handleApi(req, res, url) {
   if (url.pathname === "/api/ops/jobs" && req.method === "GET") {
     requireRole(auth, "admin");
     sendJson(res, 200, { data: await listJobs(auth.organization.id) });
+    return;
+  }
+
+  if (url.pathname === "/api/internal/health" && req.method === "GET") {
+    requireRole(auth, "admin");
+    const health = await buildOperationalHealth();
+    sendJson(res, health.status === "error" ? 503 : 200, { data: health });
     return;
   }
 
@@ -848,6 +855,12 @@ async function getRequestSession(req) {
   const membership = db.memberships.find(item => item.userId === user?.id);
   const organization = db.organizations.find(item => item.id === membership?.organizationId);
   if (!user || !membership || !organization) return null;
+
+  req.authContext = {
+    organizationId: organization.id,
+    userId: user.id,
+    role: membership.role
+  };
 
   return {
     session,
@@ -1997,6 +2010,13 @@ async function enqueueIntegrityCheck(organizationId, entityId) {
 }
 
 function requestContext(req, auth = null) {
+  if (req && auth) {
+    req.authContext = {
+      organizationId: auth?.organization?.id || null,
+      userId: auth?.user?.id || null,
+      role: auth?.membership?.role || null
+    };
+  }
   return {
     organizationId: auth?.organization?.id || null,
     actorId: auth?.user?.id || null,

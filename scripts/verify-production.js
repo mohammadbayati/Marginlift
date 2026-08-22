@@ -86,9 +86,10 @@ async function main() {
   const health = await request("/api/health");
   expectStatus(health, 200, "health");
   assert.strictEqual(health.payload.data.status, "ok");
-  assert.strictEqual(health.payload.data.storage.driver, expectedStorage);
+  assert.strictEqual(health.payload.data.service, "marginlift");
+  assert.strictEqual(health.payload.data.storage, undefined);
   assert.match(health.response.headers.get("content-security-policy") || "", /default-src 'self'/);
-  evidence.push(`health:${expectedStorage}:ok`, "security-headers:csp");
+  evidence.push("health:public-liveness:ok", "security-headers:csp");
 
   const publicConfig = await request("/api/public-config");
   expectStatus(publicConfig, 200, "public config");
@@ -107,6 +108,14 @@ async function main() {
   expectStatus(session, 200, "session");
   assert.strictEqual(session.payload.data.role, expectedRole);
   evidence.push(`login:${expectedRole}`);
+
+  if (["owner", "admin"].includes(expectedRole)) {
+    const internalHealth = await request("/api/internal/health", { cookie });
+    expectStatus(internalHealth, 200, "internal health");
+    assert.strictEqual(internalHealth.payload.data.checks.database.driver, expectedStorage);
+    assert.ok(["ok", "degraded", "error"].includes(internalHealth.payload.data.status));
+    evidence.push(`internal-health:${expectedStorage}:${internalHealth.payload.data.status}`);
+  }
 
   const usabilityConsole = await request("/internal/usability-test", { cookie });
   if (expectedRole === "owner") {

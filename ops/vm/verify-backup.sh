@@ -3,7 +3,9 @@ set -Eeuo pipefail
 
 APP_DIR="${MARGINLIFT_APP_DIR:-/opt/marginlift}"
 BACKUP_DIR="${MARGINLIFT_BACKUP_DIR:-$APP_DIR/backups}"
+STATUS_PATH="${MARGINLIFT_BACKUP_STATUS_PATH:-$BACKUP_DIR/status.json}"
 STAMP="$(date -u +%Y%m%d%H%M%S)"
+ISO_STAMP="$(date -u +%Y-%m-%dT%H-%M-%SZ)"
 RESTORE_DB="marginlift_restore_test_$STAMP"
 
 cd "$APP_DIR"
@@ -29,5 +31,16 @@ STATE_ROWS="$(docker compose -f docker-compose.production.yml exec -T postgres \
   psql -U marginlift -d "$RESTORE_DB" -Atc 'SELECT COUNT(*) FROM marginlift_state;')"
 test "$STATE_ROWS" = "1"
 tar -tzf "$LATEST_ARTIFACTS" >/dev/null
+cat > "$STATUS_PATH" <<JSON
+{
+  "status": "ok",
+  "lastBackupAt": null,
+  "lastRestoreVerifiedAt": "$ISO_STAMP",
+  "latestDatabaseBackup": "$(basename "$LATEST_DB")",
+  "latestArtifactBackup": "$(basename "$LATEST_ARTIFACTS")",
+  "updatedAt": "$ISO_STAMP"
+}
+JSON
+chmod 600 "$STATUS_PATH"
 
 printf 'MarginLift backup restore verification passed: %s\n' "$(basename "$LATEST_DB")"

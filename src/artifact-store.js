@@ -59,6 +59,38 @@ async function deleteArtifact(metadata) {
   }
 }
 
+async function artifactHealth() {
+  const startedAt = Date.now();
+  const enabled = isEnabled();
+  if (!enabled) {
+    return {
+      status: "degraded",
+      enabled,
+      writable: false,
+      latencyMs: Date.now() - startedAt
+    };
+  }
+  try {
+    await fs.promises.mkdir(storageRoot, { recursive: true, mode: 0o700 });
+    const probe = path.join(storageRoot, `.health-${process.pid}-${Date.now()}`);
+    await fs.promises.writeFile(probe, "ok", { mode: 0o600 });
+    await fs.promises.unlink(probe);
+    return {
+      status: "ok",
+      enabled,
+      writable: true,
+      latencyMs: Date.now() - startedAt
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      enabled,
+      writable: false,
+      latencyMs: Date.now() - startedAt
+    };
+  }
+}
+
 function resolveStorageKey(storageKey) {
   const resolvedRoot = path.resolve(storageRoot);
   const resolved = path.resolve(resolvedRoot, storageKey);
@@ -86,4 +118,4 @@ function cleanName(value) {
   return String(value || "dataset.csv").replace(/[\r\n]/g, " ").slice(0, 120);
 }
 
-module.exports = { deleteArtifact, isEnabled, persistArtifact, readArtifact };
+module.exports = { artifactHealth, deleteArtifact, isEnabled, persistArtifact, readArtifact };

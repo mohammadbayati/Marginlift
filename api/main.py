@@ -34,4 +34,20 @@ async def registry_status():
     from mlops.registry import Registry
     reg = Registry(os.environ.get("MARGINLIFT_MODEL_REGISTRY", "/models"))
     index = reg.index()
-    return {"production": index.get("production"), "versions": index.get("versions", [])}
+    history = index.get("promotion_history", [])
+    latest = history[-1] if history else None
+    return {
+        "production": index.get("production"),
+        "previous_production": index.get("previous_production"),
+        "version_count": len(index.get("versions", [])),
+        "history_count": len(history),
+        "history_retention": index.get("promotion_history_retention"),
+        "latest_event": {
+            "event": latest.get("event"),
+            "from_version": latest.get("from_version"),
+            "to_version": latest.get("to_version"),
+            "created_at": latest.get("created_at"),
+            "actor": latest.get("actor"),
+            "reason": latest.get("reason"),
+        } if latest else None,
+    }

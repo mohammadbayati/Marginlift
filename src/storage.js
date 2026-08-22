@@ -200,6 +200,59 @@ async function storageHealth() {
   }
 }
 
+async function queueHealth() {
+  const startedAt = Date.now();
+  try {
+    await initializeStorage();
+    let rows;
+    if (storageDriver === "postgres") {
+      const result = await pool.query(`
+        SELECT status, COUNT(*)::int AS count, MIN(created_at) AS oldest_created_at
+        FROM marginlift_jobs
+        GROUP BY status
+      `);
+      rows = result.rows.map(row => ({
+        status: row.status,
+        count: Number(row.count || 0),
+        oldestCreatedAt: row.oldest_created_at || null
+      }));
+    } else {
+      const db = await readDb();
+      const grouped = new Map();
+      for (const job of db.jobs || []) {
+        const current = grouped.get(job.status) || { status: job.status, count: 0, oldestCreatedAt: null };
+        current.count += 1;
+        if (!current.oldestCreatedAt || new Date(job.createdAt) < new Date(current.oldestCreatedAt)) {
+          current.oldestCreatedAt = job.createdAt || null;
+        }
+        grouped.set(job.status, current);
+      }
+      rows = Array.from(grouped.values());
+    }
+    const counts = rows.reduce((result, row) => {
+      result[row.status || "unknown"] = row.count;
+      return result;
+    }, {});
+    const oldestPending = rows
+      .filter(row => row.status === "pending" && row.oldestCreatedAt)
+      .map(row => new Date(row.oldestCreatedAt).getTime())
+      .sort((a, b) => a - b)[0];
+    return {
+      status: counts.failed ? "degraded" : "ok",
+      counts,
+      oldestPendingAgeSeconds: oldestPending ? Math.max(0, Math.floor((Date.now() - oldestPending) / 1000)) : null,
+      latencyMs: Date.now() - startedAt
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      counts: {},
+      oldestPendingAgeSeconds: null,
+      latencyMs: Date.now() - startedAt
+    };
+  }
+}
+
 async function enqueueJob(input) {
   await initializeStorage();
   const job = {
@@ -353,6 +406,7 @@ module.exports = {
   initializeStorage,
   listJobs,
   normalizeDb,
+  queueHealth,
   readLegacyJsonForMigration,
   readDb,
   storageDriver,
