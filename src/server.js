@@ -72,6 +72,7 @@ const {
   getPilotWorkflow,
   summarizePilotWorkflow
 } = require("./pilot-control-room");
+const { buildEnterpriseIntelligence } = require("./enterprise-intelligence");
 const { appOrigin, assertProductionConfig, isProduction, maxBodyBytes, orchestrationDriftThreshold, revenueShareRate, port: defaultPort, publicSignupEnabled, shadowScorerUrl, trustProxy } = require("./config");
 const { verifyJwt } = require("./auth");
 
@@ -567,6 +568,11 @@ async function handleApi(req, res, url) {
     requireRole(auth, "admin");
     const body = await readJson(req);
     sendJson(res, 200, { data: await updatePilotControlRoom(auth.organization.id, body, requestContext(req, auth)) });
+    return;
+  }
+
+  if (url.pathname === "/api/enterprise/intelligence" && req.method === "GET") {
+    sendJson(res, 200, { data: await getEnterpriseIntelligence(auth.organization.id) });
     return;
   }
 
@@ -1586,6 +1592,11 @@ async function getPilotControlReadinessContext(organizationId) {
     readiness,
     experiment
   };
+}
+
+async function getEnterpriseIntelligence(organizationId) {
+  const db = await readDb();
+  return buildEnterpriseIntelligence(db, { organizationId });
 }
 
 async function getModelGovernanceOverview(organizationId) {

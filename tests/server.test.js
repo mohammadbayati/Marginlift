@@ -112,6 +112,8 @@ async function run() {
     assert.strictEqual(missingLicensedFont.payload.error.code, "LICENSED_FONT_NOT_READY");
     const anonymousUsabilityConsole = await request("/internal/usability-test");
     assert.strictEqual(anonymousUsabilityConsole.response.status, 401);
+    const anonymousEnterpriseIntelligence = await request("/api/enterprise/intelligence");
+    assert.strictEqual(anonymousEnterpriseIntelligence.response.status, 401);
 
     const signup = await request("/api/auth/signup", {
       method: "POST",
@@ -181,6 +183,11 @@ async function run() {
     assert.strictEqual(fallbackContract.response.status, 200);
     assert.strictEqual(fallbackContract.payload.data.persisted, false);
     assert.strictEqual(fallbackContract.payload.data.lifecycleStatus, "draft");
+
+    const emptyEnterpriseIntelligence = await request("/api/enterprise/intelligence", { cookie: viewerCookie });
+    assert.strictEqual(emptyEnterpriseIntelligence.response.status, 200);
+    assert.strictEqual(emptyEnterpriseIntelligence.payload.data.persisted, false);
+    assert.strictEqual(emptyEnterpriseIntelligence.payload.data.portfolio.pilotsTotal, 0);
 
     const viewerContractCreate = await request("/api/pilot/decision-contract", {
       method: "POST",
@@ -536,6 +543,18 @@ async function run() {
     assert.strictEqual(pilotWorkspaceWithControl.payload.data.pilotControlSummary.persisted, true);
     assert.strictEqual(pilotWorkspaceWithControl.payload.data.pilotControlSummary.lifecycleStatus, "kickoff");
     assert.strictEqual(pilotWorkspaceWithControl.payload.data.pilotControlSummary.blockersCount, 0);
+
+    const enterpriseIntelligence = await request("/api/enterprise/intelligence", { cookie: viewerCookie });
+    assert.strictEqual(enterpriseIntelligence.response.status, 200);
+    assert.strictEqual(enterpriseIntelligence.payload.data.organizationId, login.payload.data.organization.id);
+    assert.strictEqual(enterpriseIntelligence.payload.data.persisted, false);
+    assert.strictEqual(enterpriseIntelligence.payload.data.portfolio.pilotsTotal, 1);
+    assert.strictEqual(enterpriseIntelligence.payload.data.financialBenchmarks.totalForecastValue, 40000);
+    assert.strictEqual(enterpriseIntelligence.payload.data.financialBenchmarks.totalRealizedValue, 36000);
+    assert.strictEqual(enterpriseIntelligence.payload.data.sourceRefs.pilotContractIds.length, 1);
+    assert.strictEqual(enterpriseIntelligence.payload.data.sourceRefs.businessImpactLedgerIds.length, 1);
+    assert.strictEqual(enterpriseIntelligence.payload.data.sourceRefs.pilotWorkflowIds.length, 1);
+    assert.ok(enterpriseIntelligence.payload.data.executiveIntelligence.scaleCandidates.length >= 1);
 
     const expiredMemberEmail = `expired-${Date.now()}@marginlift.ir`;
     const expiredMember = await request("/api/access/members", {
