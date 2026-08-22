@@ -23,3 +23,5 @@ Cognitive_bias_codex_en.png
 .impeccable/
 skills-lock.json
 private/fonts/
+.claude-flow/
+.swarm/
