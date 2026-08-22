@@ -42,12 +42,20 @@ class ScorerInternalAuthTest(unittest.TestCase):
         self.assertFalse(verify_internal_token("wrong-token"))
 
     def test_local_development_compatibility(self):
-        os.environ.pop("SCORER_AUTH_REQUIRED", None)
+        os.environ["SCORER_AUTH_REQUIRED"] = "false"
         os.environ.pop("SCORER_INTERNAL_TOKEN", None)
         os.environ.pop("SCORER_INTERNAL_TOKEN_PREVIOUS", None)
         os.environ.pop("SCORER_INTERNAL_TOKENS", None)
         self.assertFalse(auth_required())
         self.assertTrue(verify_internal_token(None))
+
+    def test_auth_mode_must_be_explicit(self):
+        os.environ.pop("SCORER_AUTH_REQUIRED", None)
+        os.environ.pop("SCORER_INTERNAL_TOKEN", None)
+        os.environ.pop("SCORER_INTERNAL_TOKEN_PREVIOUS", None)
+        os.environ.pop("SCORER_INTERNAL_TOKENS", None)
+        with self.assertRaisesRegex(RuntimeError, "SCORER_AUTH_REQUIRED"):
+            auth_required()
 
     def test_health_is_unauthenticated(self):
         self.configure_required()

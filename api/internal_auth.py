@@ -45,7 +45,7 @@ def auth_required() -> bool:
         return True
     if explicit in {"0", "false", "no"}:
         return False
-    return bool(configured_tokens())
+    raise RuntimeError("SCORER_AUTH_REQUIRED must be explicitly set to true or false.")
 
 
 def verify_internal_token(provided: str | None) -> bool:
@@ -65,7 +65,12 @@ def install_internal_auth(app: "FastAPI") -> None:
         if is_public_path(request.url.path):
             return await call_next(request)
 
-        if not auth_required():
+        try:
+            required = auth_required()
+        except RuntimeError as error:
+            return JSONResponse({"detail": str(error)}, status_code=503)
+
+        if not required:
             return await call_next(request)
 
         tokens = configured_tokens()
