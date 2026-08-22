@@ -427,6 +427,116 @@ async function run() {
     assert.strictEqual(pilotWorkspaceWithImpact.payload.data.businessImpactSummary.persisted, true);
     assert.strictEqual(pilotWorkspaceWithImpact.payload.data.businessImpactSummary.financeVerification, "verified");
 
+    const fallbackControlRoom = await request("/api/pilot/control-room", { cookie: viewerCookie });
+    assert.strictEqual(fallbackControlRoom.response.status, 200);
+    assert.strictEqual(fallbackControlRoom.payload.data.persisted, false);
+
+    const viewerControlCreate = await request("/api/pilot/control-room", {
+      method: "POST",
+      cookie: viewerCookie,
+      body: {
+        pilotContractId: createdContract.payload.data.id,
+        businessImpactLedgerId: createdBusinessImpact.payload.data.id
+      }
+    });
+    assert.strictEqual(viewerControlCreate.response.status, 403);
+    assert.strictEqual(viewerControlCreate.payload.error.code, "INSUFFICIENT_ROLE");
+
+    const createdControlRoom = await request("/api/pilot/control-room", {
+      method: "POST",
+      cookie,
+      body: {
+        pilotContractId: createdContract.payload.data.id,
+        businessImpactLedgerId: createdBusinessImpact.payload.data.id,
+        milestones: [
+          { name: "Executive decision readout", targetDate: "2026-09-22", status: "pending" }
+        ]
+      }
+    });
+    assert.strictEqual(createdControlRoom.response.status, 201);
+    assert.strictEqual(createdControlRoom.payload.data.persisted, true);
+    assert.strictEqual(createdControlRoom.payload.data.organizationId, login.payload.data.organization.id);
+    assert.strictEqual(createdControlRoom.payload.data.lifecycleStatus, "draft");
+    assert.strictEqual(createdControlRoom.payload.data.stages.length, 7);
+
+    const viewerControlPatch = await request("/api/pilot/control-room", {
+      method: "PATCH",
+      cookie: viewerCookie,
+      body: { action: "transition_stage", lifecycleStatus: "kickoff" }
+    });
+    assert.strictEqual(viewerControlPatch.response.status, 403);
+    assert.strictEqual(viewerControlPatch.payload.error.code, "INSUFFICIENT_ROLE");
+
+    const skippedControlTransition = await request("/api/pilot/control-room", {
+      method: "PATCH",
+      cookie,
+      body: { action: "transition_stage", lifecycleStatus: "data_ready" }
+    });
+    assert.strictEqual(skippedControlTransition.response.status, 409);
+    assert.strictEqual(skippedControlTransition.payload.error.code, "INVALID_PILOT_WORKFLOW_TRANSITION");
+
+    const kickoffControlRoom = await request("/api/pilot/control-room", {
+      method: "PATCH",
+      cookie,
+      body: {
+        action: "transition_stage",
+        lifecycleStatus: "kickoff",
+        metadata: { reason: "Pilot kickoff complete." }
+      }
+    });
+    assert.strictEqual(kickoffControlRoom.response.status, 200);
+    assert.strictEqual(kickoffControlRoom.payload.data.lifecycleStatus, "kickoff");
+    assert.ok(kickoffControlRoom.payload.data.auditEvents.some(item => item.action === "pilot_stage_transition" && item.from === "draft" && item.to === "kickoff"));
+
+    const evidenceControlRoom = await request("/api/pilot/control-room", {
+      method: "PATCH",
+      cookie,
+      body: {
+        action: "append_evidence",
+        stageKey: "kickoff",
+        evidence: {
+          label: "Signed pilot kickoff notes",
+          referenceId: "doc_kickoff"
+        }
+      }
+    });
+    assert.strictEqual(evidenceControlRoom.response.status, 200);
+    assert.strictEqual(evidenceControlRoom.payload.data.stages.find(item => item.key === "kickoff").evidence.length, 1);
+
+    const blockedControlRoom = await request("/api/pilot/control-room", {
+      method: "PATCH",
+      cookie,
+      body: {
+        action: "add_blocker",
+        description: "Finance export delivery is delayed.",
+        ownerId: "finance_lead",
+        severity: "high"
+      }
+    });
+    assert.strictEqual(blockedControlRoom.response.status, 200);
+    assert.strictEqual(blockedControlRoom.payload.data.blockers.length, 1);
+    assert.ok(blockedControlRoom.payload.data.auditEvents.some(item => item.action === "pilot_blocker_added"));
+
+    const resolvedControlRoom = await request("/api/pilot/control-room", {
+      method: "PATCH",
+      cookie,
+      body: {
+        action: "update_blocker",
+        blockerId: blockedControlRoom.payload.data.blockers[0].id,
+        updates: {
+          status: "resolved"
+        }
+      }
+    });
+    assert.strictEqual(resolvedControlRoom.response.status, 200);
+    assert.strictEqual(resolvedControlRoom.payload.data.blockers[0].status, "resolved");
+
+    const pilotWorkspaceWithControl = await request("/api/pilot/workspace", { cookie });
+    assert.strictEqual(pilotWorkspaceWithControl.response.status, 200);
+    assert.strictEqual(pilotWorkspaceWithControl.payload.data.pilotControlSummary.persisted, true);
+    assert.strictEqual(pilotWorkspaceWithControl.payload.data.pilotControlSummary.lifecycleStatus, "kickoff");
+    assert.strictEqual(pilotWorkspaceWithControl.payload.data.pilotControlSummary.blockersCount, 0);
+
     const expiredMemberEmail = `expired-${Date.now()}@marginlift.ir`;
     const expiredMember = await request("/api/access/members", {
       method: "POST",

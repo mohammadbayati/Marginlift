@@ -66,6 +66,12 @@ const {
   summarizeBusinessImpactLedger,
   updateBusinessImpactLifecycle
 } = require("./business-impact-ledger");
+const {
+  createPilotWorkflow,
+  dispatchPilotWorkflowAction,
+  getPilotWorkflow,
+  summarizePilotWorkflow
+} = require("./pilot-control-room");
 const { appOrigin, assertProductionConfig, isProduction, maxBodyBytes, orchestrationDriftThreshold, revenueShareRate, port: defaultPort, publicSignupEnabled, shadowScorerUrl, trustProxy } = require("./config");
 const { verifyJwt } = require("./auth");
 
@@ -542,6 +548,25 @@ async function handleApi(req, res, url) {
     requireRole(auth, "admin");
     const body = await readJson(req);
     sendJson(res, 200, { data: await updatePilotBusinessImpact(auth.organization.id, body, requestContext(req, auth)) });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/control-room" && req.method === "GET") {
+    sendJson(res, 200, { data: await getPilotControlRoom(auth.organization.id, requestContext(req, auth)) });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/control-room" && req.method === "POST") {
+    requireRole(auth, "admin");
+    const body = await readJson(req);
+    sendJson(res, 201, { data: await createPilotControlRoom(auth.organization.id, body, requestContext(req, auth)) });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/control-room" && req.method === "PATCH") {
+    requireRole(auth, "admin");
+    const body = await readJson(req);
+    sendJson(res, 200, { data: await updatePilotControlRoom(auth.organization.id, body, requestContext(req, auth)) });
     return;
   }
 
@@ -1482,6 +1507,12 @@ async function getCurrentPilotState(organizationId) {
   const workspace = buildPilotWorkspace(readiness, customerAnalysis, outcome, experiment);
   const decisionContract = await getPilotDecisionContract(organizationId, { organizationId });
   const businessImpact = await getPilotBusinessImpact(organizationId, { organizationId });
+  const pilotControl = await getPilotControlRoom(organizationId, { organizationId }, {
+    decisionContract,
+    businessImpact,
+    readiness,
+    experiment
+  });
   return {
     campaign,
     customerAnalysis,
@@ -1492,6 +1523,7 @@ async function getCurrentPilotState(organizationId) {
     workspace,
     decisionContract: summarizePilotContract(decisionContract),
     businessImpactSummary: summarizeBusinessImpactLedger(businessImpact),
+    pilotControlSummary: summarizePilotWorkflow(pilotControl),
     pricing: buildPricingPlans()
   };
 }
@@ -1520,6 +1552,40 @@ async function createPilotBusinessImpact(organizationId, body, context = {}) {
 
 async function updatePilotBusinessImpact(organizationId, body, context = {}) {
   return transact(db => updateBusinessImpactLifecycle(db, { ...context, organizationId }, body));
+}
+
+async function getPilotControlRoom(organizationId, context = {}, readinessContext = null) {
+  const db = await readDb();
+  const derivedReadiness = readinessContext || await getPilotControlReadinessContext(organizationId);
+  return getPilotWorkflow(db, { ...context, organizationId }, derivedReadiness);
+}
+
+async function createPilotControlRoom(organizationId, body, context = {}) {
+  const readinessContext = await getPilotControlReadinessContext(organizationId);
+  return transact(db => createPilotWorkflow(db, { ...context, organizationId }, body, readinessContext));
+}
+
+async function updatePilotControlRoom(organizationId, body, context = {}) {
+  const readinessContext = await getPilotControlReadinessContext(organizationId);
+  return transact(db => dispatchPilotWorkflowAction(db, { ...context, organizationId }, body, readinessContext));
+}
+
+async function getPilotControlReadinessContext(organizationId) {
+  const [campaign, customerAnalysis, decisionContract, businessImpact] = await Promise.all([
+    getCurrentCampaign(organizationId),
+    getCurrentCustomerAnalysis(organizationId),
+    getPilotDecisionContract(organizationId, { organizationId }),
+    getPilotBusinessImpact(organizationId, { organizationId })
+  ]);
+  const experiment = await getCurrentExperiment(organizationId, customerAnalysis.id);
+  const outcome = await getCurrentOutcomeAnalysis(organizationId, experiment?.id);
+  const readiness = buildReadinessAudit(customerAnalysis, campaign, outcome);
+  return {
+    decisionContract,
+    businessImpact,
+    readiness,
+    experiment
+  };
 }
 
 async function getModelGovernanceOverview(organizationId) {
