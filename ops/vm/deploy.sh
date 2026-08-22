@@ -10,7 +10,7 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
-for key in SESSION_SECRET POSTGRES_PASSWORD ARTIFACT_ENCRYPTION_KEY APP_ORIGIN; do
+for key in SESSION_SECRET POSTGRES_PASSWORD ARTIFACT_ENCRYPTION_KEY APP_ORIGIN SCORER_INTERNAL_TOKEN; do
   if ! grep -q "^${key}=." .env; then
     echo "Missing required production setting: $key" >&2
     exit 1

@@ -1,5 +1,6 @@
 const http = require("http");
 const { shadowScorerUrl } = require("./config");
+const { withScorerAuthHeaders } = require("./scorer-auth");
 
 const TIMEOUT_MS = 5000;
 
@@ -8,7 +9,7 @@ const TIMEOUT_MS = 5000;
 function getRegistry() {
   const url = new URL("/internal/registry", shadowScorerUrl);
   return new Promise((resolve, reject) => {
-    const req = http.request(url, { method: "GET", timeout: TIMEOUT_MS }, res => {
+    const req = http.request(url, { method: "GET", headers: withScorerAuthHeaders(), timeout: TIMEOUT_MS }, res => {
       let data = "";
       res.on("data", chunk => { data += chunk; });
       res.on("end", () => {

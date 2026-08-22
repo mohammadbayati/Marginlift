@@ -1,6 +1,7 @@
 const http = require("http");
 const { shadowScorerUrl } = require("./config");
 const { log } = require("./observability");
+const { withScorerAuthHeaders } = require("./scorer-auth");
 
 const SCORER_TIMEOUT_MS = 5000;
 
@@ -11,7 +12,7 @@ function callOrchestrator(payload) {
   return new Promise((resolve, reject) => {
     const req = http.request(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) },
+      headers: withScorerAuthHeaders({ "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) }),
       timeout: SCORER_TIMEOUT_MS,
     }, res => {
       let data = "";

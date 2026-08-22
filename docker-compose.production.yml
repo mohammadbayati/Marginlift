@@ -24,6 +24,9 @@ services:
     environment:
       MARGINLIFT_MODEL_REGISTRY: /models
       MARGINLIFT_TRAINING_DATA: /training/examples.jsonl
+      SCORER_AUTH_REQUIRED: "true"
+      SCORER_INTERNAL_TOKEN: ${SCORER_INTERNAL_TOKEN}
+      SCORER_INTERNAL_TOKEN_PREVIOUS: ${SCORER_INTERNAL_TOKEN_PREVIOUS:-}
     volumes:
       - model_registry:/models
       - training_data:/training:ro
@@ -50,6 +53,8 @@ services:
       MARGINLIFT_FONT_DIR: /app/private/fonts
       MARGINLIFT_JOB_WORKER: "true"
       SHADOW_SCORER_URL: http://shadow-scorer:8100
+      SCORER_INTERNAL_TOKEN: ${SCORER_INTERNAL_TOKEN}
+      SCORER_INTERNAL_TOKEN_ID: ${SCORER_INTERNAL_TOKEN_ID:-}
       TRAINING_DATA_DIR: /training
     depends_on:
       postgres:

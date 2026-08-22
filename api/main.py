@@ -5,6 +5,7 @@ Called by the Node.js gateway — not exposed externally.
 """
 
 from fastapi import FastAPI
+from internal_auth import install_internal_auth
 from routes.shadow_mode import router as shadow_router
 from routes.orchestration import router as orchestration_router
 
@@ -14,6 +15,8 @@ app = FastAPI(
     docs_url="/internal/docs",
     redoc_url=None,
 )
+
+install_internal_auth(app)
 
 app.include_router(shadow_router, prefix="/api/v1/shadow")
 app.include_router(orchestration_router, prefix="/api/v1/orchestrate")
