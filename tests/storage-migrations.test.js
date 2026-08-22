@@ -123,6 +123,11 @@ async function run() {
   assert.strictEqual(client.state.snapshots[0].reason, "test-snapshot");
   assert.strictEqual(snapshot.payload.state, null);
 
+  await assert.rejects(
+    () => validatePostgresMigrations(client, migrations),
+    /Pending migrations remain: 001_core_state_and_jobs/
+  );
+
   const dryRun = await runPostgresMigrations(client, migrations, { dryRun: true });
   assert.deepStrictEqual(dryRun.pending, ["001_core_state_and_jobs"]);
   assert.strictEqual(client.state.applied.size, 0);

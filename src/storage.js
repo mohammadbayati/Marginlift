@@ -9,6 +9,7 @@ const databaseUrl = process.env.DATABASE_URL || "";
 const storageDriver = databaseUrl ? "postgres" : "json";
 const dbPath = resolveDbPath();
 const dataDir = path.dirname(dbPath);
+const productionMode = process.env.NODE_ENV === "production";
 
 let pool = null;
 let initialization = null;
@@ -100,7 +101,9 @@ async function initializePostgres() {
   try {
     const seed = await readLegacyJsonForMigration();
     const migrations = buildPostgresMigrations(seed);
-    await runPostgresMigrations(client, migrations);
+    if (!productionMode) {
+      await runPostgresMigrations(client, migrations);
+    }
     await validatePostgresMigrations(client, migrations);
   } finally {
     client.release();
