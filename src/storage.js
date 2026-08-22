@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { resolveDbPath } = require("./config");
+const { buildPostgresMigrations, runPostgresMigrations, validatePostgresMigrations } = require("./storage-migrations");
 
 const CURRENT_SCHEMA_VERSION = 6;
 const databaseUrl = process.env.DATABASE_URL || "";
@@ -97,47 +98,10 @@ async function initializePostgres() {
 
   const client = await pool.connect();
   try {
-    await client.query("BEGIN");
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS marginlift_state (
-        id SMALLINT PRIMARY KEY CHECK (id = 1),
-        revision BIGINT NOT NULL DEFAULT 0,
-        payload JSONB NOT NULL,
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `);
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS marginlift_jobs (
-        id TEXT PRIMARY KEY,
-        organization_id TEXT,
-        type TEXT NOT NULL,
-        payload JSONB NOT NULL DEFAULT '{}'::jsonb,
-        status TEXT NOT NULL DEFAULT 'pending',
-        attempts INTEGER NOT NULL DEFAULT 0,
-        max_attempts INTEGER NOT NULL DEFAULT 3,
-        dedupe_key TEXT,
-        available_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        locked_at TIMESTAMPTZ,
-        completed_at TIMESTAMPTZ,
-        last_error TEXT,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `);
-    await client.query("CREATE INDEX IF NOT EXISTS marginlift_jobs_claim_idx ON marginlift_jobs (status, available_at, created_at)");
-
-    const existing = await client.query("SELECT id FROM marginlift_state WHERE id = 1");
-    if (existing.rowCount === 0) {
-      const seed = await readLegacyJsonForMigration();
-      await client.query(
-        "INSERT INTO marginlift_state (id, payload) VALUES (1, $1::jsonb)",
-        [JSON.stringify(seed)]
-      );
-    }
-    await client.query("COMMIT");
-  } catch (error) {
-    await client.query("ROLLBACK");
-    throw error;
+    const seed = await readLegacyJsonForMigration();
+    const migrations = buildPostgresMigrations(seed);
+    await runPostgresMigrations(client, migrations);
+    await validatePostgresMigrations(client, migrations);
   } finally {
     client.release();
   }
@@ -389,6 +353,7 @@ module.exports = {
   initializeStorage,
   listJobs,
   normalizeDb,
+  readLegacyJsonForMigration,
   readDb,
   storageDriver,
   storageHealth,
