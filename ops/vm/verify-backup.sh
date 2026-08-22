@@ -8,6 +8,13 @@ STAMP="$(date -u +%Y%m%d%H%M%S)"
 ISO_STAMP="$(date -u +%Y-%m-%dT%H-%M-%SZ)"
 RESTORE_DB="marginlift_restore_test_$STAMP"
 
+read_status_field() {
+  local field="$1"
+  if [[ -f "$STATUS_PATH" ]]; then
+    sed -nE "s/.*\"${field}\"[[:space:]]*:[[:space:]]*\"([^\"]*)\".*/\\1/p" "$STATUS_PATH" | head -1
+  fi
+}
+
 cd "$APP_DIR"
 LATEST_DB="$(find "$BACKUP_DIR" -maxdepth 1 -type f -name 'postgres-*.dump' -printf '%T@ %p\n' | sort -nr | head -1 | cut -d' ' -f2-)"
 LATEST_ARTIFACTS="$(find "$BACKUP_DIR" -maxdepth 1 -type f -name 'artifacts-*.tar.gz' -printf '%T@ %p\n' | sort -nr | head -1 | cut -d' ' -f2-)"
@@ -31,10 +38,21 @@ STATE_ROWS="$(docker compose -f docker-compose.production.yml exec -T postgres \
   psql -U marginlift -d "$RESTORE_DB" -Atc 'SELECT COUNT(*) FROM marginlift_state;')"
 test "$STATE_ROWS" = "1"
 tar -tzf "$LATEST_ARTIFACTS" >/dev/null
+
+LAST_BACKUP_CREATED_AT="$(read_status_field lastBackupCreatedAt)"
+if [[ -z "$LAST_BACKUP_CREATED_AT" ]]; then
+  LAST_BACKUP_CREATED_AT="$(read_status_field lastBackupAt)"
+fi
+if [[ -z "$LAST_BACKUP_CREATED_AT" ]]; then
+  LAST_BACKUP_CREATED_AT="$(date -u -r "$LATEST_DB" +%Y-%m-%dT%H-%M-%SZ)"
+fi
+
 cat > "$STATUS_PATH" <<JSON
 {
   "status": "ok",
-  "lastBackupAt": null,
+  "backupStatus": "ok",
+  "verificationStatus": "ok",
+  "lastBackupCreatedAt": "$LAST_BACKUP_CREATED_AT",
   "lastRestoreVerifiedAt": "$ISO_STAMP",
   "latestDatabaseBackup": "$(basename "$LATEST_DB")",
   "latestArtifactBackup": "$(basename "$LATEST_ARTIFACTS")",

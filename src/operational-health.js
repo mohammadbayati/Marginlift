@@ -90,24 +90,38 @@ async function backupHealth(options = {}) {
   try {
     const raw = await fs.promises.readFile(statusPath, "utf8");
     const status = JSON.parse(raw);
-    const lastVerifiedAt = status.lastRestoreVerifiedAt || status.lastBackupAt || status.updatedAt;
-    const ageHours = lastVerifiedAt ? (Date.now() - new Date(lastVerifiedAt).getTime()) / (60 * 60 * 1000) : Infinity;
+    const lastBackupCreatedAt = status.lastBackupCreatedAt || status.lastBackupAt || null;
+    const lastRestoreVerifiedAt = status.lastRestoreVerifiedAt || null;
+    const backupAgeHours = lastBackupCreatedAt ? (Date.now() - new Date(lastBackupCreatedAt).getTime()) / (60 * 60 * 1000) : Infinity;
+    const verificationAgeHours = lastRestoreVerifiedAt ? (Date.now() - new Date(lastRestoreVerifiedAt).getTime()) / (60 * 60 * 1000) : Infinity;
+    const backupStatus = status.backupStatus || status.status || (lastBackupCreatedAt ? "ok" : "missing");
+    const verificationStatus = status.verificationStatus || (lastRestoreVerifiedAt ? status.status || "ok" : "not_verified");
+    const ready = backupStatus === "ok" &&
+      verificationStatus === "ok" &&
+      backupAgeHours <= maxAgeHours &&
+      verificationAgeHours <= maxAgeHours;
     return {
-      status: status.status === "ok" && ageHours <= maxAgeHours ? "ok" : "degraded",
-      lastBackupAt: status.lastBackupAt || null,
-      lastRestoreVerifiedAt: status.lastRestoreVerifiedAt || null,
+      status: ready ? "ok" : "degraded",
+      backupStatus,
+      verificationStatus,
+      lastBackupCreatedAt,
+      lastRestoreVerifiedAt,
       latestDatabaseBackup: status.latestDatabaseBackup || null,
       latestArtifactBackup: status.latestArtifactBackup || null,
-      ageHours: Number.isFinite(ageHours) ? Math.round(ageHours * 10) / 10 : null
+      backupAgeHours: Number.isFinite(backupAgeHours) ? Math.round(backupAgeHours * 10) / 10 : null,
+      verificationAgeHours: Number.isFinite(verificationAgeHours) ? Math.round(verificationAgeHours * 10) / 10 : null
     };
   } catch (error) {
     return {
       status: "degraded",
-      lastBackupAt: null,
+      backupStatus: "unknown",
+      verificationStatus: "unknown",
+      lastBackupCreatedAt: null,
       lastRestoreVerifiedAt: null,
       latestDatabaseBackup: null,
       latestArtifactBackup: null,
-      ageHours: null
+      backupAgeHours: null,
+      verificationAgeHours: null
     };
   }
 }

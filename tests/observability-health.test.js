@@ -28,7 +28,9 @@ async function run() {
   fs.mkdirSync(path.dirname(process.env.MARGINLIFT_BACKUP_STATUS_PATH), { recursive: true });
   fs.writeFileSync(process.env.MARGINLIFT_BACKUP_STATUS_PATH, JSON.stringify({
     status: "ok",
-    lastBackupAt: new Date().toISOString(),
+    backupStatus: "ok",
+    verificationStatus: "ok",
+    lastBackupCreatedAt: new Date().toISOString(),
     lastRestoreVerifiedAt: new Date().toISOString(),
     latestDatabaseBackup: "postgres-test.dump",
     latestArtifactBackup: "artifacts-test.tar.gz",
@@ -144,6 +146,10 @@ async function run() {
     assert.strictEqual(internalHealth.response.status, 200);
     assert.strictEqual(internalHealth.payload.data.checks.database.driver, "json");
     assert.strictEqual(internalHealth.payload.data.checks.artifacts.enabled, true);
+    assert.strictEqual(internalHealth.payload.data.checks.backup.backupStatus, "ok");
+    assert.strictEqual(internalHealth.payload.data.checks.backup.verificationStatus, "ok");
+    assert.ok(internalHealth.payload.data.checks.backup.lastBackupCreatedAt);
+    assert.ok(internalHealth.payload.data.checks.backup.lastRestoreVerifiedAt);
     assert.strictEqual(internalHealth.payload.data.checks.backup.latestDatabaseBackup, "postgres-test.dump");
     assert.ok(["ok", "degraded", "error"].includes(internalHealth.payload.data.checks.scorer.status));
   } finally {
