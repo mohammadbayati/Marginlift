@@ -20,6 +20,8 @@ qa-*.png
 qa-design-audit/
 Cognitive_bias_codex_en.png
 .agents/
+.claude-flow/
+.swarm/
 .impeccable/
 skills-lock.json
 private/fonts/
