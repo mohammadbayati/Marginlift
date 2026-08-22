@@ -24,6 +24,8 @@ services:
     environment:
       MARGINLIFT_MODEL_REGISTRY: /models
       MARGINLIFT_TRAINING_DATA: /training/examples.jsonl
+      SCORER_AUTH_REQUIRED: "true"
+      SCORER_INTERNAL_TOKEN: "0e8dce852edfc53e6221d3eef570e81f6813b8a4b38d140ae2d98b4e9c9fd861"
     volumes:
       - model_registry:/models
       - training_data:/training:ro
