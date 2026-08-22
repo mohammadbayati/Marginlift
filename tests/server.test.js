@@ -177,6 +177,256 @@ async function run() {
     const viewerUsabilityConsole = await request("/internal/usability-test", { cookie: viewerCookie });
     assert.strictEqual(viewerUsabilityConsole.response.status, 403);
 
+    const fallbackContract = await request("/api/pilot/decision-contract", { cookie: viewerCookie });
+    assert.strictEqual(fallbackContract.response.status, 200);
+    assert.strictEqual(fallbackContract.payload.data.persisted, false);
+    assert.strictEqual(fallbackContract.payload.data.lifecycleStatus, "draft");
+
+    const viewerContractCreate = await request("/api/pilot/decision-contract", {
+      method: "POST",
+      cookie: viewerCookie,
+      body: {
+        businessObjective: "Viewer should not be able to create a pilot contract.",
+        primaryKpi: {
+          key: "incremental_profit_per_customer",
+          label: "Incremental profit per assigned customer",
+          baselineValue: 100000,
+          targetValue: 125000,
+          unit: "toman",
+          direction: "increase",
+          measurementMethod: "intention_to_treat",
+          dataSource: "outcome_csv",
+          measurementWindow: { days: 30 }
+        }
+      }
+    });
+    assert.strictEqual(viewerContractCreate.response.status, 403);
+    assert.strictEqual(viewerContractCreate.payload.error.code, "INSUFFICIENT_ROLE");
+
+    const createdContract = await request("/api/pilot/decision-contract", {
+      method: "POST",
+      cookie,
+      body: {
+        businessObjective: "Prove targeted retention offers increase incremental profit before enterprise rollout.",
+        primaryKpi: {
+          key: "incremental_profit_per_customer",
+          label: "Incremental profit per assigned customer",
+          baselineValue: 100000,
+          targetValue: 125000,
+          unit: "toman",
+          direction: "increase",
+          measurementMethod: "intention_to_treat",
+          dataSource: "outcome_csv",
+          measurementWindow: { days: 30 }
+        },
+        guardrails: [
+          { metric: "refund_rate", threshold: "<= 3%", status: "draft" }
+        ],
+        ownership: {
+          sponsor: "CRO",
+          businessOwner: "Lifecycle Lead",
+          dataOwner: "Data Lead",
+          financeOwner: "Finance Lead",
+          marginliftOwner: "MarginLift Principal"
+        },
+        decisionDeadline: "2026-09-22T00:00:00.000Z"
+      }
+    });
+    assert.strictEqual(createdContract.response.status, 201);
+    assert.strictEqual(createdContract.payload.data.persisted, true);
+    assert.strictEqual(createdContract.payload.data.organizationId, login.payload.data.organization.id);
+    assert.strictEqual(createdContract.payload.data.primaryKpi.measurementWindow.days, 30);
+
+    const viewerContractRead = await request("/api/pilot/decision-contract", { cookie: viewerCookie });
+    assert.strictEqual(viewerContractRead.response.status, 200);
+    assert.strictEqual(viewerContractRead.payload.data.persisted, true);
+
+    const viewerContractUpdate = await request("/api/pilot/decision-contract", {
+      method: "PATCH",
+      cookie: viewerCookie,
+      body: { lifecycleStatus: "approved" }
+    });
+    assert.strictEqual(viewerContractUpdate.response.status, 403);
+    assert.strictEqual(viewerContractUpdate.payload.error.code, "INSUFFICIENT_ROLE");
+
+    const approvedContract = await request("/api/pilot/decision-contract", {
+      method: "PATCH",
+      cookie,
+      body: {
+        lifecycleStatus: "approved",
+        metadata: { reason: "Sponsor approved baseline and target." }
+      }
+    });
+    assert.strictEqual(approvedContract.response.status, 200);
+    assert.strictEqual(approvedContract.payload.data.lifecycleStatus, "approved");
+    assert.strictEqual(approvedContract.payload.data.approval.status, "approved");
+    assert.ok(approvedContract.payload.data.approval.approvalHistory.some(item => item.action === "approval_status_changed"));
+
+    const skippedContractTransition = await request("/api/pilot/decision-contract", {
+      method: "PATCH",
+      cookie,
+      body: { lifecycleStatus: "outcome_review" }
+    });
+    assert.strictEqual(skippedContractTransition.response.status, 409);
+    assert.strictEqual(skippedContractTransition.payload.error.code, "INVALID_LIFECYCLE_TRANSITION");
+
+    const lockedContract = await request("/api/pilot/decision-contract", {
+      method: "PATCH",
+      cookie,
+      body: {
+        lifecycleStatus: "locked",
+        metadata: { reason: "Contract frozen before experiment launch." }
+      }
+    });
+    assert.strictEqual(lockedContract.response.status, 200);
+    assert.strictEqual(lockedContract.payload.data.lifecycleStatus, "locked");
+
+    const lockedContractMutation = await request("/api/pilot/decision-contract", {
+      method: "PATCH",
+      cookie,
+      body: {
+        primaryKpi: { targetValue: 150000 }
+      }
+    });
+    assert.strictEqual(lockedContractMutation.response.status, 409);
+    assert.strictEqual(lockedContractMutation.payload.error.code, "PILOT_CONTRACT_LOCKED");
+
+    const fallbackBusinessImpact = await request("/api/pilot/business-impact", { cookie: viewerCookie });
+    assert.strictEqual(fallbackBusinessImpact.response.status, 200);
+    assert.strictEqual(fallbackBusinessImpact.payload.data.persisted, false);
+
+    const viewerBusinessImpactCreate = await request("/api/pilot/business-impact", {
+      method: "POST",
+      cookie: viewerCookie,
+      body: {
+        financialObjective: "Viewer should not create finance evidence.",
+        impactModel: { metric: "incremental_profit", baselineValue: 100000, observedValue: 125000 },
+        roi: { investmentCost: 10000, grossValue: 25000 }
+      }
+    });
+    assert.strictEqual(viewerBusinessImpactCreate.response.status, 403);
+    assert.strictEqual(viewerBusinessImpactCreate.payload.error.code, "INSUFFICIENT_ROLE");
+
+    const createdBusinessImpact = await request("/api/pilot/business-impact", {
+      method: "POST",
+      cookie,
+      body: {
+        pilotContractId: createdContract.payload.data.id,
+        financialObjective: "Prove the pilot generated enough incremental profit to scale.",
+        impactModel: {
+          metric: "incremental_profit",
+          baselineValue: 100000,
+          observedValue: 140000,
+          unit: "toman",
+          calculationMethod: "observed_minus_baseline"
+        },
+        forecast: {
+          predictedImpact: 40000,
+          confidenceLevel: "medium",
+          assumptions: ["Stable holdout", "No concurrent pricing change"]
+        },
+        realizedImpact: {
+          measuredImpact: 0,
+          measurementWindow: { days: 30 },
+          evidenceSource: null
+        },
+        roi: {
+          investmentCost: 10000,
+          grossValue: 40000
+        }
+      }
+    });
+    assert.strictEqual(createdBusinessImpact.response.status, 201);
+    assert.strictEqual(createdBusinessImpact.payload.data.persisted, true);
+    assert.strictEqual(createdBusinessImpact.payload.data.organizationId, login.payload.data.organization.id);
+    assert.strictEqual(createdBusinessImpact.payload.data.roi.netValue, 30000);
+    assert.strictEqual(createdBusinessImpact.payload.data.financeValidation.status, "not_verified");
+
+    const viewerBusinessImpactRead = await request("/api/pilot/business-impact", { cookie: viewerCookie });
+    assert.strictEqual(viewerBusinessImpactRead.response.status, 200);
+    assert.strictEqual(viewerBusinessImpactRead.payload.data.persisted, true);
+
+    const viewerBusinessImpactPatch = await request("/api/pilot/business-impact", {
+      method: "PATCH",
+      cookie: viewerCookie,
+      body: { action: "submit" }
+    });
+    assert.strictEqual(viewerBusinessImpactPatch.response.status, 403);
+    assert.strictEqual(viewerBusinessImpactPatch.payload.error.code, "INSUFFICIENT_ROLE");
+
+    const directVerifiedImpact = await request("/api/pilot/business-impact", {
+      method: "PATCH",
+      cookie,
+      body: {
+        action: "verify",
+        financeValidation: {
+          verifiedBy: "finance_lead",
+          verifiedAt: "2026-09-22T00:00:00.000Z"
+        }
+      }
+    });
+    assert.strictEqual(directVerifiedImpact.response.status, 409);
+    assert.strictEqual(directVerifiedImpact.payload.error.code, "INVALID_BUSINESS_IMPACT_TRANSITION");
+
+    const submittedBusinessImpact = await request("/api/pilot/business-impact", {
+      method: "PATCH",
+      cookie,
+      body: {
+        action: "submit",
+        metadata: { reason: "Finance evidence package submitted." }
+      }
+    });
+    assert.strictEqual(submittedBusinessImpact.response.status, 200);
+    assert.strictEqual(submittedBusinessImpact.payload.data.lifecycleStatus, "submitted");
+    assert.strictEqual(submittedBusinessImpact.payload.data.financeValidation.status, "submitted");
+
+    const missingEvidenceVerification = await request("/api/pilot/business-impact", {
+      method: "PATCH",
+      cookie,
+      body: {
+        action: "verify",
+        financeValidation: {
+          verifiedBy: "finance_lead",
+          verifiedAt: "2026-09-22T00:00:00.000Z"
+        }
+      }
+    });
+    assert.strictEqual(missingEvidenceVerification.response.status, 400);
+    assert.strictEqual(missingEvidenceVerification.payload.error.code, "FINANCE_EVIDENCE_SOURCE_REQUIRED");
+
+    const verifiedBusinessImpact = await request("/api/pilot/business-impact", {
+      method: "PATCH",
+      cookie,
+      body: {
+        action: "verify",
+        realizedImpact: {
+          measuredImpact: 36000,
+          measurementWindow: { days: 30 },
+          evidenceSource: "finance-reviewed-outcome-v1.csv"
+        },
+        roi: {
+          investmentCost: 10000,
+          grossValue: 36000
+        },
+        financeValidation: {
+          verifiedBy: "finance_lead",
+          verifiedAt: "2026-09-22T00:00:00.000Z",
+          notes: "Matched finance export."
+        },
+        metadata: { evidenceSource: "finance-reviewed-outcome-v1.csv" }
+      }
+    });
+    assert.strictEqual(verifiedBusinessImpact.response.status, 200);
+    assert.strictEqual(verifiedBusinessImpact.payload.data.lifecycleStatus, "verified");
+    assert.strictEqual(verifiedBusinessImpact.payload.data.financeValidation.status, "verified");
+    assert.strictEqual(verifiedBusinessImpact.payload.data.roi.netValue, 26000);
+    assert.ok(verifiedBusinessImpact.payload.data.auditEvents.some(item => item.action === "finance_validation_transition" && item.from === "submitted" && item.to === "verified"));
+
+    const pilotWorkspaceWithImpact = await request("/api/pilot/workspace", { cookie });
+    assert.strictEqual(pilotWorkspaceWithImpact.response.status, 200);
+    assert.strictEqual(pilotWorkspaceWithImpact.payload.data.businessImpactSummary.persisted, true);
+    assert.strictEqual(pilotWorkspaceWithImpact.payload.data.businessImpactSummary.financeVerification, "verified");
+
     const expiredMemberEmail = `expired-${Date.now()}@marginlift.ir`;
     const expiredMember = await request("/api/access/members", {
       method: "POST",

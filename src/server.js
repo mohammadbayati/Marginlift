@@ -54,6 +54,18 @@ const {
   buildReadinessAudit,
   buildSavingsSnapshot
 } = require("./pilot");
+const {
+  createPilotContract,
+  getCurrentPilotContract,
+  summarizePilotContract,
+  updatePilotContract
+} = require("./pilot-contract");
+const {
+  createBusinessImpactLedger,
+  getBusinessImpactLedger,
+  summarizeBusinessImpactLedger,
+  updateBusinessImpactLifecycle
+} = require("./business-impact-ledger");
 const { appOrigin, assertProductionConfig, isProduction, maxBodyBytes, orchestrationDriftThreshold, revenueShareRate, port: defaultPort, publicSignupEnabled, shadowScorerUrl, trustProxy } = require("./config");
 const { verifyJwt } = require("./auth");
 
@@ -492,6 +504,44 @@ async function handleApi(req, res, url) {
 
   if (url.pathname === "/api/pilot/workspace" && req.method === "GET") {
     sendJson(res, 200, { data: await getCurrentPilotState(auth.organization.id) });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/decision-contract" && req.method === "GET") {
+    sendJson(res, 200, { data: await getPilotDecisionContract(auth.organization.id, requestContext(req, auth)) });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/decision-contract" && req.method === "POST") {
+    requireRole(auth, "admin");
+    const body = await readJson(req);
+    sendJson(res, 201, { data: await createPilotDecisionContract(auth.organization.id, body, requestContext(req, auth)) });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/decision-contract" && req.method === "PATCH") {
+    requireRole(auth, "admin");
+    const body = await readJson(req);
+    sendJson(res, 200, { data: await updatePilotDecisionContract(auth.organization.id, body, requestContext(req, auth)) });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/business-impact" && req.method === "GET") {
+    sendJson(res, 200, { data: await getPilotBusinessImpact(auth.organization.id, requestContext(req, auth)) });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/business-impact" && req.method === "POST") {
+    requireRole(auth, "admin");
+    const body = await readJson(req);
+    sendJson(res, 201, { data: await createPilotBusinessImpact(auth.organization.id, body, requestContext(req, auth)) });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/business-impact" && req.method === "PATCH") {
+    requireRole(auth, "admin");
+    const body = await readJson(req);
+    sendJson(res, 200, { data: await updatePilotBusinessImpact(auth.organization.id, body, requestContext(req, auth)) });
     return;
   }
 
@@ -1430,6 +1480,8 @@ async function getCurrentPilotState(organizationId) {
   const readiness = buildReadinessAudit(customerAnalysis, campaign, outcome);
   const savingsSnapshot = buildSavingsSnapshot(customerAnalysis, campaign, readiness, outcome);
   const workspace = buildPilotWorkspace(readiness, customerAnalysis, outcome, experiment);
+  const decisionContract = await getPilotDecisionContract(organizationId, { organizationId });
+  const businessImpact = await getPilotBusinessImpact(organizationId, { organizationId });
   return {
     campaign,
     customerAnalysis,
@@ -1438,8 +1490,36 @@ async function getCurrentPilotState(organizationId) {
     readiness,
     savingsSnapshot,
     workspace,
+    decisionContract: summarizePilotContract(decisionContract),
+    businessImpactSummary: summarizeBusinessImpactLedger(businessImpact),
     pricing: buildPricingPlans()
   };
+}
+
+async function getPilotDecisionContract(organizationId, context = {}) {
+  const db = await readDb();
+  return getCurrentPilotContract(db, { ...context, organizationId });
+}
+
+async function createPilotDecisionContract(organizationId, body, context = {}) {
+  return transact(db => createPilotContract(db, { ...context, organizationId }, body));
+}
+
+async function updatePilotDecisionContract(organizationId, body, context = {}) {
+  return transact(db => updatePilotContract(db, { ...context, organizationId }, body));
+}
+
+async function getPilotBusinessImpact(organizationId, context = {}) {
+  const db = await readDb();
+  return getBusinessImpactLedger(db, { ...context, organizationId });
+}
+
+async function createPilotBusinessImpact(organizationId, body, context = {}) {
+  return transact(db => createBusinessImpactLedger(db, { ...context, organizationId }, body));
+}
+
+async function updatePilotBusinessImpact(organizationId, body, context = {}) {
+  return transact(db => updateBusinessImpactLifecycle(db, { ...context, organizationId }, body));
 }
 
 async function getModelGovernanceOverview(organizationId) {
