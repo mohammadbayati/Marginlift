@@ -116,6 +116,7 @@ docker compose -f docker-compose.production.yml ps
 
 rm -f "$RELEASE" "$CHECKSUM"
 '@
+  $remoteScript = $remoteScript -replace "`r`n", "`n"
   $remotePayload = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($remoteScript))
 
   # Execute from a file so Docker commands cannot consume the remaining script via stdin.
