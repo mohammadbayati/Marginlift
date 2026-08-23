@@ -72,6 +72,13 @@ const {
   getPilotWorkflow,
   summarizePilotWorkflow
 } = require("./pilot-control-room");
+const {
+  buildEvidencePackage,
+  createPilotAcceptance,
+  dispatchAcceptanceAction,
+  getPilotAcceptance,
+  summarizePilotAcceptance
+} = require("./production-acceptance");
 const { buildEnterpriseIntelligence } = require("./enterprise-intelligence");
 const { appOrigin, assertProductionConfig, isProduction, maxBodyBytes, orchestrationDriftThreshold, revenueShareRate, port: defaultPort, publicSignupEnabled, shadowScorerUrl, trustProxy } = require("./config");
 const { verifyJwt } = require("./auth");
@@ -568,6 +575,38 @@ async function handleApi(req, res, url) {
     requireRole(auth, "admin");
     const body = await readJson(req);
     sendJson(res, 200, { data: await updatePilotControlRoom(auth.organization.id, body, requestContext(req, auth)) });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/acceptance" && req.method === "GET") {
+    sendJson(res, 200, { data: await getPilotAcceptanceRecord(auth.organization.id, requestContext(req, auth), auth.organization) });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/acceptance" && req.method === "POST") {
+    requireRole(auth, "admin");
+    const body = await readJson(req);
+    sendJson(res, 201, { data: await createPilotAcceptanceRecord(auth.organization.id, body, requestContext(req, auth), auth.organization) });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/acceptance" && req.method === "PATCH") {
+    requireRole(auth, "admin");
+    const body = await readJson(req);
+    sendJson(res, 200, { data: await updatePilotAcceptanceRecord(auth.organization.id, body, requestContext(req, auth), auth.organization) });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/acceptance/package.md" && req.method === "GET") {
+    const sourceContext = await getPilotAcceptanceSourceContext(auth.organization.id, auth.organization);
+    const record = await getPilotAcceptanceRecord(auth.organization.id, requestContext(req, auth), auth.organization, sourceContext);
+    const packageData = buildEvidencePackage(record, sourceContext);
+    res.writeHead(200, {
+      "Content-Type": "text/markdown; charset=utf-8",
+      "Cache-Control": "no-store",
+      "Content-Disposition": 'attachment; filename="marginlift-acceptance-evidence-package.md"'
+    });
+    res.end(packageData.markdown);
     return;
   }
 
@@ -1519,6 +1558,17 @@ async function getCurrentPilotState(organizationId) {
     readiness,
     experiment
   });
+  const acceptance = await getPilotAcceptanceRecord(organizationId, { organizationId }, null, {
+    organization: null,
+    campaign,
+    customerAnalysis,
+    decisionContract,
+    businessImpact,
+    pilotControl,
+    experiment,
+    outcome,
+    readiness
+  });
   return {
     campaign,
     customerAnalysis,
@@ -1530,6 +1580,7 @@ async function getCurrentPilotState(organizationId) {
     decisionContract: summarizePilotContract(decisionContract),
     businessImpactSummary: summarizeBusinessImpactLedger(businessImpact),
     pilotControlSummary: summarizePilotWorkflow(pilotControl),
+    pilotAcceptanceSummary: summarizePilotAcceptance(acceptance),
     pricing: buildPricingPlans()
   };
 }
@@ -1574,6 +1625,51 @@ async function createPilotControlRoom(organizationId, body, context = {}) {
 async function updatePilotControlRoom(organizationId, body, context = {}) {
   const readinessContext = await getPilotControlReadinessContext(organizationId);
   return transact(db => dispatchPilotWorkflowAction(db, { ...context, organizationId }, body, readinessContext));
+}
+
+async function getPilotAcceptanceRecord(organizationId, context = {}, organization = null, sourceContext = null) {
+  const db = await readDb();
+  const derivedContext = sourceContext || await getPilotAcceptanceSourceContext(organizationId, organization);
+  return getPilotAcceptance(db, { ...context, organizationId }, derivedContext);
+}
+
+async function createPilotAcceptanceRecord(organizationId, body, context = {}, organization = null) {
+  const sourceContext = await getPilotAcceptanceSourceContext(organizationId, organization);
+  return transact(db => createPilotAcceptance(db, { ...context, organizationId }, body, sourceContext));
+}
+
+async function updatePilotAcceptanceRecord(organizationId, body, context = {}, organization = null) {
+  const sourceContext = await getPilotAcceptanceSourceContext(organizationId, organization);
+  return transact(db => dispatchAcceptanceAction(db, { ...context, organizationId }, body, sourceContext));
+}
+
+async function getPilotAcceptanceSourceContext(organizationId, organization = null) {
+  const [campaign, customerAnalysis, decisionContract, businessImpact] = await Promise.all([
+    getCurrentCampaign(organizationId),
+    getCurrentCustomerAnalysis(organizationId),
+    getPilotDecisionContract(organizationId, { organizationId }),
+    getPilotBusinessImpact(organizationId, { organizationId })
+  ]);
+  const experiment = await getCurrentExperiment(organizationId, customerAnalysis.id);
+  const outcome = await getCurrentOutcomeAnalysis(organizationId, experiment?.id);
+  const readiness = buildReadinessAudit(customerAnalysis, campaign, outcome);
+  const pilotControl = await getPilotControlRoom(organizationId, { organizationId }, {
+    decisionContract,
+    businessImpact,
+    readiness,
+    experiment
+  });
+  return {
+    organization,
+    campaign,
+    customerAnalysis,
+    decisionContract,
+    businessImpact,
+    pilotControl,
+    experiment,
+    outcome,
+    readiness
+  };
 }
 
 async function getPilotControlReadinessContext(organizationId) {

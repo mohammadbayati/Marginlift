@@ -134,6 +134,8 @@ async function main() {
     "/api/analyses/history",
     "/api/readiness/current",
     "/api/pilot/workspace",
+    "/api/pilot/acceptance",
+    "/api/pilot/acceptance/package.md",
     "/api/model-governance/overview",
     "/api/retention/workspace",
     "/api/contact-policy/workspace",
@@ -144,12 +146,13 @@ async function main() {
     const result = await request(route, { cookie });
     expectStatus(result, 200, route);
   }
-  evidence.push(`viewer-readable-routes:${readableRoutes.length}`);
+    evidence.push(`viewer-readable-routes:${readableRoutes.length}`);
 
   if (expectedRole === "viewer") {
     const forbiddenChecks = [
       ["/api/retention/readout.md", { cookie }],
       ["/api/exports/audience.csv", { cookie }],
+      ["/api/pilot/acceptance", { method: "PATCH", cookie, body: { action: "generate_package" } }],
       ["/api/imports/csv", { method: "POST", cookie, body: {} }],
       ["/api/outcomes/import", { method: "POST", cookie, body: {} }]
     ];

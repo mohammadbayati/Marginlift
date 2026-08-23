@@ -544,6 +544,164 @@ async function run() {
     assert.strictEqual(pilotWorkspaceWithControl.payload.data.pilotControlSummary.lifecycleStatus, "kickoff");
     assert.strictEqual(pilotWorkspaceWithControl.payload.data.pilotControlSummary.blockersCount, 0);
 
+    const fallbackAcceptance = await request("/api/pilot/acceptance", { cookie: viewerCookie });
+    assert.strictEqual(fallbackAcceptance.response.status, 200);
+    assert.strictEqual(fallbackAcceptance.payload.data.persisted, false);
+    assert.strictEqual(fallbackAcceptance.payload.data.lifecycleStatus, "draft");
+
+    const viewerAcceptanceCreate = await request("/api/pilot/acceptance", {
+      method: "POST",
+      cookie: viewerCookie,
+      body: {
+        pilotContractId: createdContract.payload.data.id,
+        businessImpactLedgerId: createdBusinessImpact.payload.data.id,
+        pilotWorkflowId: createdControlRoom.payload.data.id
+      }
+    });
+    assert.strictEqual(viewerAcceptanceCreate.response.status, 403);
+    assert.strictEqual(viewerAcceptanceCreate.payload.error.code, "INSUFFICIENT_ROLE");
+
+    const createdAcceptance = await request("/api/pilot/acceptance", {
+      method: "POST",
+      cookie,
+      body: {
+        pilotContractId: createdContract.payload.data.id,
+        businessImpactLedgerId: createdBusinessImpact.payload.data.id,
+        pilotWorkflowId: createdControlRoom.payload.data.id
+      }
+    });
+    assert.strictEqual(createdAcceptance.response.status, 201);
+    assert.strictEqual(createdAcceptance.payload.data.persisted, true);
+    assert.strictEqual(createdAcceptance.payload.data.organizationId, login.payload.data.organization.id);
+    assert.strictEqual(createdAcceptance.payload.data.lifecycleStatus, "draft");
+
+    const viewerAcceptanceRead = await request("/api/pilot/acceptance", { cookie: viewerCookie });
+    assert.strictEqual(viewerAcceptanceRead.response.status, 200);
+    assert.strictEqual(viewerAcceptanceRead.payload.data.persisted, true);
+
+    const viewerAcceptancePatch = await request("/api/pilot/acceptance", {
+      method: "PATCH",
+      cookie: viewerCookie,
+      body: { action: "request_customer_acceptance" }
+    });
+    assert.strictEqual(viewerAcceptancePatch.response.status, 403);
+    assert.strictEqual(viewerAcceptancePatch.payload.error.code, "INSUFFICIENT_ROLE");
+
+    const prematureAcceptanceTransition = await request("/api/pilot/acceptance", {
+      method: "PATCH",
+      cookie,
+      body: { action: "request_customer_acceptance" }
+    });
+    assert.strictEqual(prematureAcceptanceTransition.response.status, 409);
+    assert.strictEqual(prematureAcceptanceTransition.payload.error.code, "INVALID_CUSTOMER_ACCEPTANCE_STAGE");
+
+    for (const criterion of createdAcceptance.payload.data.acceptanceCriteria) {
+      const submitted = await request("/api/pilot/acceptance", {
+        method: "PATCH",
+        cookie,
+        body: {
+          action: "submit_evidence",
+          criteriaKey: criterion.key,
+          evidence: {
+            label: `${criterion.key} acceptance evidence`,
+            referenceId: `doc_${criterion.key}`
+          }
+        }
+      });
+      assert.strictEqual(submitted.response.status, 200);
+      const verified = await request("/api/pilot/acceptance", {
+        method: "PATCH",
+        cookie,
+        body: {
+          action: "verify_criterion",
+          criteriaKey: criterion.key
+        }
+      });
+      assert.strictEqual(verified.response.status, 200);
+    }
+
+    const requestedCustomerAcceptance = await request("/api/pilot/acceptance", {
+      method: "PATCH",
+      cookie,
+      body: { action: "request_customer_acceptance" }
+    });
+    assert.strictEqual(requestedCustomerAcceptance.response.status, 200);
+    assert.strictEqual(requestedCustomerAcceptance.payload.data.lifecycleStatus, "customer_review");
+
+    const recordedCustomerAcceptance = await request("/api/pilot/acceptance", {
+      method: "PATCH",
+      cookie,
+      body: {
+        action: "record_customer_acceptance",
+        customerAcceptance: {
+          status: "accepted",
+          acceptedBy: "customer_sponsor",
+          customerRole: "CRO"
+        }
+      }
+    });
+    assert.strictEqual(recordedCustomerAcceptance.response.status, 200);
+    assert.strictEqual(recordedCustomerAcceptance.payload.data.customerAcceptance.status, "accepted");
+    assert.ok(recordedCustomerAcceptance.payload.data.auditEvents.some(item => item.action === "customer_acceptance_recorded"));
+
+    const requestedExecutiveApproval = await request("/api/pilot/acceptance", {
+      method: "PATCH",
+      cookie,
+      body: { action: "request_executive_approval" }
+    });
+    assert.strictEqual(requestedExecutiveApproval.response.status, 200);
+    assert.strictEqual(requestedExecutiveApproval.payload.data.lifecycleStatus, "executive_review");
+
+    const generatedAcceptancePackage = await request("/api/pilot/acceptance", {
+      method: "PATCH",
+      cookie,
+      body: {
+        action: "generate_package",
+        generatedAt: "2026-10-01T00:00:00.000Z"
+      }
+    });
+    assert.strictEqual(generatedAcceptancePackage.response.status, 200);
+    assert.match(generatedAcceptancePackage.payload.data.evidencePackage.checksum, /^sha256:[a-f0-9]{64}$/);
+
+    const acceptancePackage = await request("/api/pilot/acceptance/package.md", { cookie: viewerCookie });
+    assert.strictEqual(acceptancePackage.response.status, 200);
+    assert.ok(String(acceptancePackage.payload).includes("# MarginLift Production Pilot Acceptance Package"));
+    assert.ok(String(acceptancePackage.payload).includes("Package Checksum: sha256:"));
+
+    const recordedExecutiveApproval = await request("/api/pilot/acceptance", {
+      method: "PATCH",
+      cookie,
+      body: {
+        action: "record_executive_approval",
+        executiveApproval: {
+          status: "approved",
+          approvedBy: "ceo",
+          approverRole: "CEO",
+          decisionMemo: "Approved for enterprise acceptance."
+        }
+      }
+    });
+    assert.strictEqual(recordedExecutiveApproval.response.status, 200);
+    assert.strictEqual(recordedExecutiveApproval.payload.data.executiveApproval.status, "approved");
+    assert.ok(recordedExecutiveApproval.payload.data.auditEvents.some(item => item.action === "executive_approval_recorded"));
+
+    const certifiedAcceptance = await request("/api/pilot/acceptance", {
+      method: "PATCH",
+      cookie,
+      body: {
+        action: "certify",
+        certificationLevel: "enterprise_acceptance_ready"
+      }
+    });
+    assert.strictEqual(certifiedAcceptance.response.status, 200);
+    assert.strictEqual(certifiedAcceptance.payload.data.lifecycleStatus, "accepted");
+    assert.strictEqual(certifiedAcceptance.payload.data.certification.status, "certified");
+
+    const pilotWorkspaceWithAcceptance = await request("/api/pilot/workspace", { cookie });
+    assert.strictEqual(pilotWorkspaceWithAcceptance.response.status, 200);
+    assert.strictEqual(pilotWorkspaceWithAcceptance.payload.data.pilotAcceptanceSummary.persisted, true);
+    assert.strictEqual(pilotWorkspaceWithAcceptance.payload.data.pilotAcceptanceSummary.certificationStatus, "certified");
+
     const enterpriseIntelligence = await request("/api/enterprise/intelligence", { cookie: viewerCookie });
     assert.strictEqual(enterpriseIntelligence.response.status, 200);
     assert.strictEqual(enterpriseIntelligence.payload.data.organizationId, login.payload.data.organization.id);

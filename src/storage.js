@@ -4,7 +4,7 @@ const crypto = require("crypto");
 const { resolveDbPath } = require("./config");
 const { buildPostgresMigrations, runPostgresMigrations, validatePostgresMigrations } = require("./storage-migrations");
 
-const CURRENT_SCHEMA_VERSION = 6;
+const CURRENT_SCHEMA_VERSION = 7;
 const databaseUrl = process.env.DATABASE_URL || "";
 const storageDriver = databaseUrl ? "postgres" : "json";
 const dbPath = resolveDbPath();
@@ -36,6 +36,7 @@ function createInitialDb() {
     pilotContracts: [],
     businessImpactLedgers: [],
     pilotWorkflows: [],
+    pilotAcceptances: [],
     decisionLedger: [],
     auditLog: [],
     artifacts: [],
@@ -66,6 +67,7 @@ function normalizeDb(input) {
     "pilotContracts",
     "businessImpactLedgers",
     "pilotWorkflows",
+    "pilotAcceptances",
     "decisionLedger",
     "auditLog",
     "artifacts",
