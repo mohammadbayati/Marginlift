@@ -3,6 +3,7 @@ const path = require("path");
 const { artifactHealth } = require("./artifact-store");
 const { getRegistry } = require("./model-registry");
 const { getMetrics } = require("./observability");
+const { releaseIdentity } = require("./release-identity");
 const { queueHealth, storageHealth } = require("./storage");
 
 const DEFAULT_TIMEOUT_MS = 1500;
@@ -11,6 +12,7 @@ function publicLiveness() {
   return {
     status: "ok",
     service: "marginlift",
+    release: releaseIdentity(),
     uptimeSeconds: getMetrics().uptimeSeconds
   };
 }
@@ -29,6 +31,7 @@ async function buildOperationalHealth(options = {}) {
   return {
     status,
     service: "marginlift",
+    release: releaseIdentity(),
     checkedAt: new Date().toISOString(),
     checks,
     metrics: {

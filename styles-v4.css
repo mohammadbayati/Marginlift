@@ -680,6 +680,90 @@ button:active:not(:disabled), .button-link:active { transform: scale(.98); }
 .aside-note { border-color: var(--line); background: var(--surface-subtle); }
 
 .action-grid, .uplift-lab, .customer-product-grid, .evidence-layout, .pilot-grid, .governance-grid, .operations-grid { gap: 8px; }
+.pilot-operability-panel, .operational-health-console { margin-block-start: 8px; padding: 18px; }
+.operator-note { max-width: 78ch; margin-block: 0 14px; color: var(--muted); font-size: .68rem; line-height: 1.75; }
+.pilot-lifecycle-workbench { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.pilot-lifecycle-card {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: #fff;
+}
+.pilot-lifecycle-card[data-state="accepted"],
+.pilot-lifecycle-card[data-state="closed"],
+.pilot-lifecycle-card[data-state="verified"] { border-color: #cfe8de; background: #fbfefd; }
+.pilot-lifecycle-card[data-state="rejected"] { border-color: #f0c5c5; background: #fffafa; }
+.pilot-lifecycle-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: start;
+}
+.pilot-lifecycle-head h4 { margin: 0; font-size: .88rem; font-weight: 700; text-transform: capitalize; }
+.pilot-lifecycle-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.pilot-lifecycle-form.compact { grid-template-columns: minmax(0, 1fr); }
+.pilot-lifecycle-form label {
+  display: grid;
+  gap: 5px;
+  color: #5c6673;
+  font-size: .61rem;
+  font-weight: 650;
+}
+.pilot-lifecycle-form input,
+.pilot-lifecycle-form select { min-width: 0; min-height: 38px; padding-inline: 10px; font-size: .68rem; }
+.pilot-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+  grid-column: 1 / -1;
+}
+.pilot-lifecycle-card small { color: var(--muted); font-size: .61rem; line-height: 1.55; }
+.acceptance-card { grid-column: 1 / -1; }
+.acceptance-criteria-list, .pilot-blocker-list {
+  display: grid;
+  gap: 7px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+}
+.acceptance-criteria-list > div,
+.pilot-blocker-list > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 9px;
+  border-radius: var(--radius-sm);
+  background: #fff;
+}
+.acceptance-criteria-list strong,
+.pilot-blocker-list strong { min-width: 0; overflow-wrap: anywhere; font-size: .69rem; }
+.acceptance-criteria-list span,
+.pilot-blocker-list span { color: var(--muted); font-size: .6rem; text-transform: capitalize; }
+.button-link { display: inline-flex; align-items: center; justify-content: center; padding-inline: 13px; text-decoration: none; }
+.auth-hint[data-kind="success"] { color: var(--profit); }
+.auth-hint[data-kind="error"] { color: var(--danger); }
+.health-check-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.health-check-card {
+  display: grid;
+  gap: 8px;
+  min-height: 136px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: #fff;
+}
+.health-check-card[data-state="blocked"] { border-color: #efcaca; background: #fffafa; }
+.health-check-card[data-state="partial"] { border-color: #ead8b8; background: #fffcf6; }
+.health-check-card > div { display: flex; justify-content: space-between; gap: 8px; align-items: start; }
+.health-check-card strong { font-size: .75rem; }
+.health-check-card p { margin: 0; color: #495363; font-size: .66rem; line-height: 1.6; }
+.health-check-card small { color: var(--muted); font-size: .59rem; overflow-wrap: anywhere; }
 .action-card { min-height: 190px; padding: 17px; box-shadow: none; }
 .action-card h3 { font-size: .82rem; }
 .action-card p { font-size: .66rem; }
@@ -932,6 +1016,8 @@ body.presentation-mode #experiments .flow-panel { display: none; }
   .enterprise-layout { grid-template-columns: 1fr; }
   .enterprise-evidence-drawer { position: static; min-height: auto; }
   .enterprise-cockpit { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pilot-lifecycle-workbench { grid-template-columns: 1fr; }
+  .health-check-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .hero-intro::after { display: none; }
 }
 
@@ -967,6 +1053,13 @@ body.presentation-mode #experiments .flow-panel { display: none; }
   }
   .enterprise-entry a,
   .enterprise-entry .enterprise-trace-button { justify-self: start; }
+  .pilot-lifecycle-form { grid-template-columns: 1fr; }
+  .pilot-action-row { display: grid; grid-template-columns: 1fr; }
+  .pilot-action-row > button,
+  .pilot-action-row > a { width: 100%; }
+  .acceptance-criteria-list > div,
+  .pilot-blocker-list > div,
+  .health-check-grid { grid-template-columns: 1fr; }
   .command-hero { border-radius: var(--radius-lg); }
   .hero-intro { padding: 21px 19px; }
   .hero-intro h1 { font-size: 1.23rem; }

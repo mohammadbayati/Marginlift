@@ -53,6 +53,9 @@ async function run() {
     assert.strictEqual(health.response.status, 200);
     assert.strictEqual(health.payload.data.status, "ok");
     assert.strictEqual(health.payload.data.service, "marginlift");
+    assert.strictEqual(health.payload.data.release.service, "marginlift");
+    assert.ok(health.payload.data.release.environment);
+    assert.ok(health.payload.data.release.commitSha);
     assert.strictEqual(health.payload.data.storage, undefined);
     assert.strictEqual(health.response.headers.get("x-content-type-options"), "nosniff");
     assert.strictEqual(health.response.headers.get("x-frame-options"), "DENY");

@@ -6,6 +6,8 @@ const email = String(process.env.MARGINLIFT_DEMO_EMAIL || "").trim();
 const password = String(process.env.MARGINLIFT_DEMO_PASSWORD || "");
 const expectedRole = String(process.env.MARGINLIFT_EXPECTED_ROLE || "viewer");
 const expectedStorage = String(process.env.MARGINLIFT_EXPECTED_STORAGE || "postgres");
+const expectedSha = String(process.env.MARGINLIFT_EXPECTED_SHA || process.env.MARGINLIFT_COMMIT_SHA || "").trim();
+const expectedRelease = String(process.env.MARGINLIFT_EXPECTED_RELEASE || "").trim();
 const requireInviteOnly = process.env.MARGINLIFT_REQUIRE_INVITE_ONLY !== "false";
 const requireLicensedFont = process.env.MARGINLIFT_REQUIRE_IRANSANSX === "true";
 
@@ -68,7 +70,10 @@ async function main() {
   const loginPage = await request("/login");
   assert.match(String(loginPage.payload), /auth-product-preview/);
   assert.match(String(loginPage.payload), /topbarUser/);
-  evidence.push("ui-v5:auth-preview", "ui-v5:session-identity");
+  const appShell = await request("/");
+  assert.match(String(appShell.payload), /pilotLifecycleWorkbench/);
+  assert.match(String(appShell.payload), /operationalHealthConsole/);
+  evidence.push("ui-v5:auth-preview", "ui-v5:session-identity", "rc2:pilot-operability-shell");
 
   const fontStatus = await request("/api/font-status");
   expectStatus(fontStatus, 200, "font status");
@@ -88,8 +93,13 @@ async function main() {
   assert.strictEqual(health.payload.data.status, "ok");
   assert.strictEqual(health.payload.data.service, "marginlift");
   assert.strictEqual(health.payload.data.storage, undefined);
+  assert.strictEqual(health.payload.data.release.service, "marginlift");
+  assert.ok(health.payload.data.release.environment, "release environment missing");
+  assert.ok(health.payload.data.release.commitSha, "release commit SHA missing");
+  if (expectedSha) assert.strictEqual(health.payload.data.release.commitSha, expectedSha);
+  if (expectedRelease) assert.strictEqual(health.payload.data.release.release, expectedRelease);
   assert.match(health.response.headers.get("content-security-policy") || "", /default-src 'self'/);
-  evidence.push("health:public-liveness:ok", "security-headers:csp");
+  evidence.push(`release:${health.payload.data.release.commitSha}`, "health:public-liveness:ok", "security-headers:csp");
 
   const publicConfig = await request("/api/public-config");
   expectStatus(publicConfig, 200, "public config");
@@ -112,6 +122,7 @@ async function main() {
   if (["owner", "admin"].includes(expectedRole)) {
     const internalHealth = await request("/api/internal/health", { cookie });
     expectStatus(internalHealth, 200, "internal health");
+    assert.strictEqual(internalHealth.payload.data.release.commitSha, health.payload.data.release.commitSha);
     assert.strictEqual(internalHealth.payload.data.checks.database.driver, expectedStorage);
     assert.ok(["ok", "degraded", "error"].includes(internalHealth.payload.data.status));
     evidence.push(`internal-health:${expectedStorage}:${internalHealth.payload.data.status}`);

@@ -38,6 +38,10 @@ try {
   Assert-NativeCommand "Git push"
 
   Write-Host "[3/6] Building release archive..."
+  $releaseSha = (git rev-parse HEAD).Trim()
+  Assert-NativeCommand "Release SHA"
+  $releaseTag = (git tag --points-at HEAD | Select-Object -First 1)
+  $releaseTag = if ($releaseTag) { $releaseTag.Trim() } else { "" }
   Remove-Item -LiteralPath $archive, $checksum -Force -ErrorAction SilentlyContinue
   git archive `
     --format=tar.gz `
@@ -79,6 +83,15 @@ fi
 
 tar -xzf "$RELEASE" -C "$STAGE_DIR"
 find "$STAGE_DIR/ops/vm" -maxdepth 1 -type f -name '*.sh' -exec sed -i 's/\r$//' {} +
+cat > "$STAGE_DIR/.marginlift-release.json" <<JSON
+{
+  "service": "marginlift",
+  "environment": "production",
+  "commitSha": "__MARGINLIFT_COMMIT_SHA__",
+  "release": "__MARGINLIFT_RELEASE_TAG__",
+  "buildTimestamp": "$STAMP"
+}
+JSON
 test -f "$STAGE_DIR/src/retention-shadow.js"
 test -f "$STAGE_DIR/synthetic-subscription-transactions.csv"
 cp /root/marginlift.env.backup "$STAGE_DIR/.env"
@@ -116,6 +129,8 @@ docker compose -f docker-compose.production.yml ps
 
 rm -f "$RELEASE" "$CHECKSUM"
 '@
+  $remoteScript = $remoteScript.Replace("__MARGINLIFT_COMMIT_SHA__", $releaseSha)
+  $remoteScript = $remoteScript.Replace("__MARGINLIFT_RELEASE_TAG__", $releaseTag)
   $remoteScript = $remoteScript -replace "`r`n", "`n"
   $remotePayload = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($remoteScript))
 

@@ -129,6 +129,9 @@ async function run() {
     assert.strictEqual(publicHealth.response.status, 200);
     assert.strictEqual(publicHealth.payload.data.status, "ok");
     assert.strictEqual(publicHealth.payload.data.service, "marginlift");
+    assert.strictEqual(publicHealth.payload.data.release.service, "marginlift");
+    assert.ok(publicHealth.payload.data.release.environment);
+    assert.ok(publicHealth.payload.data.release.commitSha);
     assert.strictEqual(publicHealth.payload.data.storage, undefined);
     assert.strictEqual(publicHealth.payload.data.checks, undefined);
 
@@ -144,6 +147,8 @@ async function run() {
 
     const internalHealth = await request("/api/internal/health", { cookie });
     assert.strictEqual(internalHealth.response.status, 200);
+    assert.strictEqual(internalHealth.payload.data.release.service, "marginlift");
+    assert.ok(internalHealth.payload.data.release.commitSha);
     assert.strictEqual(internalHealth.payload.data.checks.database.driver, "json");
     assert.strictEqual(internalHealth.payload.data.checks.artifacts.enabled, true);
     assert.strictEqual(internalHealth.payload.data.checks.backup.backupStatus, "ok");
