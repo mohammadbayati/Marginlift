@@ -112,6 +112,16 @@
         </div>
 
         <nav class="side-nav" id="sideNav">
+          <span class="nav-group-label">Enterprise</span>
+          <a href="#enterprise-control-center" data-enterprise-section-link="control-center"><span class="nav-index">E1</span>Control Center</a>
+          <a href="#enterprise-control-center" data-enterprise-section-link="pilot"><span class="nav-index">E2</span>Pilot</a>
+          <a href="#enterprise-control-center" data-enterprise-section-link="value"><span class="nav-index">E3</span>Value</a>
+          <a href="#enterprise-control-center" data-enterprise-section-link="execution"><span class="nav-index">E4</span>Execution</a>
+          <a href="#enterprise-control-center" data-enterprise-section-link="governance"><span class="nav-index">E5</span>Governance</a>
+          <a href="#enterprise-control-center" data-enterprise-section-link="data-trust"><span class="nav-index">E6</span>Data Trust</a>
+          <a href="#enterprise-control-center" data-enterprise-section-link="evidence"><span class="nav-index">E7</span>Evidence</a>
+          <a href="#enterprise-control-center" data-enterprise-section-link="reports"><span class="nav-index">E8</span>Reports</a>
+          <a href="#enterprise-control-center" data-enterprise-section-link="settings"><span class="nav-index">E9</span>Settings</a>
           <span class="nav-group-label">امروز</span>
           <a class="active" href="#command"><span class="nav-index">۰۱</span>مرکز فرمان</a>
           <a href="#retention"><span class="nav-index">۰۲</span>حفظ مشتری</a>
@@ -158,6 +168,33 @@
           <div><span>قرارداد تصمیم</span><strong id="contractStatus">ریزش ۳۰ روزه / سود افزایشی</strong></div>
           <div><span>منبع داده</span><strong id="dataSource">کمپین‌های ۹۰ روز اخیر</strong></div>
           <div class="workspace-readiness"><span>آمادگی پایلوت</span><strong class="number" id="readinessValue">—</strong></div>
+        </section>
+
+        <section class="enterprise-product content-section" id="enterprise-control-center" aria-labelledby="enterpriseControlTitle">
+          <header class="enterprise-product-head">
+            <div>
+              <p class="section-kicker">MarginLift v1.0</p>
+              <h1 id="enterpriseControlTitle">Enterprise Control Center</h1>
+              <p>Unified product surface for existing pilot, value, governance, evidence, data trust, and execution capabilities.</p>
+            </div>
+            <div class="enterprise-state" id="enterpriseSurfaceState" role="status" aria-live="polite">Loading enterprise evidence...</div>
+          </header>
+          <nav class="enterprise-tabs" id="enterpriseProductTabs" aria-label="Enterprise product sections"></nav>
+          <div class="enterprise-layout">
+            <div class="enterprise-main">
+              <section class="enterprise-cockpit" id="enterpriseControlCards" aria-label="Executive cockpit">
+                <article class="enterprise-empty-state is-loading"><strong>Loading Control Center</strong><span>Collecting existing source-backed records.</span></article>
+              </section>
+              <section class="enterprise-section-panels" id="enterpriseSectionPanels" aria-label="Enterprise product pages"></section>
+            </div>
+            <aside class="enterprise-evidence-drawer" id="enterpriseEvidenceDrawer" aria-labelledby="enterpriseEvidenceTitle">
+              <div class="enterprise-evidence-empty">
+                <p class="mini-label">Traceability</p>
+                <h2 id="enterpriseEvidenceTitle">Why this status?</h2>
+                <p>Select an executive card or product row to inspect source module, record ID, evidence refs, audit events, blockers, risks, and report links.</p>
+              </div>
+            </aside>
+          </div>
         </section>
 
         <section class="presentation-guide" id="presentationGuide" aria-labelledby="presentationTitle" hidden>

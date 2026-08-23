@@ -80,6 +80,7 @@ const {
   summarizePilotAcceptance
 } = require("./production-acceptance");
 const { buildEnterpriseIntelligence } = require("./enterprise-intelligence");
+const { buildEnterpriseProductSurface } = require("./enterprise-product-surface");
 const { appOrigin, assertProductionConfig, isProduction, maxBodyBytes, orchestrationDriftThreshold, revenueShareRate, port: defaultPort, publicSignupEnabled, shadowScorerUrl, trustProxy } = require("./config");
 const { verifyJwt } = require("./auth");
 
@@ -612,6 +613,11 @@ async function handleApi(req, res, url) {
 
   if (url.pathname === "/api/enterprise/intelligence" && req.method === "GET") {
     sendJson(res, 200, { data: await getEnterpriseIntelligence(auth.organization.id) });
+    return;
+  }
+
+  if (url.pathname === "/api/enterprise/product-surface" && req.method === "GET") {
+    sendJson(res, 200, { data: await getEnterpriseProductSurface(auth) });
     return;
   }
 
@@ -1693,6 +1699,23 @@ async function getPilotControlReadinessContext(organizationId) {
 async function getEnterpriseIntelligence(organizationId) {
   const db = await readDb();
   return buildEnterpriseIntelligence(db, { organizationId });
+}
+
+async function getEnterpriseProductSurface(auth) {
+  const [pilotState, enterpriseIntelligence, modelGovernance, decisionLedger] = await Promise.all([
+    getCurrentPilotState(auth.organization.id),
+    getEnterpriseIntelligence(auth.organization.id),
+    getModelGovernanceOverview(auth.organization.id),
+    getDecisionLedger(auth.organization.id)
+  ]);
+  return buildEnterpriseProductSurface({
+    organization: auth.organization,
+    role: auth.membership?.role,
+    pilotState,
+    enterpriseIntelligence,
+    modelGovernance,
+    decisionLedger
+  });
 }
 
 async function getModelGovernanceOverview(organizationId) {

@@ -9,6 +9,8 @@ let currentPilotState = null;
 let currentGovernance = null;
 let currentSession = null;
 let currentOperations = null;
+let currentEnterpriseSurface = null;
+let currentEnterpriseSection = "control-center";
 let currentRetentionWorkspace = null;
 let currentRetentionShadow = null;
 let currentBehavioralWorkspace = null;
@@ -215,7 +217,11 @@ function setupNavigation() {
     const observer = new IntersectionObserver(entries => {
       const visible = entries.filter(entry => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
       if (!visible) return;
-      navLinks.forEach(link => link.classList.toggle("active", link.getAttribute("href") === `#${visible.target.id}`));
+      navLinks.forEach(link => {
+        const matchesSection = link.getAttribute("href") === `#${visible.target.id}`;
+        const matchesEnterpriseTab = !link.dataset.enterpriseSectionLink || link.dataset.enterpriseSectionLink === currentEnterpriseSection;
+        link.classList.toggle("active", matchesSection && matchesEnterpriseTab);
+      });
     }, { rootMargin: "-18% 0px -68% 0px", threshold: [0, 0.2, 0.55] });
     observedSections.forEach(section => observer.observe(section));
   }
@@ -627,6 +633,226 @@ async function loadOperationsData() {
   return { metrics, jobs, audit, members, artifacts };
 }
 
+async function loadEnterpriseProductSurface() {
+  try {
+    return { data: await apiRequest("/api/enterprise/product-surface"), error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
+}
+
+function enterpriseStatusLabel(status) {
+  return ({
+    loading: "Loading",
+    empty: "Empty",
+    partial_evidence: "Partial evidence",
+    blocked: "Blocked",
+    healthy: "Healthy",
+    stale_evidence: "Stale evidence",
+    error: "Error",
+    unavailable: "Backend unavailable",
+    internal: "Internal",
+    roadmap: "Roadmap"
+  })[status] || String(status || "Untracked");
+}
+
+function formatEnterpriseCardValue(card) {
+  if (card.unit === "money") return formatOptionalMoney(card.value);
+  if (card.value === null || card.value === undefined || card.value === "") return "No data";
+  if (typeof card.value === "number") return formatNumber(card.value);
+  return String(card.value);
+}
+
+function enterpriseTraceList(items) {
+  if (!items?.length) return `<span class="enterprise-muted">None recorded</span>`;
+  return `<ul>${items.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+}
+
+function renderEnterpriseTrace(trace = {}, title = "Evidence trace") {
+  const drawer = document.getElementById("enterpriseEvidenceDrawer");
+  if (!drawer) return;
+  drawer.innerHTML = `
+    <div class="enterprise-evidence-detail">
+      <p class="mini-label">Why this status?</p>
+      <h2 id="enterpriseEvidenceTitle">${escapeHtml(title)}</h2>
+      <dl>
+        <div><dt>Source module</dt><dd>${escapeHtml(trace.sourceModule || "unknown")}</dd></div>
+        <div><dt>Source record ID</dt><dd>${escapeHtml(trace.sourceRecordId || "none")}</dd></div>
+        <div><dt>Evidence refs</dt><dd>${enterpriseTraceList(trace.evidenceRefs || [])}</dd></div>
+        <div><dt>Audit events</dt><dd>${enterpriseTraceList(trace.auditEvents || [])}</dd></div>
+        <div><dt>Blockers</dt><dd>${enterpriseTraceList(trace.blockers || [])}</dd></div>
+        <div><dt>Risks</dt><dd>${enterpriseTraceList(trace.risks || [])}</dd></div>
+        <div><dt>Human decisions</dt><dd>${enterpriseTraceList(trace.humanDecisionRefs || [])}</dd></div>
+        <div><dt>Reason</dt><dd>${escapeHtml(trace.why || "Source-backed status from existing backend fields.")}</dd></div>
+      </dl>
+      ${trace.reportRoute ? `<a class="secondary-button button-link" href="${escapeHtml(trace.reportRoute)}" target="_blank" rel="noopener">Open source report</a>` : ""}
+    </div>`;
+}
+
+function renderEnterpriseError(error) {
+  const state = document.getElementById("enterpriseSurfaceState");
+  const cards = document.getElementById("enterpriseControlCards");
+  const panels = document.getElementById("enterpriseSectionPanels");
+  if (state) {
+    state.textContent = "Error";
+    state.dataset.state = "error";
+  }
+  if (cards) {
+    cards.hidden = false;
+    cards.innerHTML = `<article class="enterprise-empty-state is-error"><strong>Control Center could not load</strong><span>${escapeHtml(error?.message || "Enterprise product surface failed.")}</span></article>`;
+  }
+  if (panels) panels.innerHTML = "";
+}
+
+function applyEnterpriseNavVisibility(surface) {
+  const allowed = new Set((surface?.navigation || []).map(item => item.key));
+  document.querySelectorAll("[data-enterprise-section-link]").forEach(link => {
+    link.hidden = !allowed.has(link.dataset.enterpriseSectionLink);
+  });
+}
+
+function renderEnterpriseTabs(surface) {
+  const tabs = document.getElementById("enterpriseProductTabs");
+  if (!tabs) return;
+  tabs.innerHTML = surface.navigation.map(item => `
+    <button type="button" class="enterprise-tab" data-enterprise-section="${escapeHtml(item.key)}" aria-pressed="${item.key === currentEnterpriseSection}">
+      <span>${escapeHtml(item.label)}</span>
+      ${item.readOnly ? "<small>read-only</small>" : ""}
+    </button>`).join("");
+}
+
+function renderEnterpriseCards(surface) {
+  const target = document.getElementById("enterpriseControlCards");
+  if (!target) return;
+  target.hidden = currentEnterpriseSection !== "control-center";
+  if (target.hidden) return;
+  const cards = surface.controlCenter?.cards || [];
+  if (!cards.length) {
+    target.innerHTML = `<article class="enterprise-empty-state"><strong>No executive cards available</strong><span>No existing backend records are available for the Control Center.</span></article>`;
+    return;
+  }
+  target.innerHTML = cards.map(card => `
+    <article class="enterprise-card" data-state="${escapeHtml(card.status)}">
+      <div class="enterprise-card-head">
+        <span class="enterprise-status" data-state="${escapeHtml(card.status)}">${escapeHtml(enterpriseStatusLabel(card.status))}</span>
+        <span class="enterprise-source">${escapeHtml(card.trace?.sourceModule || "source")}</span>
+      </div>
+      <h3>${escapeHtml(card.label)}</h3>
+      <strong class="enterprise-card-value number">${escapeHtml(formatEnterpriseCardValue(card))}</strong>
+      <p>${escapeHtml(card.summary || "")}</p>
+      <button class="enterprise-trace-button" type="button" data-enterprise-trace-card="${escapeHtml(card.key)}">Why this status?</button>
+    </article>`).join("");
+}
+
+function renderEnterpriseSectionPanels(surface) {
+  const target = document.getElementById("enterpriseSectionPanels");
+  if (!target) return;
+  const sections = surface.sections || [];
+  const selectedSections = currentEnterpriseSection === "control-center"
+    ? sections.filter(section => ["pilot", "value", "execution", "governance", "data-trust", "evidence", "reports"].includes(section.key))
+    : sections.filter(section => section.key === currentEnterpriseSection);
+  if (!selectedSections.length) {
+    target.innerHTML = `<article class="enterprise-empty-state"><strong>No page entries</strong><span>This role has no visible entries for the selected section.</span></article>`;
+    return;
+  }
+  target.innerHTML = selectedSections.map(section => `
+    <article class="enterprise-section-panel" data-section="${escapeHtml(section.key)}" data-state="${escapeHtml(section.state)}">
+      <div class="enterprise-panel-head">
+        <div><p class="mini-label">${escapeHtml(enterpriseStatusLabel(section.state))}</p><h2>${escapeHtml(section.label)}</h2></div>
+        <span>${formatNumber(section.entries?.length || 0)} entries</span>
+      </div>
+      <div class="enterprise-entry-list">
+        ${(section.entries || []).map(entryItem => `
+          <div class="enterprise-entry" data-state="${escapeHtml(entryItem.status)}">
+            <div>
+              <strong>${escapeHtml(entryItem.label)}</strong>
+              <span>${escapeHtml(entryItem.description || "")}</span>
+            </div>
+            <span class="enterprise-status" data-state="${escapeHtml(entryItem.status)}">${escapeHtml(enterpriseStatusLabel(entryItem.status))}</span>
+            ${entryItem.sourceRoute ? `<a href="${escapeHtml(entryItem.sourceRoute)}" target="_blank" rel="noopener">Source</a>` : `<span class="enterprise-muted">No endpoint</span>`}
+            <button class="enterprise-trace-button" type="button" data-enterprise-trace-entry="${escapeHtml(section.key)}:${escapeHtml(entryItem.key)}">Trace</button>
+          </div>`).join("")}
+      </div>
+    </article>`).join("");
+}
+
+function setEnterpriseSection(sectionKey) {
+  const available = new Set((currentEnterpriseSurface?.navigation || []).map(item => item.key));
+  currentEnterpriseSection = available.has(sectionKey) ? sectionKey : "control-center";
+  document.querySelectorAll("[data-enterprise-section]").forEach(button => {
+    button.classList.toggle("active", button.dataset.enterpriseSection === currentEnterpriseSection);
+    button.setAttribute("aria-pressed", String(button.dataset.enterpriseSection === currentEnterpriseSection));
+  });
+  document.querySelectorAll("[data-enterprise-section-link]").forEach(link => {
+    link.classList.toggle("active", link.dataset.enterpriseSectionLink === currentEnterpriseSection);
+  });
+  if (currentEnterpriseSurface) {
+    renderEnterpriseCards(currentEnterpriseSurface);
+    renderEnterpriseSectionPanels(currentEnterpriseSurface);
+  }
+}
+
+function renderEnterpriseProductSurface() {
+  const state = document.getElementById("enterpriseSurfaceState");
+  if (!currentEnterpriseSurface) {
+    renderEnterpriseError(new Error("No enterprise product surface was returned."));
+    return;
+  }
+  if (currentEnterpriseSurface.error) {
+    renderEnterpriseError(currentEnterpriseSurface.error);
+    return;
+  }
+  const surface = currentEnterpriseSurface;
+  applyEnterpriseNavVisibility(surface);
+  if (state) {
+    state.textContent = enterpriseStatusLabel(surface.controlCenter?.state);
+    state.dataset.state = surface.controlCenter?.state || "partial_evidence";
+  }
+  renderEnterpriseTabs(surface);
+  setEnterpriseSection(currentEnterpriseSection);
+  const firstBlocked = (surface.controlCenter?.cards || []).find(card => ["blocked", "stale_evidence", "partial_evidence"].includes(card.status));
+  if (firstBlocked) renderEnterpriseTrace(firstBlocked.trace, firstBlocked.label);
+}
+
+function setupEnterpriseSurface() {
+  document.getElementById("enterpriseProductTabs")?.addEventListener("click", event => {
+    const button = event.target.closest("[data-enterprise-section]");
+    if (!button) return;
+    setEnterpriseSection(button.dataset.enterpriseSection);
+  });
+  document.getElementById("sideNav")?.addEventListener("click", event => {
+    const link = event.target.closest("[data-enterprise-section-link]");
+    if (!link) return;
+    setEnterpriseSection(link.dataset.enterpriseSectionLink);
+  });
+  document.getElementById("enterprise-control-center")?.addEventListener("click", event => {
+    const cardButton = event.target.closest("[data-enterprise-trace-card]");
+    if (cardButton) {
+      const card = currentEnterpriseSurface?.controlCenter?.cards?.find(item => item.key === cardButton.dataset.enterpriseTraceCard);
+      if (card) renderEnterpriseTrace(card.trace, card.label);
+      return;
+    }
+    const entryButton = event.target.closest("[data-enterprise-trace-entry]");
+    if (!entryButton) return;
+    const [sectionKey, entryKey] = entryButton.dataset.enterpriseTraceEntry.split(":");
+    const section = currentEnterpriseSurface?.sections?.find(item => item.key === sectionKey);
+    const entryItem = section?.entries?.find(item => item.key === entryKey);
+    if (entryItem) {
+      renderEnterpriseTrace({
+        sourceModule: entryItem.status === "gap" ? "capability-gap" : entryItem.key,
+        sourceRecordId: entryItem.sourceRoute || null,
+        evidenceRefs: section.evidenceRefs || [],
+        auditEvents: [],
+        reportRoute: entryItem.sourceRoute || null,
+        blockers: entryItem.status === "gap" ? [entryItem.description] : [],
+        risks: entryItem.status === "gap" ? ["Backend capability is not available in this repository."] : [],
+        humanDecisionRefs: [],
+        why: entryItem.description
+      }, entryItem.label);
+    }
+  });
+}
+
 function renderStages() {
   document.getElementById("stageGrid").innerHTML = currentOverview.stages.map((stage, index) =>
     `<article class="stage-card ${stage.passed ? "passed" : "pending"}"><div class="stage-index number">${formatNumber(index + 1)}</div><div><strong>${escapeHtml(stage.labelFa)}</strong><span>${escapeHtml(stage.statusFa)}</span><small>${escapeHtml(stage.detailFa)}</small></div></article>`
@@ -841,7 +1067,7 @@ function renderBehavioralWorkspace() {
 }
 
 async function loadDashboard() {
-  const [analysis, overview, customerAnalysis, history, pilotState, governance, operations, retentionWorkspace, retentionConfiguration, retentionShadow, behavioralWorkspace] = await Promise.all([
+  const [analysis, overview, customerAnalysis, history, pilotState, governance, operations, enterpriseSurfaceResult, retentionWorkspace, retentionConfiguration, retentionShadow, behavioralWorkspace] = await Promise.all([
     apiRequest("/api/campaigns/current"),
     apiRequest("/api/decision-engine/overview"),
     apiRequest("/api/customers/current"),
@@ -849,6 +1075,7 @@ async function loadDashboard() {
     apiRequest("/api/pilot/workspace"),
     apiRequest("/api/model-governance/overview"),
     loadOperationsData(),
+    loadEnterpriseProductSurface(),
     apiRequest("/api/retention/workspace"),
     apiRequest("/api/retention/configuration"),
     apiRequest("/api/retention/shadow-workspace"),
@@ -861,6 +1088,7 @@ async function loadDashboard() {
   currentPilotState = pilotState;
   currentGovernance = governance;
   currentOperations = operations;
+  currentEnterpriseSurface = enterpriseSurfaceResult.data || { error: enterpriseSurfaceResult.error };
   currentRetentionWorkspace = retentionWorkspace;
   currentRetentionShadow = retentionShadow;
   currentBehavioralWorkspace = behavioralWorkspace;
@@ -871,6 +1099,7 @@ async function loadDashboard() {
   renderHistory();
   renderModelGovernance();
   renderOperations();
+  renderEnterpriseProductSurface();
   renderRetentionWorkspace();
   renderRetentionShadow();
   renderBehavioralWorkspace();
@@ -1319,6 +1548,7 @@ async function init() {
   setupAuth();
   setupFileControls();
   setupNavigation();
+  setupEnterpriseSurface();
   setupPresentationMode();
   setupUpload();
   setupActions();

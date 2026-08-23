@@ -101,6 +101,9 @@ async function run() {
     assert(productLogin.payload.includes('id="presentationModeButton"'));
     assert(productLogin.payload.includes('id="presentationGuide"'));
     assert(productLogin.payload.includes('id="usabilityConsoleLink"'));
+    assert(productLogin.payload.includes('id="enterprise-control-center"'));
+    assert(productLogin.payload.includes('data-enterprise-section-link="value"'));
+    assert(productLogin.payload.includes('id="enterpriseEvidenceDrawer"'));
 
     const fontAsset = await request("/fonts/Estedad-Variable.woff2");
     assert.strictEqual(fontAsset.response.status, 200);
@@ -114,6 +117,8 @@ async function run() {
     assert.strictEqual(anonymousUsabilityConsole.response.status, 401);
     const anonymousEnterpriseIntelligence = await request("/api/enterprise/intelligence");
     assert.strictEqual(anonymousEnterpriseIntelligence.response.status, 401);
+    const anonymousEnterpriseProductSurface = await request("/api/enterprise/product-surface");
+    assert.strictEqual(anonymousEnterpriseProductSurface.response.status, 401);
 
     const signup = await request("/api/auth/signup", {
       method: "POST",
@@ -188,6 +193,22 @@ async function run() {
     assert.strictEqual(emptyEnterpriseIntelligence.response.status, 200);
     assert.strictEqual(emptyEnterpriseIntelligence.payload.data.persisted, false);
     assert.strictEqual(emptyEnterpriseIntelligence.payload.data.portfolio.pilotsTotal, 0);
+    const emptyEnterpriseProductSurface = await request("/api/enterprise/product-surface", { cookie: viewerCookie });
+    assert.strictEqual(emptyEnterpriseProductSurface.response.status, 200);
+    assert.strictEqual(emptyEnterpriseProductSurface.payload.data.role, "viewer");
+    assert.strictEqual(emptyEnterpriseProductSurface.payload.data.permissions.readOnly, true);
+    assert(!emptyEnterpriseProductSurface.payload.data.navigation.some(item => item.key === "settings"));
+    assert(!emptyEnterpriseProductSurface.payload.data.navigation.some(item => item.key === "strategy"));
+    assert(!emptyEnterpriseProductSurface.payload.data.navigation.some(item => item.key === "transformation"));
+    assert(!emptyEnterpriseProductSurface.payload.data.navigation.some(item => item.key === "data-integrations"));
+    assert(!emptyEnterpriseProductSurface.payload.data.sections.some(item => item.key === "settings"));
+    assert(!emptyEnterpriseProductSurface.payload.data.sections.some(item => item.key === "strategy"));
+    assert(!emptyEnterpriseProductSurface.payload.data.sections.some(item => item.key === "transformation"));
+    assert(!emptyEnterpriseProductSurface.payload.data.sections.some(item => item.key === "data-integrations"));
+    assert(emptyEnterpriseProductSurface.payload.data.controlCenter.cards.every(item => item.trace.sourceModule));
+    assert(emptyEnterpriseProductSurface.payload.data.controlCenter.cards.every(item => Object.hasOwn(item.trace, "sourceRecordId")));
+    assert.deepStrictEqual(emptyEnterpriseProductSurface.payload.data.capabilityGaps, []);
+    assert.strictEqual(emptyEnterpriseProductSurface.payload.data.internalCapabilityMap, null);
 
     const viewerContractCreate = await request("/api/pilot/decision-contract", {
       method: "POST",
@@ -713,6 +734,23 @@ async function run() {
     assert.strictEqual(enterpriseIntelligence.payload.data.sourceRefs.businessImpactLedgerIds.length, 1);
     assert.strictEqual(enterpriseIntelligence.payload.data.sourceRefs.pilotWorkflowIds.length, 1);
     assert.ok(enterpriseIntelligence.payload.data.executiveIntelligence.scaleCandidates.length >= 1);
+
+    const viewerEnterpriseProductSurface = await request("/api/enterprise/product-surface", { cookie: viewerCookie });
+    assert.strictEqual(viewerEnterpriseProductSurface.response.status, 200);
+    assert.strictEqual(viewerEnterpriseProductSurface.payload.data.role, "viewer");
+    assert.strictEqual(viewerEnterpriseProductSurface.payload.data.boundary.autonomousDecisions, false);
+    assert.strictEqual(viewerEnterpriseProductSurface.payload.data.boundary.autonomousRecommendations, false);
+    assert(viewerEnterpriseProductSurface.payload.data.controlCenter.cards.some(item => item.key === "verified-realized-value" && item.value === 36000));
+    assert(viewerEnterpriseProductSurface.payload.data.controlCenter.cards.every(item => item.trace.sourceModule));
+    assert(!viewerEnterpriseProductSurface.payload.data.controlCenter.cards.some(item => item.status === "unavailable"));
+    assert(viewerEnterpriseProductSurface.payload.data.sections.some(item => item.key === "pilot" && item.entries.some(entry => entry.key === "production-acceptance")));
+    assert(viewerEnterpriseProductSurface.payload.data.reports.some(item => item.route === "/api/pilot/acceptance/package.md"));
+
+    const ownerEnterpriseProductSurface = await request("/api/enterprise/product-surface", { cookie });
+    assert.strictEqual(ownerEnterpriseProductSurface.response.status, 200);
+    assert(ownerEnterpriseProductSurface.payload.data.navigation.some(item => item.key === "settings"));
+    assert.strictEqual(ownerEnterpriseProductSurface.payload.data.permissions.canApprove, true);
+    assert(ownerEnterpriseProductSurface.payload.data.internalCapabilityMap.entries.some(item => item.key === "enterprise-replication"));
 
     const expiredMemberEmail = `expired-${Date.now()}@marginlift.ir`;
     const expiredMember = await request("/api/access/members", {

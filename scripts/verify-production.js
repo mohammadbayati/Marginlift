@@ -134,6 +134,7 @@ async function main() {
     "/api/analyses/history",
     "/api/readiness/current",
     "/api/pilot/workspace",
+    "/api/enterprise/product-surface",
     "/api/pilot/acceptance",
     "/api/pilot/acceptance/package.md",
     "/api/model-governance/overview",
@@ -146,7 +147,18 @@ async function main() {
     const result = await request(route, { cookie });
     expectStatus(result, 200, route);
   }
-    evidence.push(`viewer-readable-routes:${readableRoutes.length}`);
+  evidence.push(`viewer-readable-routes:${readableRoutes.length}`);
+
+  const productSurface = await request("/api/enterprise/product-surface", { cookie });
+  expectStatus(productSurface, 200, "enterprise product surface");
+  assert.strictEqual(productSurface.payload.data.boundary.autonomousDecisions, false);
+  assert.strictEqual(productSurface.payload.data.boundary.autonomousRecommendations, false);
+  assert.ok(productSurface.payload.data.navigation.some(item => item.key === "control-center"));
+  assert.ok(!productSurface.payload.data.navigation.some(item => ["strategy", "transformation", "data-integrations"].includes(item.key)));
+  assert.ok(productSurface.payload.data.controlCenter.cards.every(item => item.trace && item.trace.sourceModule));
+  assert.ok(!productSurface.payload.data.controlCenter.cards.some(item => item.status === "unavailable"));
+  assert.ok(productSurface.payload.data.reports.some(item => item.route === "/api/pilot/acceptance/package.md"));
+  evidence.push("enterprise-product-surface:traceable-read-only");
 
   if (expectedRole === "viewer") {
     const forbiddenChecks = [
