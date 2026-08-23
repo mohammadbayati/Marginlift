@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
-  [string]$ServerHost = "91.107.139.20",
-  [string]$ServerUser = "ubuntu",
+  [string]$ServerHost = "91.107.190.221",
+  [string]$ServerUser = "root",
   [string]$KeyPath = (Join-Path $HOME ".ssh\marginlift_deploy")
 )
 
