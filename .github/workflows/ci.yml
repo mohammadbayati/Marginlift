@@ -1,4 +1,4 @@
-﻿name: MarginLift CI Smoke
+name: MarginLift CI Smoke
 
 on:
   pull_request:
