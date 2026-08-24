@@ -9,5 +9,6 @@ jobs:
   smoke:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Smoke
         run: echo "github actions smoke test"
