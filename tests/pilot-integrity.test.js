@@ -1,0 +1,15 @@
+const assert = require("assert");
+const { assessPilotIntegrity, STATUSES, CHECK_STATUSES } = require("../src/pilot-integrity");
+const { createMetricContract, transitionMetricContract, freezeMetricContract } = require("../src/metric-contract");
+const base = { contract_id:"mc_i",buyer_id:"b",use_case:"u",version:1,data_snapshot_id:"s",eligible_population:"e",exclusions:["x"],analysis_population:"a",assignment_unit:"customer_id",randomization_method:"deterministic_hash",assignment_seed:"seed",holdout_percentage:50,treatment_definition:"t",control_definition:"c",exposure_definition:"e",delivery_definition:"d",primary_kpi:"k",outcome_window:"30d",analysis_cutoff:"2026-10-01",estimand:"itt",confidence_level:.95,MDE:1,minimum_sample:1,margin_formula:"r-c",incentive_cost:"i",messaging_cost:{state:"NOT_APPLICABLE",reason:"included"},channel_cost:"c",operational_cost:"o",contamination_policy:"none",concurrent_campaign_policy:"none",missing_data_policy:"fail",stopping_rule:"window",guardrails:["g"],finance_owner:"f",CRM_owner:"c",data_owner:"d",outcome_owner:"o",approved_by:"a",approved_at:"2026-08-30"};
+const contract = freezeMetricContract(transitionMetricContract(createMetricContract(base), "APPROVED"));
+const assignments = [{customerId:"1",assignedGroup:"control"},{customerId:"2",assignedGroup:"treatment"}];
+const financial = {formula_id:"f",formula_version:"1",currency:"IRR",revenue_source:"r",margin_source:"m",incentive_cost_source:"i",messaging_cost_source:"m",channel_cost_source:"c",operational_cost_source:"o",buyer_approved_by:"f",buyer_approved_at:"2026-08-30",data_snapshot_id:"s",as_of:"2026-08-30"};
+const clean = assessPilotIntegrity({phase:"READOUT",metricContract:contract,assignments,experiment:{id:"e",design:{expectedAllocation:{control:.5,treatment:.5}}},exposures:assignments.filter(x=>x.assignedGroup!=="control").map(x=>({...x,exposedAt:"2026-09-01",assignedAt:"2026-09-01"})),outcomes:assignments.map(x=>({...x,outcomeRevenue:1})),financialProvenance:financial,metricContractHash:contract.contract_hash,dataSnapshotId:"s"});
+assert.ok([STATUSES.READY,STATUSES.READY_WITH_WARNINGS].includes(clean.overall_status));
+const blocked = assessPilotIntegrity({phase:"READOUT",metricContract:contract,assignments:[...assignments,{customerId:"1",assignedGroup:"treatment"}],experiment:{design:{expectedAllocation:{control:.5,treatment:.5}}}});
+assert.strictEqual(blocked.overall_status, STATUSES.INVALIDATED);
+assert.ok(blocked.checks.some(c=>c.reason_code === "INT_ASSIGNMENT_DUPLICATE"));
+const pre = assessPilotIntegrity({phase:"PRE_LAUNCH",metricContract:contract});
+assert.ok(pre.checks.some(c=>c.status === CHECK_STATUSES.NOT_EVALUATED));
+console.log("pilot-integrity tests passed");
