@@ -1,0 +1,18 @@
+{
+  "version": "commercial_offer_v1",
+  "ladder": [
+    {"stage":"SCOPING","purpose":"Decide whether the use case merits a paid Diagnostic.","commercial_treatment":"Pre-sales discovery; no outcome guarantee."},
+    {"stage":"PAID_DIAGNOSTIC","purpose":"Assess data, economics and experiment feasibility.","deliverables":["Data Readiness Assessment","Current Policy Map","Financial Readiness","Experiment Feasibility","Draft Metric Contract","Risk / Gap Register","Diagnostic Buyer Evidence Package","GO / GO_WITH_CAVEATS / NO_GO recommendation"]},
+    {"stage":"CONTROLLED_PILOT","purpose":"Run one controlled policy comparison when readiness gates pass.","deliverables":["Frozen Metric Contract","Assignment / Holdout Design","Integrity Monitoring","Outcome Analysis","Financial Provenance","Final Buyer Evidence Package","Authorized Business Decision"]},
+    {"stage":"SCALE_RECURRING","purpose":"Optional periodic decision support after verified pilot evidence.","status":"FUTURE_ONLY"}
+  ],
+  "primary_first_sale": "PAID_DIAGNOSTIC",
+  "recommended_pricing_model": "FIXED_FEE_DIAGNOSTIC_THEN_SEPARATELY_PRICED_CONTROLLED_PILOT",
+  "diagnostic_credit": "OPTIONAL_NEGOTIATED_CREDIT_TOWARD_PILOT",
+  "payment_milestones": {"diagnostic":["50% kickoff","50% accepted delivery"],"pilot":["kickoff / contract freeze","launch readiness","final evidence package"]},
+  "scope_adjusters":["additional cohort","additional product","additional data source","custom integration","additional KPI","security/deployment customization","custom financial model","extended outcome window"],
+  "success_definition": {"diagnostic":"Required data assessed, feasibility determined, draft contract and recommendation delivered; positive uplift is not required.","pilot":"Experiment integrity assessed, outcomes and economics evaluated, Evidence Package delivered and a valid decision produced; positive profit is not required."},
+  "change_control":["new cohort","new product","new KPI","new data source","new channel","new integration","new outcome definition","material financial-formula change","security/deployment customization"],
+  "exclusions":["CRM replacement","CRM campaign execution","guaranteed uplift or profit","turnkey VPC deployment","enterprise multi-tenancy","unrelated use cases","long-term subscription unless separately contracted"],
+  "claim_boundaries":["Historical or diagnostic analysis is descriptive/shadow unless canonical experiment gates pass.","Financial claims require buyer-approved FinancialProvenance.","No customer results, logos or testimonials are included in these artifacts."]
+}
