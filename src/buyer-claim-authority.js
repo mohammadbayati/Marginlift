@@ -14,6 +14,6 @@ function serializeBuyerClaims({ claims = [], buyerTrust = {}, format = "json" } 
   return { claims: authorized, trust: buyerTrust };
 }
 const BUYER_CLAIM_SURFACES = Object.freeze([
-  "/api/pilot/workspace", "/api/pilot/readout.md", "/api/pilot/business-impact", "/api/pilot/acceptance", "/api/pilot/acceptance/package.md", "/api/enterprise/intelligence", "/api/enterprise/product-surface", "/api/pilot/package.md", "/api/campaigns/current/report", "/api/decision-engine/overview", "/api/finance/summary", "/api/readiness/current"
+  "/api/pilot/workspace", "/api/pilot/readout.md", "/api/pilot/business-impact", "/api/pilot/acceptance", "/api/pilot/acceptance/package.md", "/api/enterprise/intelligence", "/api/enterprise/product-surface", "/api/pilot/package.md", "/api/campaigns/current/report", "/api/decision-engine/overview", "/api/finance/summary", "/api/readiness/current", "/api/pilot/evidence-package.json", "/api/pilot/evidence-package.md"
 ]);
 module.exports = { BUYER_CLAIM_SURFACES, CLAIM_TYPES, authorizeBuyerClaim, serializeBuyerClaims };

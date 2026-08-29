@@ -85,6 +85,7 @@ const { assessPilotIntegrity } = require("./pilot-integrity");
 const { getLatestIntegrityAssessment, persistIntegrityAssessment } = require("./pilot-integrity-store");
 const { applyBuyerReadoutTrust, resolveBuyerReadoutTrust } = require("./buyer-readout-trust");
 const { authorizeBuyerClaim, BUYER_CLAIM_SURFACES } = require("./buyer-claim-authority");
+const { buildBuyerEvidenceMarkdown, buildBuyerEvidencePackage } = require("./buyer-evidence-package");
 const { appOrigin, assertProductionConfig, isProduction, maxBodyBytes, orchestrationDriftThreshold, revenueShareRate, port: defaultPort, publicSignupEnabled, shadowScorerUrl, trustProxy } = require("./config");
 const { verifyJwt } = require("./auth");
 
@@ -585,6 +586,21 @@ async function handleApi(req, res, url) {
     requireRole(auth, "admin");
     const body = await readJson(req);
     sendJson(res, 200, { data: await updatePilotControlRoom(auth.organization.id, body, requestContext(req, auth)) });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/evidence-package.json" && req.method === "GET") {
+    const state = await getCurrentPilotState(auth.organization.id);
+    const pkg = buildBuyerEvidencePackage({ ...state, pilotId: state.pilotControlSummary?.id || null, experimentId: state.experiment?.id || null, integrityAssessment: state.integrityAssessment, buyerReadoutTrust: state.buyerReadoutTrust, metricContract: state.pilotControlSummary?.metricContractSnapshot });
+    sendJson(res, 200, { data: pkg });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/evidence-package.md" && req.method === "GET") {
+    const state = await getCurrentPilotState(auth.organization.id);
+    const pkg = buildBuyerEvidencePackage({ ...state, pilotId: state.pilotControlSummary?.id || null, experimentId: state.experiment?.id || null, integrityAssessment: state.integrityAssessment, buyerReadoutTrust: state.buyerReadoutTrust, metricContract: state.pilotControlSummary?.metricContractSnapshot });
+    res.writeHead(200, { "Content-Type": "text/markdown; charset=utf-8", "Cache-Control": "no-store", "Content-Disposition": 'attachment; filename="marginlift-buyer-evidence-package.md"' });
+    res.end(buildBuyerEvidenceMarkdown(pkg));
     return;
   }
 
