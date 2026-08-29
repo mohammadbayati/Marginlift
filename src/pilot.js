@@ -11,6 +11,24 @@ const requiredReadinessChecks = [
 ];
 
 const { analyzeExperimentOutcome, decideExperiment } = require("./statistics");
+const {
+  EVIDENCE_LEVELS,
+  createEvidenceMetadata,
+  evaluateClaimPermissions
+} = require("./truth-contract");
+
+function legacyTruthBoundary(evidenceLevel = EVIDENCE_LEVELS.OBSERVED, experimentState = {}) {
+  const evidenceMetadata = createEvidenceMetadata({
+    evidence_level: evidenceLevel,
+    source_type: "legacy_pilot_output"
+  });
+  const claimPermissions = evaluateClaimPermissions({}, evidenceMetadata, {}, experimentState);
+  return {
+    evidenceMetadata,
+    claimPermissions,
+    truthBoundaryStatus: "LEGACY_INCOMPLETE"
+  };
+}
 
 const claimLevels = {
   observational_estimate: {
@@ -100,6 +118,7 @@ function buildSavingsSnapshot(customerAnalysis, campaignAnalysis, readiness, out
     confidenceFa: confidenceLabel(readiness, outcomeRecord),
     decisionFa: hasOutcome ? outcome.recommendationFa : "این اعداد برآورد تاریخی‌اند؛ پایلوت برای تصمیم بودجه‌ای لازم است.",
     evidenceTagFa: claimLevels[readiness.claimLevel]?.evidenceTagFa || claimLevels.observational_estimate.evidenceTagFa,
+    ...legacyTruthBoundary(hasOutcome ? EVIDENCE_LEVELS.EXPERIMENTAL : EVIDENCE_LEVELS.OBSERVED),
     metrics: {
       avoidableIncentiveCost: metricEvidence(
         "شکاف هزینه مشاهده‌شده و سیاست پیشنهادی",
@@ -176,6 +195,16 @@ function analyzeOutcomeRows(rows, customerAnalysis, integrity = null, experiment
   const minimumRoi = experiment?.design?.analysisPlan?.minimumRoi ?? 1;
   const decision = decideExperiment({ integrity, statistics, observedRoi, minimumRoi });
   const decisionGrade = integrity?.decisionEligible && statistics.valid && statistics.sample.adequate;
+  const truthBoundary = legacyTruthBoundary(
+    decisionGrade ? EVIDENCE_LEVELS.EXPERIMENTAL : EVIDENCE_LEVELS.OBSERVED,
+    {
+      assignment_valid: Boolean(integrity?.assignmentValid ?? integrity?.assignment_valid),
+      exposure_valid: Boolean(integrity?.exposureValid ?? integrity?.exposure_valid),
+      outcome_valid: Boolean(statistics?.valid),
+      integrity_status: integrity?.status || "pending",
+      blocking_integrity_failure: integrity?.decisionEligible === false
+    }
+  );
 
   return {
     rowCount: rows.length,
@@ -210,7 +239,10 @@ function analyzeOutcomeRows(rows, customerAnalysis, integrity = null, experiment
       ...statistics.guardrails.map(item => ({ labelFa: item.labelFa, passed: item.passed, statusFa: item.statusFa }))
     ],
     integrity,
-    statistics
+    statistics,
+    evidenceMetadata: truthBoundary.evidenceMetadata,
+    claimPermissions: truthBoundary.claimPermissions,
+    truthBoundaryStatus: truthBoundary.truthBoundaryStatus
   };
 }
 
@@ -376,13 +408,27 @@ function resolveClaimLevel(outcomeRecord) {
 }
 
 function metricEvidence(labelFa, value, evidenceLevel, noteFa) {
+  const canonicalEvidenceLevel = canonicalEvidenceLevelFor(evidenceLevel);
   return {
     labelFa,
     value,
     available: value !== null,
     evidenceLevel,
+    evidenceMetadata: createEvidenceMetadata({
+      evidence_level: canonicalEvidenceLevel,
+      source_type: "pilot_savings_snapshot",
+      limitations: [noteFa]
+    }),
     noteFa
   };
+}
+
+function canonicalEvidenceLevelFor(evidenceLevel) {
+  if (evidenceLevel === "verified_incremental") return EVIDENCE_LEVELS.VERIFIED_INCREMENTAL;
+  if (evidenceLevel === "randomized_estimate" || evidenceLevel === "pilot_observation") return EVIDENCE_LEVELS.EXPERIMENTAL;
+  if (evidenceLevel === "shadow") return EVIDENCE_LEVELS.SHADOW;
+  if (evidenceLevel === "simulated") return EVIDENCE_LEVELS.SIMULATED;
+  return EVIDENCE_LEVELS.OBSERVED;
 }
 
 function finiteOrNull(value) {

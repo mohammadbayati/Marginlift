@@ -1,4 +1,9 @@
 const crypto = require("crypto");
+const {
+  createEvidenceMetadata,
+  normalizeFinancialProvenance,
+  validateFinancialProvenance
+} = require("./metric-contract");
 
 const LIFECYCLE_STATUSES = Object.freeze(["draft", "submitted", "verified", "rejected"]);
 const ALLOWED_TRANSITIONS = Object.freeze({
@@ -15,6 +20,11 @@ function normalizeBusinessImpactLedger(input = {}, fallback = {}) {
   const roi = calculateROI(source.roi || base.roi || {});
   const lifecycleStatus = normalizeLifecycleStatus(source.lifecycleStatus || base.lifecycleStatus || "draft");
   const financeValidation = normalizeFinanceValidation(source.financeValidation, base.financeValidation, lifecycleStatus);
+  const financialProvenance = normalizeFinancialProvenance(source.financialProvenance || base.financialProvenance);
+  const evidenceMetadata = createEvidenceMetadata(source.evidenceMetadata || base.evidenceMetadata || {
+    source_type: "business_impact_ledger",
+    data_snapshot_id: financialProvenance.data_snapshot_id || null
+  });
 
   return {
     id: normalizeString(source.id, base.id || ""),
@@ -26,6 +36,9 @@ function normalizeBusinessImpactLedger(input = {}, fallback = {}) {
     realizedImpact,
     roi,
     financeValidation,
+    financialProvenance,
+    financialProvenanceStatus: validateFinancialProvenance(financialProvenance).state,
+    evidenceMetadata,
     lifecycleStatus,
     auditEvents: Array.isArray(source.auditEvents)
       ? source.auditEvents.map(normalizeAuditEvent).filter(Boolean)
@@ -56,6 +69,12 @@ function validateFinanceVerification(ledger) {
   if (ledger.lifecycleStatus !== "verified" && ledger.financeValidation.status !== "verified") return;
   if (!ledger.realizedImpact.evidenceSource) {
     throw domainError(400, "FINANCE_EVIDENCE_SOURCE_REQUIRED", "Verified financial impact requires an evidence source.");
+  }
+  const provenanceStatus = validateFinancialProvenance(ledger.financialProvenance);
+  if (!provenanceStatus.valid) {
+    const error = domainError(400, provenanceStatus.state, "Verified financial impact requires complete finance-approved provenance.");
+    error.details = provenanceStatus;
+    throw error;
   }
   if (!ledger.financeValidation.verifiedBy) {
     throw domainError(400, "FINANCE_VERIFIER_REQUIRED", "Verified financial impact requires verifier identity.");
@@ -132,6 +151,10 @@ function updateBusinessImpactLifecycle(db, context, input = {}) {
     forecast: canUpdateDraftFields && input.forecast ? normalizeForecast(input.forecast, existing.forecast) : existing.forecast,
     realizedImpact: input.realizedImpact ? normalizeRealizedImpact(input.realizedImpact, existing.realizedImpact) : existing.realizedImpact,
     roi: input.roi ? calculateROI(input.roi) : existing.roi,
+    financialProvenance: input.financialProvenance
+      ? normalizeFinancialProvenance(input.financialProvenance)
+      : existing.financialProvenance,
+    evidenceMetadata: input.evidenceMetadata || existing.evidenceMetadata,
     lifecycleStatus: target,
     financeValidation: mergeFinanceValidation(existing.financeValidation, input.financeValidation, target),
     auditEvents: Array.isArray(existing.auditEvents) ? [...existing.auditEvents] : [],
@@ -170,7 +193,9 @@ function summarizeBusinessImpactLedger(ledger) {
       forecastValue: null,
       realizedValue: null,
       roiStatus: "not_available",
-      financeVerification: "not_verified"
+      financeVerification: "not_verified",
+      financialProvenanceStatus: "FINANCIAL_INCOMPLETE",
+      evidenceMetadata: createEvidenceMetadata({ source_type: "legacy_business_impact_ledger" })
     };
   }
   return {
@@ -180,7 +205,9 @@ function summarizeBusinessImpactLedger(ledger) {
     forecastValue: ledger.forecast.predictedImpact,
     realizedValue: ledger.realizedImpact.measuredImpact,
     roiStatus: roiStatus(ledger.roi),
-    financeVerification: ledger.financeValidation.status
+    financeVerification: ledger.financeValidation.status,
+    financialProvenanceStatus: ledger.financialProvenanceStatus,
+    evidenceMetadata: ledger.evidenceMetadata
   };
 }
 
@@ -195,6 +222,10 @@ function updateDraftFields(existing, context, input) {
     forecast: input.forecast ? normalizeForecast(input.forecast, existing.forecast) : existing.forecast,
     realizedImpact: input.realizedImpact ? normalizeRealizedImpact(input.realizedImpact, existing.realizedImpact) : existing.realizedImpact,
     roi: input.roi ? calculateROI(input.roi) : existing.roi,
+    financialProvenance: input.financialProvenance
+      ? normalizeFinancialProvenance(input.financialProvenance)
+      : existing.financialProvenance,
+    evidenceMetadata: input.evidenceMetadata || existing.evidenceMetadata,
     auditEvents: Array.isArray(existing.auditEvents) ? [...existing.auditEvents] : [],
     audit: {
       ...(existing.audit || {}),

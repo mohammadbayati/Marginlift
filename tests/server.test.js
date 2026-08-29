@@ -25,6 +25,25 @@ async function readResponse(response) {
   }
 }
 
+function completeFinancialProvenance(overrides = {}) {
+  return {
+    formula_id: "incremental_profit",
+    formula_version: "v1",
+    currency: "IRR",
+    revenue_source: "outcome_csv",
+    margin_source: "finance_margin_table",
+    incentive_cost_source: "crm_cost_export",
+    messaging_cost_source: "buyer_declared_zero",
+    channel_cost_source: "crm_platform_invoice",
+    operational_cost_source: "buyer_declared_zero",
+    buyer_approved_by: "finance_lead",
+    buyer_approved_at: "2026-09-22T00:00:00.000Z",
+    data_snapshot_id: "snapshot_server_test",
+    as_of: "2026-09-22T00:00:00.000Z",
+    ...overrides
+  };
+}
+
 async function run() {
   const server = start(0);
   await waitForListening(server);
@@ -390,6 +409,7 @@ async function run() {
       cookie,
       body: {
         action: "verify",
+        financialProvenance: completeFinancialProvenance(),
         financeValidation: {
           verifiedBy: "finance_lead",
           verifiedAt: "2026-09-22T00:00:00.000Z"
@@ -439,6 +459,7 @@ async function run() {
           investmentCost: 10000,
           grossValue: 36000
         },
+        financialProvenance: completeFinancialProvenance(),
         financeValidation: {
           verifiedBy: "finance_lead",
           verifiedAt: "2026-09-22T00:00:00.000Z",

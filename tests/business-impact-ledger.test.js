@@ -41,6 +41,26 @@ function validInput(overrides = {}) {
       investmentCost: 100000,
       grossValue: 300000
     },
+    financialProvenance: completeFinancialProvenance(),
+    ...overrides
+  };
+}
+
+function completeFinancialProvenance(overrides = {}) {
+  return {
+    formula_id: "incremental_profit",
+    formula_version: "v1",
+    currency: "IRR",
+    revenue_source: "outcome_csv",
+    margin_source: "finance_margin_table",
+    incentive_cost_source: "crm_cost_export",
+    messaging_cost_source: "buyer_declared_zero",
+    channel_cost_source: "crm_platform_invoice",
+    operational_cost_source: "buyer_declared_zero",
+    buyer_approved_by: "finance_lead",
+    buyer_approved_at: context.now,
+    data_snapshot_id: "snapshot_test",
+    as_of: context.now,
     ...overrides
   };
 }
@@ -80,6 +100,8 @@ function run() {
   assert.strictEqual(created.organizationId, context.organizationId);
   assert.strictEqual(created.lifecycleStatus, "draft");
   assert.strictEqual(created.financeValidation.status, "not_verified");
+  assert.strictEqual(created.financialProvenanceStatus, "FINANCIAL_COMPLETE");
+  assert.strictEqual(created.evidenceMetadata.verification_status, "LEGACY_INCOMPLETE");
   assert.strictEqual(created.forecast.predictedImpact, 300000);
   assert.strictEqual(created.realizedImpact.measuredImpact, 0);
   assert.strictEqual(created.roi.netValue, 200000);
@@ -123,12 +145,27 @@ function run() {
     "FINANCE_EVIDENCE_SOURCE_REQUIRED"
   );
 
+  assertThrowsCode(
+    () => updateBusinessImpactLifecycle(db, context, {
+      action: "verify",
+      realizedImpact: {
+        measuredImpact: 280000,
+        measurementWindow: { days: 30 },
+        evidenceSource: "finance-reviewed-outcome-v1.csv"
+      },
+      financialProvenance: completeFinancialProvenance({ channel_cost_source: "" }),
+      financeValidation: { verifiedBy: context.actorId, verifiedAt: context.now }
+    }),
+    "FINANCIAL_INCOMPLETE"
+  );
+
   const invalidVerified = normalizeBusinessImpactLedger({
     organizationId: context.organizationId,
     financialObjective: "Invalid verified proof.",
     lifecycleStatus: "verified",
     realizedImpact: { evidenceSource: "finance_upload.csv" },
     financeValidation: { status: "verified" },
+    financialProvenance: completeFinancialProvenance(),
     roi: { investmentCost: 1, grossValue: 2 }
   });
   assertThrowsCode(() => validateFinanceVerification(invalidVerified), "FINANCE_VERIFIER_REQUIRED");
@@ -149,10 +186,15 @@ function run() {
       verifiedAt: "2026-09-22T00:00:00.000Z",
       notes: "Matched finance export."
     },
+    financialProvenance: completeFinancialProvenance({
+      as_of: "2026-09-22T00:00:00.000Z",
+      buyer_approved_at: "2026-09-22T00:00:00.000Z"
+    }),
     metadata: { evidenceSource: "finance-reviewed-outcome-v1.csv" }
   });
   assert.strictEqual(verified.lifecycleStatus, "verified");
   assert.strictEqual(verified.financeValidation.status, "verified");
+  assert.strictEqual(verified.financialProvenanceStatus, "FINANCIAL_COMPLETE");
   assert.strictEqual(verified.realizedImpact.evidenceSource, "finance-reviewed-outcome-v1.csv");
   assert.strictEqual(verified.roi.netValue, 180000);
   assert.ok(verified.auditEvents.some(event => event.from === "submitted" && event.to === "verified"));

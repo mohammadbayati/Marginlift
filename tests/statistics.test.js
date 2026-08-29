@@ -9,6 +9,7 @@ const {
   studentTQuantile
 } = require("../src/statistics");
 const { analyzeOutcomeRows } = require("../src/pilot");
+const { EVIDENCE_LEVELS } = require("../src/metric-contract");
 
 const critical = studentTQuantile(0.975, 10);
 assert.ok(Math.abs(critical - 2.228138852) < 0.000001);
@@ -51,6 +52,21 @@ const integratedPositive = analyzeOutcomeRows(
 assert.strictEqual(integratedPositive.summary.decisionStatus, "scale");
 assert.strictEqual(integratedPositive.summary.evidenceStatus, "decision_grade");
 assert.ok(integratedPositive.summary.primaryCiLow > 0);
+
+const positiveSnapshot = require("../src/pilot").buildSavingsSnapshot(
+  { channelExport: [] },
+  { campaign: {} },
+  { claimLevel: "randomized_estimate", claimLevelFa: "Randomized estimate" },
+  integratedPositive
+);
+assert.strictEqual(
+  positiveSnapshot.metrics.expectedIncrementalProfit.evidenceMetadata.evidence_level,
+  EVIDENCE_LEVELS.EXPERIMENTAL
+);
+assert.strictEqual(
+  positiveSnapshot.metrics.expectedIncrementalProfit.evidenceMetadata.verification_status,
+  "LEGACY_INCOMPLETE"
+);
 
 const harmedRows = buildRows({ controlRevenue: 300000, treatmentRevenue: 80000, treatmentCost: 10000 });
 const harmedStatistics = analyzeExperimentOutcome(harmedRows, buildExperiment(harmedRows, { baseline: false }));
