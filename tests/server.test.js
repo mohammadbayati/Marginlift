@@ -114,8 +114,8 @@ async function run() {
     assert.match(String(executiveReportStyles.payload), /A4 portrait/);
 
     const publicHome = await request("/");
-    assert(publicHome.payload.includes("تخفیف کمتر"));
-    assert(publicHome.payload.includes("/marginlift-command-center.png"));
+    assert(publicHome.payload.includes("Know which CRM actions create incremental value."));
+    assert(publicHome.payload.includes("/pilot-data-request.html"));
 
     const productLogin = await request("/login");
     assert(productLogin.payload.includes('id="authShell"'));
