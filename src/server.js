@@ -1564,6 +1564,14 @@ async function getCurrentPilotState(organizationId) {
     readiness,
     experiment
   });
+  const pilotLineage = {
+    metric_contract_id: pilotControl.metricContractId || null,
+    metric_contract_version: pilotControl.metricContractVersion || null,
+    metric_contract_hash: pilotControl.metricContractHash || null,
+    data_snapshot_id: pilotControl.dataSnapshotId || null,
+    experiment_id: pilotControl.experimentId || experiment?.id || null,
+    lineage_integrity: pilotControl.lineageIntegrity || { status: "LEGACY_INCOMPLETE", valid: false }
+  };
   const acceptance = await getPilotAcceptanceRecord(organizationId, { organizationId }, null, {
     organization: null,
     campaign,
@@ -1581,7 +1589,7 @@ async function getCurrentPilotState(organizationId) {
     experiment: toPublicExperiment(experiment),
     outcome,
     readiness,
-    savingsSnapshot,
+    savingsSnapshot: { ...savingsSnapshot, pilotLineage },
     workspace,
     decisionContract: summarizePilotContract(decisionContract),
     businessImpactSummary: summarizeBusinessImpactLedger(businessImpact),

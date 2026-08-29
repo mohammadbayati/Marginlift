@@ -11,6 +11,15 @@ const {
   transitionPilotStage,
   updateBlocker
 } = require("../src/pilot-control-room");
+const {
+  CONTRACT_STATUSES,
+  createMetricContract,
+  evaluateClaimPermissions,
+  freezeMetricContract,
+  createEvidenceMetadata,
+  normalizeFinancialProvenance
+  ,transitionMetricContract
+} = require("../src/metric-contract");
 
 const context = Object.freeze({
   organizationId: "org_marginlift",
@@ -18,6 +27,68 @@ const context = Object.freeze({
   actorRole: "owner",
   now: "2026-08-22T00:00:00.000Z"
 });
+
+const metricContract = freezeMetricContract(transitionMetricContract(createMetricContract({
+  contract_id: "mc_pilot_test",
+  buyer_id: "buyer_test",
+  use_case: "retention_policy",
+  version: 1,
+  data_snapshot_id: "snapshot_test",
+  eligible_population: "eligible customers",
+  exclusions: ["opt_out"],
+  analysis_population: "assigned customers",
+  assignment_unit: "customer_id",
+  randomization_method: "deterministic_hash",
+  assignment_seed: "seed_test",
+  holdout_percentage: 10,
+  treatment_definition: "targeted offer",
+  control_definition: "business as usual",
+  exposure_definition: "message delivered",
+  delivery_definition: "crm export",
+  primary_kpi: "incremental_profit",
+  outcome_window: "30 days",
+  analysis_cutoff: "2026-10-01",
+  estimand: "intention_to_treat",
+  confidence_level: 0.95,
+  MDE: 1,
+  minimum_sample: 100,
+  margin_formula: "revenue - costs",
+  incentive_cost: "crm export",
+  messaging_cost: { state: "NOT_APPLICABLE", reason: "included in channel cost" },
+  channel_cost: "channel invoice",
+  operational_cost: "finance model",
+  contamination_policy: "control receives no treatment",
+  concurrent_campaign_policy: "exclude overlap",
+  missing_data_policy: "fail closed",
+  stopping_rule: "close after window",
+  guardrails: ["refund_rate"],
+  finance_owner: "finance_test",
+  CRM_owner: "crm_test",
+  data_owner: "data_test",
+  outcome_owner: "analytics_test",
+  approved_by: "sponsor_test",
+  approved_at: context.now
+}), CONTRACT_STATUSES.APPROVED, { approved_by: "sponsor_test", approved_at: context.now }));
+const claimPermissions = evaluateClaimPermissions(
+  metricContract,
+  createEvidenceMetadata({ evidence_level: "EXPERIMENTAL", metric_contract: metricContract, generated_at: context.now }),
+  normalizeFinancialProvenance({
+    formula_id: "profit",
+    formula_version: "1",
+    currency: "IRR",
+    revenue_source: "outcome",
+    margin_source: "margin",
+    incentive_cost_source: "crm",
+    messaging_cost_source: "none",
+    channel_cost_source: "channel",
+    operational_cost_source: "ops",
+    buyer_approved_by: "finance_test",
+    buyer_approved_at: context.now,
+    data_snapshot_id: "snapshot_test",
+    as_of: context.now
+  }),
+  { assignment_valid: true, exposure_valid: true, outcome_valid: true, integrity_status: "pass" }
+);
 
 const readyContext = Object.freeze({
   decisionContract: {
@@ -40,7 +111,9 @@ const readyContext = Object.freeze({
     financeValidation: {
       status: "verified"
     }
-  }
+  },
+  metricContract,
+  claimPermissions
 });
 
 function assertThrowsCode(fn, code) {
@@ -152,6 +225,11 @@ function run() {
   assert.strictEqual(dataReady.lifecycleStatus, "data_ready");
   const running = dispatchPilotWorkflowAction(db, context, { action: "transition_stage", lifecycleStatus: "experiment_running" }, readyContext);
   assert.strictEqual(running.lifecycleStatus, "experiment_running");
+  assert.strictEqual(running.metricContractId, metricContract.contract_id);
+  assert.strictEqual(running.metricContractVersion, metricContract.version);
+  assert.strictEqual(running.metricContractHash, metricContract.contract_hash);
+  assert.strictEqual(running.experimentId, readyContext.experiment.id);
+  assert.strictEqual(running.lineageIntegrity.valid, true);
   const outcomePending = dispatchPilotWorkflowAction(db, context, { action: "transition_stage", lifecycleStatus: "outcome_pending" }, readyContext);
   assert.strictEqual(outcomePending.lifecycleStatus, "outcome_pending");
   const decisionReady = dispatchPilotWorkflowAction(db, context, { action: "transition_stage", lifecycleStatus: "decision_ready" }, readyContext);
@@ -167,6 +245,20 @@ function run() {
     () => dispatchPilotWorkflowAction(db, context, { action: "unknown_action" }, readyContext),
     "UNSUPPORTED_PILOT_WORKFLOW_ACTION"
   );
+
+  db.pilotWorkflows[0].metricContractHash = "forged";
+  assert.strictEqual(getPilotWorkflow(db, context, readyContext).lineageIntegrity.status, "INVALID");
+
+  const blockedDb = {};
+  createPilotWorkflow(blockedDb, context, {}, {});
+  transitionPilotStage(blockedDb, context, { lifecycleStatus: "kickoff" }, {});
+  transitionPilotStage(blockedDb, context, { lifecycleStatus: "data_ready" }, {});
+  assertThrowsCode(
+    () => transitionPilotStage(blockedDb, context, { lifecycleStatus: "experiment_running" }, {}),
+    "PILOT_CREATION_BLOCKED"
+  );
+  assert.strictEqual(blockedDb.pilotWorkflows[0].lifecycleStatus, "data_ready");
+  assert.ok(blockedDb.pilotWorkflows[0].auditEvents.some(item => item.action === "PILOT_CREATION_BLOCKED"));
 }
 
 run();

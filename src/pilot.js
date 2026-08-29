@@ -256,6 +256,7 @@ function buildPilotReadout(organization, readiness, snapshot, workspace, outcome
   const riskNotes = executiveRiskNotes(readiness, outcomeRecord);
   const governance = governanceOverview?.modelGovernance;
   const ledger = governanceOverview?.decisionLedger;
+  const pilotLineage = snapshot.pilotLineage || {};
   const lines = [
     `# گزارش پایلوت MarginLift برای ${organization.name}`,
     "",
@@ -268,6 +269,16 @@ function buildPilotReadout(organization, readiness, snapshot, workspace, outcome
     `**سطح شواهد:** ${snapshot.claimLevelFa}`,
     "",
     `**سطح اعتماد:** ${snapshot.confidenceFa}`,
+    "",
+    "## Truth & Measurement Contract",
+    "",
+    `- Evidence level: ${snapshot.evidenceMetadata?.evidence_level || "LEGACY_INCOMPLETE"}`,
+    `- Verification status: ${snapshot.evidenceMetadata?.verification_status || "LEGACY_INCOMPLETE"}`,
+    `- Metric Contract: ${snapshot.evidenceMetadata?.metric_contract_id || pilotLineage.metric_contract_id || "not linked"} / v${snapshot.evidenceMetadata?.metric_contract_version || pilotLineage.metric_contract_version || "?"}`,
+    `- Contract hash: ${snapshot.evidenceMetadata?.metric_contract_hash || pilotLineage.metric_contract_hash || "not linked"}`,
+    `- Lineage integrity: ${pilotLineage.lineage_integrity?.status || "LEGACY_INCOMPLETE"}`,
+    `- Claim permissions: ${Object.entries(snapshot.claimPermissions || {}).filter(([, value]) => value === true).map(([key]) => key).join(", ") || "none"}`,
+    `- Limitations: ${(snapshot.evidenceMetadata?.limitations || ["canonical contract lineage required"]).join("; ")}`,
     "",
     "## عددهای مهم برای مدیر مالی",
     "",

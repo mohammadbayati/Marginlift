@@ -1,4 +1,6 @@
 const crypto = require("crypto");
+const { validateLivePilotCreation } = require("./pilot-integration-gate");
+const { getContractHash } = require("./metric-contract");
 
 const LIFECYCLE_STATUSES = Object.freeze([
   "draft",
@@ -27,6 +29,14 @@ function normalizePilotWorkflow(input = {}, readinessContext = {}) {
     id: normalizeString(source.id),
     organizationId: normalizeString(source.organizationId),
     pilotContractId: normalizeNullableString(source.pilotContractId),
+    metricContractId: normalizeNullableString(source.metricContractId),
+    metricContractVersion: source.metricContractVersion ? Number(source.metricContractVersion) : null,
+    metricContractHash: normalizeNullableString(source.metricContractHash),
+    dataSnapshotId: normalizeNullableString(source.dataSnapshotId),
+    experimentId: normalizeNullableString(source.experimentId),
+    metricContractSnapshot: source.metricContractSnapshot && typeof source.metricContractSnapshot === "object"
+      ? { ...source.metricContractSnapshot }
+      : null,
     businessImpactLedgerId: normalizeNullableString(source.businessImpactLedgerId),
     lifecycleStatus,
     stages,
@@ -79,9 +89,49 @@ function transitionPilotStage(db, context, input = {}, readinessContext = {}) {
   const target = normalizeLifecycleStatus(input.lifecycleStatus || input.stageKey || input.to);
   assertAllowedTransition(workflow.lifecycleStatus, target);
 
+  if (target === "experiment_running") {
+    const gate = validateLivePilotCreation({
+      metricContract: input.metricContract || readinessContext.metricContract,
+      claimPermissions: input.claimPermissions || readinessContext.claimPermissions,
+      pilotInput: {
+        metric_contract_id: input.metric_contract_id || workflow.metricContractId,
+        metric_contract_version: input.metric_contract_version || workflow.metricContractVersion,
+        metric_contract_hash: input.metric_contract_hash || workflow.metricContractHash
+      },
+      experimentContext: {
+        metric_contract_hash: input.experimentContext?.metric_contract_hash || readinessContext.experimentContext?.metric_contract_hash,
+        metric_contract_version: input.experimentContext?.metric_contract_version || readinessContext.experimentContext?.metric_contract_version
+      }
+    });
+    if (!gate.allowed) {
+      appendAuditEvent(workflow, context, "PILOT_CREATION_BLOCKED", workflow.lifecycleStatus, workflow.lifecycleStatus, {
+        reasonCodes: gate.blocking_reasons,
+        metricContractId: gate.metric_contract_id,
+        metricContractVersion: gate.metric_contract_version
+      });
+      const error = domainError(409, "PILOT_CREATION_BLOCKED", "Live pilot creation requires a valid frozen Metric Contract.");
+      error.details = gate;
+      throw error;
+    }
+    input = {
+      ...input,
+      metricContractId: gate.metric_contract_id,
+      metricContractVersion: gate.metric_contract_version,
+      metricContractHash: gate.metric_contract_hash,
+      metricContractSnapshot: input.metricContract || readinessContext.metricContract,
+      dataSnapshotId: input.data_snapshot_id || input.metricContract?.data_snapshot_id || readinessContext.metricContract?.data_snapshot_id
+    };
+  }
+
   const next = normalizePilotWorkflow({
     ...workflow,
     lifecycleStatus: target,
+    metricContractId: input.metricContractId || workflow.metricContractId,
+    metricContractVersion: input.metricContractVersion || workflow.metricContractVersion,
+    metricContractHash: input.metricContractHash || workflow.metricContractHash,
+    dataSnapshotId: input.dataSnapshotId || workflow.dataSnapshotId,
+    experimentId: input.experimentId || workflow.experimentId || readinessContext.experiment?.id || null,
+    metricContractSnapshot: input.metricContractSnapshot || workflow.metricContractSnapshot,
     stages: transitionStages(workflow.stages, workflow.lifecycleStatus, target),
     auditEvents: [...workflow.auditEvents],
     audit: updateAudit(workflow.audit, context)
@@ -415,8 +465,16 @@ function fallbackWorkflow(context, readinessContext) {
 function toPublicWorkflow(workflow, readinessContext = {}) {
   return {
     ...normalizePilotWorkflow(workflow, readinessContext),
+    lineageIntegrity: verifyLineage(workflow),
     persisted: true
   };
+}
+
+function verifyLineage(workflow) {
+  if (!workflow?.metricContractHash) return { status: "LEGACY_INCOMPLETE", valid: false };
+  if (!workflow.metricContractSnapshot) return { status: "UNRESOLVED", valid: false };
+  const valid = workflow.metricContractSnapshot.status === "FROZEN" && getContractHash(workflow.metricContractSnapshot) === workflow.metricContractHash;
+  return { status: valid ? "VALID" : "INVALID", valid };
 }
 
 function findLatestWorkflow(db, organizationId) {
@@ -571,6 +629,7 @@ module.exports = {
   normalizePilotWorkflow,
   summarizePilotWorkflow,
   transitionPilotStage,
+  validateLivePilotCreation,
   updateBlocker,
   updateMilestone
 };
