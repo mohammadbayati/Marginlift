@@ -613,7 +613,7 @@ async function handleApi(req, res, url) {
     const trustState = await getCurrentPilotState(auth.organization.id);
     const sourceContext = await getPilotAcceptanceSourceContext(auth.organization.id, auth.organization);
     const record = await getPilotAcceptanceRecord(auth.organization.id, requestContext(req, auth), auth.organization, sourceContext);
-    const packageData = buildEvidencePackage(record, sourceContext);
+    const packageData = buildEvidencePackage(record, { ...sourceContext, buyerReadoutTrust: trustState.buyerReadoutTrust }, { buyerTrust: trustState.buyerReadoutTrust });
     res.writeHead(200, {
       "Content-Type": "text/markdown; charset=utf-8",
       "Cache-Control": "no-store",
@@ -625,7 +625,7 @@ async function handleApi(req, res, url) {
 
   if (url.pathname === "/api/enterprise/intelligence" && req.method === "GET") {
     const state = await getCurrentPilotState(auth.organization.id);
-    const intelligence = await getEnterpriseIntelligence(auth.organization.id);
+    const intelligence = await getEnterpriseIntelligence(auth.organization.id, state.buyerReadoutTrust);
     sendJson(res, 200, { data: applyBuyerReadoutTrust(degradeEnterpriseIntelligence(intelligence, state.buyerReadoutTrust), state.buyerReadoutTrust) });
     return;
   }
@@ -1751,9 +1751,9 @@ async function getPilotControlReadinessContext(organizationId) {
   };
 }
 
-async function getEnterpriseIntelligence(organizationId) {
+async function getEnterpriseIntelligence(organizationId, buyerTrust = null) {
   const db = await readDb();
-  return buildEnterpriseIntelligence(db, { organizationId });
+  return buildEnterpriseIntelligence(db, { organizationId, buyerTrust });
 }
 
 function degradeEnterpriseIntelligence(value, trust) {

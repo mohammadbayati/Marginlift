@@ -40,6 +40,7 @@ function buildEnterpriseProductSurface(input = {}) {
   const enterprise = input.enterpriseIntelligence || {};
   const governance = input.modelGovernance || {};
   const decisionLedger = input.decisionLedger || governance.decisionLedger || {};
+  const trust = pilotState.buyerReadoutTrust || null;
   const internalRole = ["owner", "admin"].includes(role);
   const capabilityGaps = GAP_PHASES.map(([key, reason]) => ({
     key,
@@ -47,7 +48,10 @@ function buildEnterpriseProductSurface(input = {}) {
     customerVisible: false,
     reason
   }));
-  const controlCards = buildControlCards({ pilotState, enterprise, governance, decisionLedger, capabilityGaps });
+  const controlCards = buildControlCards({ pilotState, enterprise, governance, decisionLedger, capabilityGaps }).map(item => {
+    if (item.key !== "verified-realized-value" || !trust || trust.claim_permissions?.can_claim_incremental_profit === true) return item;
+    return { ...item, label: "Observed financial value", status: "blocked", summary: "Verification unavailable", risks: [...(item.risks || []), "Canonical claim permission required."] };
+  });
   const navigation = PRODUCT_SECTIONS
     .filter(item => item.roles.includes(role))
     .map(item => ({

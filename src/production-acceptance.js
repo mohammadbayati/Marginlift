@@ -334,6 +334,7 @@ function rejectAcceptance(record, context, input, sourceContext) {
 
 function buildEvidencePackage(recordInput, sourceContext = {}, options = {}) {
   const record = normalizeAcceptanceRecord(recordInput, sourceContext);
+  const trust = options.buyerTrust || sourceContext.buyerReadoutTrust || null;
   const generatedAt = normalizeNullableString(options.generatedAt) || record.evidencePackage.generatedAt || "";
   const sections = [
     "pilot_identity",
@@ -350,12 +351,18 @@ function buildEvidencePackage(recordInput, sourceContext = {}, options = {}) {
   ];
   const includedRefs = collectEvidenceRefs(record, sourceContext);
   const sourceSummary = summarizeSourceContext(sourceContext);
+  if (trust && trust.claim_permissions?.can_claim_incremental_profit !== true) {
+    sourceSummary.financeVerification = "BLOCKED_BY_CANONICAL_TRUST";
+    sourceSummary.roiStatus = "UNVERIFIED";
+  }
   const lines = [
     `# MarginLift Production Pilot Acceptance Package`,
     "",
     `Generated At: ${generatedAt || "not_generated"}`,
     `Organization: ${sourceContext.organization?.name || record.organizationId || "unknown"}`,
     `Acceptance ID: ${record.id || "not_created"}`,
+    `Canonical Trust: ${trust?.trust_status || "UNRESOLVED"}`,
+    `Trust Blockers: ${(trust?.blocking_reasons || ["TRUST_ASSESSMENT_MISSING"]).join(", ")}`,
     "",
     "## Pilot Identity",
     `- Pilot Contract ID: ${record.pilotContractId || "missing"}`,

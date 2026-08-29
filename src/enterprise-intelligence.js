@@ -9,6 +9,11 @@ function buildEnterpriseIntelligence(db, context = {}) {
   const scaleCandidates = identifyScaleCandidates(records);
   const interventionRequired = identifyInterventionRequired(records, generatedAt);
   const evidenceConfidence = evidenceConfidenceFrom(records);
+  const trustBlocked = context.buyerTrust && context.buyerTrust.claim_permissions?.can_claim_incremental_profit !== true;
+  if (trustBlocked) {
+    financialBenchmarks.verification_status = "UNVERIFIED";
+    financialBenchmarks.verified_claims_suppressed = true;
+  }
   return {
     persisted: false,
     generatedAt,
