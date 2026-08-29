@@ -1,0 +1,11 @@
+const assert = require("assert");
+const { BUYER_CLAIM_SURFACES, CLAIM_TYPES, authorizeBuyerClaim, serializeBuyerClaims } = require("../src/buyer-claim-authority");
+assert.ok(BUYER_CLAIM_SURFACES.length >= 12);
+const blocked = authorizeBuyerClaim({ claimType: CLAIM_TYPES.INCREMENTAL_PROFIT, value: 10, buyerTrust: { claim_permissions: {}, blocking_reasons: ["TRUST_BLOCKED"] } });
+assert.strictEqual(blocked.allowed, false);
+assert.strictEqual(blocked.safe_label, "DESCRIPTIVE_VALUE_UNVERIFIED");
+const descriptive = serializeBuyerClaims({ claims: [{ claimType: CLAIM_TYPES.DESCRIPTIVE_VALUE, value: 10 }], buyerTrust: {} });
+assert.strictEqual(descriptive.claims[0].allowed, true);
+const unknown = authorizeBuyerClaim({ claimType: "UNKNOWN_STRONG_CLAIM", value: 10, buyerTrust: {} });
+assert.strictEqual(unknown.allowed, false);
+console.log("buyer claim surface registry tests passed");

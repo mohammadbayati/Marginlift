@@ -84,6 +84,7 @@ const { buildEnterpriseProductSurface } = require("./enterprise-product-surface"
 const { assessPilotIntegrity } = require("./pilot-integrity");
 const { getLatestIntegrityAssessment, persistIntegrityAssessment } = require("./pilot-integrity-store");
 const { applyBuyerReadoutTrust, resolveBuyerReadoutTrust } = require("./buyer-readout-trust");
+const { authorizeBuyerClaim, BUYER_CLAIM_SURFACES } = require("./buyer-claim-authority");
 const { appOrigin, assertProductionConfig, isProduction, maxBodyBytes, orchestrationDriftThreshold, revenueShareRate, port: defaultPort, publicSignupEnabled, shadowScorerUrl, trustProxy } = require("./config");
 const { verifyJwt } = require("./auth");
 
@@ -624,13 +625,15 @@ async function handleApi(req, res, url) {
 
   if (url.pathname === "/api/enterprise/intelligence" && req.method === "GET") {
     const state = await getCurrentPilotState(auth.organization.id);
-    sendJson(res, 200, { data: applyBuyerReadoutTrust(await getEnterpriseIntelligence(auth.organization.id), state.buyerReadoutTrust) });
+    const intelligence = await getEnterpriseIntelligence(auth.organization.id);
+    sendJson(res, 200, { data: applyBuyerReadoutTrust(degradeEnterpriseIntelligence(intelligence, state.buyerReadoutTrust), state.buyerReadoutTrust) });
     return;
   }
 
   if (url.pathname === "/api/enterprise/product-surface" && req.method === "GET") {
     const state = await getCurrentPilotState(auth.organization.id);
-    sendJson(res, 200, { data: applyBuyerReadoutTrust(await getEnterpriseProductSurface(auth), state.buyerReadoutTrust) });
+    const surface = await getEnterpriseProductSurface(auth);
+    sendJson(res, 200, { data: applyBuyerReadoutTrust(degradeEnterpriseSurface(surface, state.buyerReadoutTrust), state.buyerReadoutTrust) });
     return;
   }
 
@@ -715,7 +718,7 @@ async function handleApi(req, res, url) {
   if (url.pathname === "/api/campaigns/current/report" && req.method === "GET") {
     const analysis = await getCurrentCampaign(auth.organization.id);
     const trustState = await getCurrentPilotState(auth.organization.id);
-    const report = buildMarkdownReport(analysis, auth.organization);
+    const report = buildMarkdownReport(analysis, auth.organization, trustState.buyerReadoutTrust);
     await trackEvent(req, {
       event: "report_exported",
       properties: {
@@ -1753,6 +1756,22 @@ async function getEnterpriseIntelligence(organizationId) {
   return buildEnterpriseIntelligence(db, { organizationId });
 }
 
+function degradeEnterpriseIntelligence(value, trust) {
+  if (trust?.claim_permissions?.can_claim_incremental_profit === true) return value;
+  return {
+    ...value,
+    financialBenchmarks: { ...value.financialBenchmarks, verification_status: "UNVERIFIED", verified_claims_suppressed: true },
+    portfolio: { ...value.portfolio, verification_status: "UNVERIFIED" },
+    executiveIntelligence: { ...value.executiveIntelligence, recommendation_status: "NO_VERIFIED_DECISION" }
+  };
+}
+
+function degradeEnterpriseSurface(value, trust) {
+  if (trust?.claim_permissions?.can_claim_incremental_profit === true) return value;
+  const cards = Array.isArray(value.cards) ? value.cards.map(card => card.key === "verified-realized-value" ? { ...card, status: "blocked", summary: "Observed financial value; verification blocked", risks: [...(card.risks || []), "Canonical trust permission is required."] } : card) : value.cards;
+  return { ...value, cards, verification_status: trust?.verification_status || "UNRESOLVED" };
+}
+
 async function getEnterpriseProductSurface(auth) {
   const [pilotState, enterpriseIntelligence, modelGovernance, decisionLedger] = await Promise.all([
     getCurrentPilotState(auth.organization.id),
@@ -2462,9 +2481,11 @@ function eventLabelFa(eventName) {
   return labels[eventName] || eventName;
 }
 
-function buildMarkdownReport(analysis, organization) {
+function buildMarkdownReport(analysis, organization, buyerTrust = {}) {
   const campaign = analysis.campaign;
+  const reportTrustLine = `Trust: ${buyerTrust.trust_status || "UNRESOLVED"}; blocked claims: ${(buyerTrust.blocking_reasons || ["TRUST_ASSESSMENT_MISSING"]).join(", ")}`;
   const lines = [
+    reportTrustLine,
     `# گزارش MarginLift برای ${organization.name}`,
     "",
     `کمپین: ${campaign.name}`,
@@ -2608,7 +2629,8 @@ function buildPilotPackage(organization, campaignAnalysis, customerAnalysis, pil
   const snapshot = pilotState.savingsSnapshot || {};
   const pricing = pilotState.pricing || buildPricingPlans();
   const trust = pilotState.buyerReadoutTrust || { verification_status: "UNRESOLVED", claim_permissions: {}, blocking_reasons: ["TRUST_ASSESSMENT_MISSING"] };
-  const profitLabel = trust.claim_permissions.can_claim_incremental_profit === true ? "verified incremental profit" : "descriptive profit estimate (unverified)";
+  const profitClaim = authorizeBuyerClaim({ claimType: "INCREMENTAL_PROFIT", value: customerSummary.expectedIncrementalProfit || 0, buyerTrust: trust });
+  const profitLabel = profitClaim.allowed ? "verified incremental profit" : "observed profit estimate (unverified)";
   const lines = [
     `# بسته پایلوت MarginLift برای ${organization.name}`,
     "",
@@ -2634,7 +2656,7 @@ function buildPilotPackage(organization, campaignAnalysis, customerAnalysis, pil
     "## خروجی مورد انتظار",
     "",
     `- مشتریان قابل اقدام: ${formatNumber(customerSummary.targetableCustomers || 0)}`,
-    `- سود افزایشی برآوردی: ${formatMoney(customerSummary.expectedIncrementalProfit || 0)} (${finance.claimLevelFa || "برآورد مشاهده‌ای"})`,
+    `- ${profitLabel}: ${formatMoney(profitClaim.display_value || 0)} (${finance.claimLevelFa || "برآورد مشاهده‌ای"})`,
     `- مشوق ثبت‌شده قابل بررسی: ${formatMoney(finance.avoidableIncentiveCost || 0)}`,
     `- ROI برآورد تاریخی: ${formatNumber(finance.projectedRoi || 0)}x؛ مبنای تصمیم مقیاس نیست`,
     `- صرفه‌جویی سگمنتی baseline: ${formatMoney(campaign.nextSavings || 0)}`,
