@@ -257,6 +257,11 @@ function buildPilotReadout(organization, readiness, snapshot, workspace, outcome
   const governance = governanceOverview?.modelGovernance;
   const ledger = governanceOverview?.decisionLedger;
   const pilotLineage = snapshot.pilotLineage || {};
+  const canonicalClaimBlocked = snapshot.claimLevel === "verified_incremental"
+    ? snapshot.claimPermissions?.can_claim_incremental_profit !== true
+    : snapshot.claimLevel === "randomized_estimate"
+      ? snapshot.claimPermissions?.can_claim_causal_effect !== true
+      : false;
   const lines = [
     `# گزارش پایلوت MarginLift برای ${organization.name}`,
     "",
@@ -266,7 +271,7 @@ function buildPilotReadout(organization, readiness, snapshot, workspace, outcome
     "",
     `**پیشنهاد تصمیم:** ${executiveRecommendationFa(decisionStatus)}`,
     "",
-    `**سطح شواهد:** ${snapshot.claimLevelFa}`,
+    `**سطح شواهد:** ${canonicalClaimBlocked ? "UNVERIFIED / BLOCKED" : snapshot.claimLevelFa}`,
     "",
     `**سطح اعتماد:** ${snapshot.confidenceFa}`,
     "",
