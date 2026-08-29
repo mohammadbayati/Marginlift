@@ -1760,9 +1760,9 @@ function degradeEnterpriseIntelligence(value, trust) {
   if (trust?.claim_permissions?.can_claim_incremental_profit === true) return value;
   return {
     ...value,
-    financialBenchmarks: { ...value.financialBenchmarks, verification_status: "UNVERIFIED", verified_claims_suppressed: true },
-    portfolio: { ...value.portfolio, verification_status: "UNVERIFIED" },
-    executiveIntelligence: { ...value.executiveIntelligence, recommendation_status: "NO_VERIFIED_DECISION" }
+    financialBenchmarks: { ...value.financialBenchmarks, verifiedImpactRate: 0, verification_status: "UNVERIFIED", verified_claims_suppressed: true },
+    portfolio: { ...value.portfolio, verifiedFinancialProofCount: 0, verification_status: "UNVERIFIED" },
+    executiveIntelligence: { ...value.executiveIntelligence, scaleCandidates: (value.executiveIntelligence?.scaleCandidates || []).map(item => ({ ...item, signal: "no_verified_decision", recommendation: "Canonical trust does not authorize a verified recommendation." })), recommendation_status: "NO_VERIFIED_DECISION" }
   };
 }
 
@@ -2631,6 +2631,8 @@ function buildPilotPackage(organization, campaignAnalysis, customerAnalysis, pil
   const trust = pilotState.buyerReadoutTrust || { verification_status: "UNRESOLVED", claim_permissions: {}, blocking_reasons: ["TRUST_ASSESSMENT_MISSING"] };
   const profitClaim = authorizeBuyerClaim({ claimType: "INCREMENTAL_PROFIT", value: customerSummary.expectedIncrementalProfit || 0, buyerTrust: trust });
   const profitLabel = profitClaim.allowed ? "verified incremental profit" : "observed profit estimate (unverified)";
+  const recommendationClaim = authorizeBuyerClaim({ claimType: snapshot.decision === "STOP" ? "STOP_RECOMMENDATION" : snapshot.decision === "SCALE" ? "SCALE_RECOMMENDATION" : "MODIFY_RECOMMENDATION", value: snapshot.decision || "NO_VERIFIED_DECISION", buyerTrust: trust });
+  const recommendationLabel = recommendationClaim.allowed ? recommendationClaim.display_value : "NO_VERIFIED_DECISION";
   const lines = [
     `# بسته پایلوت MarginLift برای ${organization.name}`,
     "",
@@ -2660,7 +2662,7 @@ function buildPilotPackage(organization, campaignAnalysis, customerAnalysis, pil
     `- مشوق ثبت‌شده قابل بررسی: ${formatMoney(finance.avoidableIncentiveCost || 0)}`,
     `- ROI برآورد تاریخی: ${formatNumber(finance.projectedRoi || 0)}x؛ مبنای تصمیم مقیاس نیست`,
     `- صرفه‌جویی سگمنتی baseline: ${formatMoney(campaign.nextSavings || 0)}`,
-    `- تصمیم فعلی: ${snapshot.decisionFa || "طراحی پایلوت"}`,
+    `- تصمیم فعلی: ${recommendationLabel}`,
     "",
     "## فرضیه آزمایش",
     "",
