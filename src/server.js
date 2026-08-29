@@ -83,7 +83,7 @@ const { buildEnterpriseIntelligence } = require("./enterprise-intelligence");
 const { buildEnterpriseProductSurface } = require("./enterprise-product-surface");
 const { assessPilotIntegrity } = require("./pilot-integrity");
 const { getLatestIntegrityAssessment, persistIntegrityAssessment } = require("./pilot-integrity-store");
-const { resolveBuyerReadoutTrust } = require("./buyer-readout-trust");
+const { applyBuyerReadoutTrust, resolveBuyerReadoutTrust } = require("./buyer-readout-trust");
 const { appOrigin, assertProductionConfig, isProduction, maxBodyBytes, orchestrationDriftThreshold, revenueShareRate, port: defaultPort, publicSignupEnabled, shadowScorerUrl, trustProxy } = require("./config");
 const { verifyJwt } = require("./auth");
 
@@ -345,7 +345,8 @@ async function handleApi(req, res, url) {
 
   if (url.pathname === "/api/decision-engine/overview" && req.method === "GET") {
     const campaign = await getCurrentCampaign(auth.organization.id);
-    sendJson(res, 200, { data: buildDecisionOverview(campaign) });
+    const state = await getCurrentPilotState(auth.organization.id);
+    sendJson(res, 200, { data: applyBuyerReadoutTrust(buildDecisionOverview(campaign), state.buyerReadoutTrust) });
     return;
   }
 
@@ -511,12 +512,14 @@ async function handleApi(req, res, url) {
   }
 
   if (url.pathname === "/api/finance/summary" && req.method === "GET") {
-    sendJson(res, 200, { data: (await getCurrentCustomerAnalysis(auth.organization.id)).finance });
+    const state = await getCurrentPilotState(auth.organization.id);
+    sendJson(res, 200, { data: applyBuyerReadoutTrust((await getCurrentCustomerAnalysis(auth.organization.id)).finance, state.buyerReadoutTrust) });
     return;
   }
 
   if (url.pathname === "/api/readiness/current" && req.method === "GET") {
-    sendJson(res, 200, { data: (await getCurrentPilotState(auth.organization.id)).readiness });
+    const state = await getCurrentPilotState(auth.organization.id);
+    sendJson(res, 200, { data: { ...state.readiness, buyerReadoutTrust: state.buyerReadoutTrust } });
     return;
   }
 
@@ -545,7 +548,9 @@ async function handleApi(req, res, url) {
   }
 
   if (url.pathname === "/api/pilot/business-impact" && req.method === "GET") {
-    sendJson(res, 200, { data: await getPilotBusinessImpact(auth.organization.id, requestContext(req, auth)) });
+    const state = await getCurrentPilotState(auth.organization.id);
+    const data = await getPilotBusinessImpact(auth.organization.id, requestContext(req, auth));
+    sendJson(res, 200, { data: applyBuyerReadoutTrust(data, state.buyerReadoutTrust) });
     return;
   }
 
@@ -583,7 +588,9 @@ async function handleApi(req, res, url) {
   }
 
   if (url.pathname === "/api/pilot/acceptance" && req.method === "GET") {
-    sendJson(res, 200, { data: await getPilotAcceptanceRecord(auth.organization.id, requestContext(req, auth), auth.organization) });
+    const state = await getCurrentPilotState(auth.organization.id);
+    const data = await getPilotAcceptanceRecord(auth.organization.id, requestContext(req, auth), auth.organization);
+    sendJson(res, 200, { data: applyBuyerReadoutTrust(data, state.buyerReadoutTrust) });
     return;
   }
 
@@ -602,6 +609,7 @@ async function handleApi(req, res, url) {
   }
 
   if (url.pathname === "/api/pilot/acceptance/package.md" && req.method === "GET") {
+    const trustState = await getCurrentPilotState(auth.organization.id);
     const sourceContext = await getPilotAcceptanceSourceContext(auth.organization.id, auth.organization);
     const record = await getPilotAcceptanceRecord(auth.organization.id, requestContext(req, auth), auth.organization, sourceContext);
     const packageData = buildEvidencePackage(record, sourceContext);
@@ -610,17 +618,19 @@ async function handleApi(req, res, url) {
       "Cache-Control": "no-store",
       "Content-Disposition": 'attachment; filename="marginlift-acceptance-evidence-package.md"'
     });
-    res.end(packageData.markdown);
+    res.end(`${packageData.markdown}\n\n## Canonical trust\n\n- verification_status: ${trustState.buyerReadoutTrust.verification_status}\n- blocking_reasons: ${(trustState.buyerReadoutTrust.blocking_reasons || []).join(", ") || "none"}\n`);
     return;
   }
 
   if (url.pathname === "/api/enterprise/intelligence" && req.method === "GET") {
-    sendJson(res, 200, { data: await getEnterpriseIntelligence(auth.organization.id) });
+    const state = await getCurrentPilotState(auth.organization.id);
+    sendJson(res, 200, { data: applyBuyerReadoutTrust(await getEnterpriseIntelligence(auth.organization.id), state.buyerReadoutTrust) });
     return;
   }
 
   if (url.pathname === "/api/enterprise/product-surface" && req.method === "GET") {
-    sendJson(res, 200, { data: await getEnterpriseProductSurface(auth) });
+    const state = await getCurrentPilotState(auth.organization.id);
+    sendJson(res, 200, { data: applyBuyerReadoutTrust(await getEnterpriseProductSurface(auth), state.buyerReadoutTrust) });
     return;
   }
 
@@ -698,12 +708,13 @@ async function handleApi(req, res, url) {
       "Cache-Control": "no-store",
       "Content-Disposition": 'attachment; filename="marginlift-pilot-package.md"'
     });
-    res.end(packageMarkdown);
+    res.end(`${packageMarkdown}\n\n## Canonical trust\n\n- verification_status: ${state.buyerReadoutTrust.verification_status}\n- blocking_reasons: ${(state.buyerReadoutTrust.blocking_reasons || []).join(", ") || "none"}\n`);
     return;
   }
 
   if (url.pathname === "/api/campaigns/current/report" && req.method === "GET") {
     const analysis = await getCurrentCampaign(auth.organization.id);
+    const trustState = await getCurrentPilotState(auth.organization.id);
     const report = buildMarkdownReport(analysis, auth.organization);
     await trackEvent(req, {
       event: "report_exported",
@@ -717,7 +728,7 @@ async function handleApi(req, res, url) {
       "Cache-Control": "no-store",
       "Content-Disposition": 'attachment; filename="marginlift-campaign-report.md"'
     });
-    res.end(report);
+    res.end(`${report}\n\n## Canonical trust\n\n- verification_status: ${trustState.buyerReadoutTrust.verification_status}\n- blocking_reasons: ${(trustState.buyerReadoutTrust.blocking_reasons || []).join(", ") || "none"}\n`);
     return;
   }
 
@@ -2596,6 +2607,8 @@ function buildPilotPackage(organization, campaignAnalysis, customerAnalysis, pil
   const readiness = pilotState.readiness || {};
   const snapshot = pilotState.savingsSnapshot || {};
   const pricing = pilotState.pricing || buildPricingPlans();
+  const trust = pilotState.buyerReadoutTrust || { verification_status: "UNRESOLVED", claim_permissions: {}, blocking_reasons: ["TRUST_ASSESSMENT_MISSING"] };
+  const profitLabel = trust.claim_permissions.can_claim_incremental_profit === true ? "verified incremental profit" : "descriptive profit estimate (unverified)";
   const lines = [
     `# بسته پایلوت MarginLift برای ${organization.name}`,
     "",
