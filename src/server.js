@@ -81,6 +81,7 @@ const {
 } = require("./production-acceptance");
 const { buildEnterpriseIntelligence } = require("./enterprise-intelligence");
 const { buildEnterpriseProductSurface } = require("./enterprise-product-surface");
+const { assessPilotIntegrity } = require("./pilot-integrity");
 const { appOrigin, assertProductionConfig, isProduction, maxBodyBytes, orchestrationDriftThreshold, revenueShareRate, port: defaultPort, publicSignupEnabled, shadowScorerUrl, trustProxy } = require("./config");
 const { verifyJwt } = require("./auth");
 
@@ -1572,6 +1573,17 @@ async function getCurrentPilotState(organizationId) {
     experiment_id: pilotControl.experimentId || experiment?.id || null,
     lineage_integrity: pilotControl.lineageIntegrity || { status: "LEGACY_INCOMPLETE", valid: false }
   };
+  const integrityAssessment = assessPilotIntegrity({
+    phase: outcome ? "READOUT" : experiment ? "IN_FLIGHT" : "PRE_LAUNCH",
+    pilotId: pilotControl.id || null,
+    experimentId: experiment?.id || null,
+    metricContract: pilotControl.metricContractSnapshot || null,
+    metricContractHash: pilotControl.metricContractHash || null,
+    dataSnapshotId: pilotControl.dataSnapshotId || null,
+    experiment,
+    outcomes: outcome?.rows || null,
+    financialProvenance: businessImpact?.financialProvenance || null
+  });
   const acceptance = await getPilotAcceptanceRecord(organizationId, { organizationId }, null, {
     organization: null,
     campaign,
@@ -1589,7 +1601,8 @@ async function getCurrentPilotState(organizationId) {
     experiment: toPublicExperiment(experiment),
     outcome,
     readiness,
-    savingsSnapshot: { ...savingsSnapshot, pilotLineage },
+    savingsSnapshot: { ...savingsSnapshot, pilotLineage, integrityAssessment },
+    integrityAssessment,
     workspace,
     decisionContract: summarizePilotContract(decisionContract),
     businessImpactSummary: summarizeBusinessImpactLedger(businessImpact),

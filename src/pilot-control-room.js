@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const { validateLivePilotCreation } = require("./pilot-integration-gate");
 const { getContractHash } = require("./metric-contract");
+const { checkIdempotency } = require("./pilot-idempotency");
 
 const LIFECYCLE_STATUSES = Object.freeze([
   "draft",
@@ -27,6 +28,7 @@ function normalizePilotWorkflow(input = {}, readinessContext = {}) {
   const stages = normalizeStages(source.stages, lifecycleStatus);
   return {
     id: normalizeString(source.id),
+    idempotencyKey: normalizeNullableString(source.idempotencyKey),
     organizationId: normalizeString(source.organizationId),
     pilotContractId: normalizeNullableString(source.pilotContractId),
     metricContractId: normalizeNullableString(source.metricContractId),
@@ -52,10 +54,17 @@ function createPilotWorkflow(db, context, input = {}, readinessContext = {}) {
   const organizationId = requireOrganizationId(context);
   assertInputOrganization(input, organizationId);
   db.pilotWorkflows = Array.isArray(db.pilotWorkflows) ? db.pilotWorkflows : [];
+  const idempotency = checkIdempotency(db, input.idempotencyKey, input);
+  if (idempotency.status === "CONFLICT") throw domainError(409, "PILOT_IDEMPOTENCY_CONFLICT", "Idempotency key was reused with a different pilot request.");
+  if (idempotency.status === "REPLAY") {
+    const replay = db.pilotWorkflows.find(item => item.idempotencyKey === input.idempotencyKey);
+    if (replay) return toPublicWorkflow(replay, readinessContext);
+  }
 
   const now = timestamp(context);
   const workflow = normalizePilotWorkflow({
     ...input,
+    idempotencyKey: input.idempotencyKey || null,
     id: input.id || createId(),
     organizationId,
     lifecycleStatus: "draft",

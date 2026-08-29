@@ -259,6 +259,13 @@ function run() {
   );
   assert.strictEqual(blockedDb.pilotWorkflows[0].lifecycleStatus, "data_ready");
   assert.ok(blockedDb.pilotWorkflows[0].auditEvents.some(item => item.action === "PILOT_CREATION_BLOCKED"));
+
+  const idempotentDb = {};
+  const firstRequest = createPilotWorkflow(idempotentDb, context, { idempotencyKey: "req-1" }, {});
+  const replayRequest = createPilotWorkflow(idempotentDb, context, { idempotencyKey: "req-1" }, {});
+  assert.strictEqual(replayRequest.id, firstRequest.id);
+  assert.strictEqual(idempotentDb.pilotWorkflows.length, 1);
+  assertThrowsCode(() => createPilotWorkflow(idempotentDb, context, { idempotencyKey: "req-1", milestones: [{ name: "changed" }] }, {}), "PILOT_IDEMPOTENCY_CONFLICT");
 }
 
 run();

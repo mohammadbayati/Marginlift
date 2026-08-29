@@ -257,6 +257,7 @@ function buildPilotReadout(organization, readiness, snapshot, workspace, outcome
   const governance = governanceOverview?.modelGovernance;
   const ledger = governanceOverview?.decisionLedger;
   const pilotLineage = snapshot.pilotLineage || {};
+  const integrityAssessment = snapshot.integrityAssessment || {};
   const canonicalClaimBlocked = snapshot.claimLevel === "verified_incremental"
     ? snapshot.claimPermissions?.can_claim_incremental_profit !== true
     : snapshot.claimLevel === "randomized_estimate"
@@ -282,6 +283,8 @@ function buildPilotReadout(organization, readiness, snapshot, workspace, outcome
     `- Metric Contract: ${snapshot.evidenceMetadata?.metric_contract_id || pilotLineage.metric_contract_id || "not linked"} / v${snapshot.evidenceMetadata?.metric_contract_version || pilotLineage.metric_contract_version || "?"}`,
     `- Contract hash: ${snapshot.evidenceMetadata?.metric_contract_hash || pilotLineage.metric_contract_hash || "not linked"}`,
     `- Lineage integrity: ${pilotLineage.lineage_integrity?.status || "LEGACY_INCOMPLETE"}`,
+    `- Pilot integrity: ${integrityAssessment.overall_status || "NOT_EVALUATED"}`,
+    `- Integrity blockers: ${(integrityAssessment.blockers || []).map(item => item.reason_code).filter(Boolean).join(", ") || "none"}`,
     `- Claim permissions: ${Object.entries(snapshot.claimPermissions || {}).filter(([, value]) => value === true).map(([key]) => key).join(", ") || "none"}`,
     `- Limitations: ${(snapshot.evidenceMetadata?.limitations || ["canonical contract lineage required"]).join("; ")}`,
     "",
