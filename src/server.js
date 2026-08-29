@@ -82,6 +82,8 @@ const {
 const { buildEnterpriseIntelligence } = require("./enterprise-intelligence");
 const { buildEnterpriseProductSurface } = require("./enterprise-product-surface");
 const { assessPilotIntegrity } = require("./pilot-integrity");
+const { getLatestIntegrityAssessment, persistIntegrityAssessment } = require("./pilot-integrity-store");
+const { resolveBuyerReadoutTrust } = require("./buyer-readout-trust");
 const { appOrigin, assertProductionConfig, isProduction, maxBodyBytes, orchestrationDriftThreshold, revenueShareRate, port: defaultPort, publicSignupEnabled, shadowScorerUrl, trustProxy } = require("./config");
 const { verifyJwt } = require("./auth");
 
@@ -1584,6 +1586,19 @@ async function getCurrentPilotState(organizationId) {
     outcomes: outcome?.rows || null,
     financialProvenance: businessImpact?.financialProvenance || null
   });
+  if (pilotControl.id) {
+    await transact(db => {
+      const latest = getLatestIntegrityAssessment(db, pilotControl.id, experiment?.id || null);
+      if (!latest || latest.overall_status !== integrityAssessment.overall_status || latest.metric_contract_hash !== integrityAssessment.metric_contract_hash || latest.phase !== integrityAssessment.phase) {
+        persistIntegrityAssessment(db, integrityAssessment, { analysisCutoff: contractCutoff(pilotControl.metricContractSnapshot) });
+      }
+    });
+  }
+  const persistedAssessment = pilotControl.id ? await (async () => {
+    const db = await readDb();
+    return getLatestIntegrityAssessment(db, pilotControl.id, experiment?.id || null);
+  })() : null;
+  const buyerReadoutTrust = resolveBuyerReadoutTrust({ db: { pilotIntegrityAssessments: persistedAssessment ? [persistedAssessment] : [] }, pilotId: pilotControl.id || null, experimentId: experiment?.id || null, evidenceMetadata: savingsSnapshot.evidenceMetadata, financialProvenance: businessImpact?.financialProvenance || {} });
   const acceptance = await getPilotAcceptanceRecord(organizationId, { organizationId }, null, {
     organization: null,
     campaign,
@@ -1601,8 +1616,9 @@ async function getCurrentPilotState(organizationId) {
     experiment: toPublicExperiment(experiment),
     outcome,
     readiness,
-    savingsSnapshot: { ...savingsSnapshot, pilotLineage, integrityAssessment },
+    savingsSnapshot: { ...savingsSnapshot, pilotLineage, integrityAssessment, buyerReadoutTrust },
     integrityAssessment,
+    buyerReadoutTrust,
     workspace,
     decisionContract: summarizePilotContract(decisionContract),
     businessImpactSummary: summarizeBusinessImpactLedger(businessImpact),
@@ -1610,6 +1626,10 @@ async function getCurrentPilotState(organizationId) {
     pilotAcceptanceSummary: summarizePilotAcceptance(acceptance),
     pricing: buildPricingPlans()
   };
+}
+
+function contractCutoff(contract) {
+  return contract?.analysis_cutoff || contract?.analysisCutoff || null;
 }
 
 async function getPilotDecisionContract(organizationId, context = {}) {

@@ -61,6 +61,28 @@ function assessPilotIntegrity(input = {}) {
     else add("exposure", "exposure", CHECK_STATUSES.PASS, "INFO", null, "Exposure is complete for treatment units.", exposureRows.length);
   }
 
+  const deliveries = Array.isArray(input.deliveries) ? input.deliveries : null;
+  if (!deliveries) add("delivery", "delivery", CHECK_STATUSES.NOT_EVALUATED, "WARNING", "INT_DELIVERY_UNKNOWN", "Delivery evidence is unavailable.");
+  else if (!deliveries.length && treatment.length) add("delivery", "delivery", CHECK_STATUSES.BLOCKED, "BLOCKER", "INT_DELIVERY_MISSING", "Treatment delivery records are missing.");
+  else {
+    const deliveryIds = deliveries.map(row => row.customerId ?? row.customer_id).filter(Boolean);
+    const duplicateDelivery = duplicates(deliveryIds);
+    const assignmentMap = new Map(assignments.map(row => [row.customerId ?? row.customer_id, row]));
+    const controlDelivery = deliveries.filter(row => (assignmentMap.get(row.customerId ?? row.customer_id)?.assignedGroup ?? assignmentMap.get(row.customerId ?? row.customer_id)?.assigned_group) === "control");
+    const beforeAssignment = deliveries.filter(row => { const a = assignmentMap.get(row.customerId ?? row.customer_id); return a?.assignedAt && row.deliveredAt && new Date(row.deliveredAt) < new Date(a.assignedAt); });
+    const unknown = deliveries.filter(row => row.delivered === undefined && row.status === undefined && !row.deliveredAt);
+    if (duplicateDelivery.length) add("delivery", "delivery", CHECK_STATUSES.INVALID, "INVALIDATOR", "INT_DELIVERY_DUPLICATE", "Delivery unit appears more than once.", duplicateDelivery);
+    else if (controlDelivery.length) add("delivery", "delivery", CHECK_STATUSES.INVALID, "INVALIDATOR", "INT_CONTROL_DELIVERY", "Control units received treatment delivery.", controlDelivery.length);
+    else if (beforeAssignment.length) add("delivery", "delivery", CHECK_STATUSES.INVALID, "INVALIDATOR", "INT_DELIVERY_BEFORE_ASSIGNMENT", "Delivery precedes assignment.", beforeAssignment.length);
+    else if (unknown.length) add("delivery", "delivery", CHECK_STATUSES.BLOCKED, "BLOCKER", "INT_DELIVERY_UNKNOWN", "Delivery status is unknown.", unknown.length);
+    else {
+      const deliveredTreatment = deliveries.filter(row => (assignmentMap.get(row.customerId ?? row.customer_id)?.assignedGroup ?? assignmentMap.get(row.customerId ?? row.customer_id)?.assigned_group) !== "control").length;
+      const rate = treatment.length ? deliveredTreatment / treatment.length : 0;
+      const threshold = Number(input.deliveryCompletenessThreshold ?? 0.8);
+      add("delivery", "delivery", rate < threshold ? CHECK_STATUSES.BLOCKED : CHECK_STATUSES.PASS, rate < threshold ? "BLOCKER" : "INFO", rate < threshold ? "INT_DELIVERY_COMPLETENESS_LOW" : null, rate < threshold ? "Treatment delivery completeness is below the configured threshold." : "Delivery is complete.", rate, 1, threshold);
+    }
+  }
+
   const eligibility = Array.isArray(input.eligibility) ? input.eligibility : [];
   if (!eligibility.length) add("eligibility", "eligibility", CHECK_STATUSES.NOT_EVALUATED, "WARNING", "INT_ELIGIBILITY_UNKNOWN", "Eligibility evidence is unavailable.");
   else {
@@ -86,7 +108,8 @@ function assessPilotIntegrity(input = {}) {
   else add("power", "power", CHECK_STATUSES.PASS, "INFO", null, "Minimum sample requirement is satisfied or reserved for launch.");
 
   const timingRows = [...assignments, ...exposureRows, ...outcomes].filter(row => row.assignedAt || row.exposedAt || row.outcomeAt);
-  const badTiming = timingRows.some(row => row.assignedAt && row.exposedAt && new Date(row.exposedAt) < new Date(row.assignedAt)) || timingRows.some(row => row.exposedAt && row.outcomeAt && new Date(row.outcomeAt) < new Date(row.exposedAt));
+  const freezeAt = contract?.frozen_at || contract?.frozenAt || contract?.approved_at;
+  const badTiming = timingRows.some(row => freezeAt && row.assignedAt && new Date(row.assignedAt) < new Date(freezeAt)) || timingRows.some(row => row.assignedAt && row.exposedAt && new Date(row.exposedAt) < new Date(row.assignedAt)) || timingRows.some(row => row.assignedAt && row.deliveredAt && new Date(row.deliveredAt) < new Date(row.assignedAt)) || timingRows.some(row => row.exposedAt && row.outcomeAt && new Date(row.outcomeAt) < new Date(row.exposedAt));
   add("timing", "timing", badTiming ? CHECK_STATUSES.INVALID : timingRows.length ? CHECK_STATUSES.PASS : CHECK_STATUSES.NOT_EVALUATED, badTiming ? "INVALIDATOR" : "INFO", badTiming ? "INT_TIMESTAMP_ORDER_INVALID" : null, badTiming ? "Experiment timestamps are not chronological." : "Timing evidence is consistent or not yet available.");
 
   const missingness = Array.isArray(input.missingness) ? input.missingness : [];
@@ -100,6 +123,20 @@ function assessPilotIntegrity(input = {}) {
   if (contamination === "UNKNOWN" || contamination?.status === "UNKNOWN") add("contamination", "contamination", CHECK_STATUSES.BLOCKED, "BLOCKER", "INT_CONTAMINATION_UNKNOWN", "Contamination status is unknown.");
   else if (contamination === true || contamination?.status === "KNOWN") add("contamination", "contamination", CHECK_STATUSES.INVALID, "INVALIDATOR", "INT_CONTROL_CONTAMINATION", "Contamination was reported.");
   else add("contamination", "contamination", CHECK_STATUSES.NOT_EVALUATED, "WARNING", "INT_CONTAMINATION_NOT_EVALUATED", "No contamination evidence was supplied.");
+
+  const interventions = input.concurrentInterventions;
+  if (!Array.isArray(interventions)) add("concurrent", "contamination", CHECK_STATUSES.NOT_EVALUATED, "WARNING", "INT_CONCURRENT_CAMPAIGN_UNKNOWN", "Concurrent campaign history is unavailable.");
+  else {
+    const undeclared = interventions.filter(item => item.declared_in_contract === false || item.declaredInContract === false);
+    const controlExternal = interventions.filter(item => item.treatment_group === "control" && item.external === true);
+    add("concurrent", "contamination", undeclared.length || controlExternal.length ? CHECK_STATUSES.INVALID : CHECK_STATUSES.PASS, undeclared.length || controlExternal.length ? "INVALIDATOR" : "INFO", controlExternal.length ? "INT_CONTROL_EXTERNAL_INTERVENTION" : undeclared.length ? "INT_UNDECLARED_INTERVENTION" : null, controlExternal.length ? "Control received an external intervention." : undeclared.length ? "Undeclared concurrent intervention detected." : "Concurrent intervention history is clean.", interventions.length);
+  }
+
+  const contact = input.contactCap;
+  if (!contact) add("contact_cap", "contact", CHECK_STATUSES.NOT_EVALUATED, "WARNING", "INT_CONTACT_CAP_UNKNOWN", "Contact-cap evidence is unavailable.");
+  else if (contact.override === true) add("contact_cap", "contact", CHECK_STATUSES.WARNING, "WARNING", "INT_CONTACT_POLICY_OVERRIDE", "Contact policy override was explicitly recorded.");
+  else if (Number(contact.violations || 0) > 0) add("contact_cap", "contact", CHECK_STATUSES.BLOCKED, "BLOCKER", "INT_CONTACT_CAP_VIOLATION", "Contact-cap violations were detected.", contact.violations, 0);
+  else add("contact_cap", "contact", CHECK_STATUSES.PASS, "INFO", null, "Contact-cap policy passed.");
 
   const financial = input.financialProvenance ? createFinancialProvenance(input.financialProvenance) : null;
   if (!financial) add("financial", "financial", CHECK_STATUSES.NOT_EVALUATED, "BLOCKER", "INT_FINANCIAL_PROVENANCE_INCOMPLETE", "Financial provenance is unavailable.");
