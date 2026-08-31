@@ -1,0 +1,58 @@
+services:
+  postgres:
+    image: public.ecr.aws/docker/library/postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: marginlift_staging
+      POSTGRES_USER: marginlift_staging
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    command: ["postgres", "-c", "shared_buffers=48MB", "-c", "max_connections=20"]
+    volumes:
+      - staging_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U marginlift_staging -d marginlift_staging"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  app:
+    image: marginlift-staging-app:${STAGING_IMAGE_TAG}
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://marginlift_staging:${POSTGRES_PASSWORD}@postgres:5432/marginlift_staging
+      DATABASE_SSL: "false"
+      MARGINLIFT_DB_PATH: /app/data/db.json
+      ARTIFACT_STORAGE_PATH: /app/private/artifacts
+      MARGINLIFT_FONT_DIR: /app/private/fonts
+      MARGINLIFT_JOB_WORKER: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+      - staging_artifact_data:/app/private/artifacts
+      - ./private/fonts:/app/private/fonts:ro
+    networks:
+      default: {}
+      production_edge:
+        aliases:
+          - marginlift-staging-app
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+networks:
+  production_edge:
+    external: true
+    name: marginlift_default
+
+volumes:
+  staging_postgres_data:
+  staging_artifact_data:

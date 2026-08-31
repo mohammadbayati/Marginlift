@@ -10,3 +10,9 @@ marginlift.ir {
   encode gzip
   reverse_proxy app:3000
 }
+
+staging.marginlift.ir {
+  encode gzip
+  header X-Robots-Tag "noindex, nofollow, noarchive"
+  reverse_proxy marginlift-staging-app:3000
+}
