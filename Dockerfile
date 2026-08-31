@@ -1,4 +1,12 @@
-FROM public.ecr.aws/docker/library/node:20-alpine
+FROM public.ecr.aws/docker/library/node:20-alpine AS web-builder
+
+WORKDIR /app/web
+COPY web/package*.json ./
+RUN npm ci
+COPY web/ ./
+RUN npm run build
+
+FROM public.ecr.aws/docker/library/node:20-alpine AS runtime
 
 WORKDIR /app
 ENV NODE_ENV=production
@@ -6,6 +14,7 @@ ENV NODE_ENV=production
 COPY package*.json ./
 RUN npm ci --omit=dev
 COPY . .
+COPY --from=web-builder /app/web/dist ./web/dist
 
 RUN mkdir -p /app/data /app/private/artifacts && chown -R node:node /app
 USER node

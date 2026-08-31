@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 
 const { auditChannelRetentionData } = require("./channel-retention-readiness");
+const { normalizeCurrencyAmount, normalizePersianText, parseIranianDate, parseIranianNumber } = require("./iran-data");
 
 const SUCCESSFUL_STATUSES = new Set(["completed", "success", "successful", "paid"]);
 const DAY_MS = 86400000;
@@ -12,7 +13,8 @@ function buildChannelRetentionDataset(rows, options = {}) {
     throw new Error(`داده پیش از ساخت dataset باید اصلاح شود: ${audit.nextActionFa}`);
   }
 
-  const classified = classifyRows(rows, cutoff);
+  const currencyUnit = options.currencyUnit || options.contract?.currencyUnit || "toman";
+  const classified = classifyRows(rows, cutoff, { currencyUnit });
   const grouped = groupPurchases(classified.cleanRows);
   const episodes = [];
   const snapshots = [];
@@ -34,6 +36,12 @@ function buildChannelRetentionDataset(rows, options = {}) {
     datasetVersion: createVersion(datasetPayload),
     evidenceLevel: "observational_dataset",
     useCase: options.useCase || "channel_repurchase_retention",
+    currencyContract: {
+      sourceUnit: currencyUnit,
+      canonicalUnit: "toman",
+      conversionRate: currencyUnit === "rial" ? 0.1 : 1,
+      policy: "explicit_versioned_no_implicit_conversion"
+    },
     cutoffAt: cutoff.toISOString(),
     unitOfAnalysis: options.unitOfAnalysis || "customer_channel_product_type",
     reconciliation: {
@@ -73,7 +81,7 @@ function buildChannelRetentionDataset(rows, options = {}) {
   };
 }
 
-function classifyRows(rows, cutoff) {
+function classifyRows(rows, cutoff, options = {}) {
   const cleanRows = [];
   const invalidRows = [];
   const duplicateRows = [];
@@ -82,7 +90,7 @@ function classifyRows(rows, cutoff) {
   const transactionIds = new Set();
 
   rows.forEach((row, rowIndex) => {
-    const normalized = normalizeTransaction(row, rowIndex);
+    const normalized = normalizeTransaction(row, rowIndex, options);
     if (!normalized.valid) {
       invalidRows.push(excludedRow(rowIndex, normalized.transactionId, normalized.invalidReason));
       return;
@@ -106,11 +114,12 @@ function classifyRows(rows, cutoff) {
   return { cleanRows, invalidRows, duplicateRows, unsuccessfulRows, afterCutoffRows };
 }
 
-function normalizeTransaction(row, rowIndex) {
+function normalizeTransaction(row, rowIndex, options = {}) {
   const purchasedAt = parseDate(row.purchased_at);
-  const paidAmount = parseNumber(row.paid_amount);
-  const discountAmount = parseNumber(row.discount_amount);
-  const cashbackAmount = parseNumber(row.cashback_amount);
+  const currencyUnit = options.currencyUnit || "toman";
+  const paidAmount = parseMoney(row.paid_amount, currencyUnit);
+  const discountAmount = parseMoney(row.discount_amount, currencyUnit);
+  const cashbackAmount = parseMoney(row.cashback_amount, currencyUnit);
   const validityDays = optionalPositiveNumber(row.validity_days);
   const expiresAt = parseDate(row.expires_at);
   const customerIdHash = String(row.customer_id_hash || "").trim();
@@ -146,8 +155,8 @@ function normalizeTransaction(row, rowIndex) {
     validityDays,
     expiresAt,
     paidAmount,
-    netRevenue: optionalNumber(row.net_revenue),
-    contributionMargin: optionalNumber(row.contribution_margin),
+    netRevenue: optionalMoney(row.net_revenue, currencyUnit),
+    contributionMargin: optionalMoney(row.contribution_margin, currencyUnit),
     discountAmount,
     cashbackAmount,
     campaignId: String(row.campaign_id || "").trim()
@@ -296,20 +305,16 @@ function requireCutoff(value) {
 }
 
 function parseDate(value) {
-  if (!value) return null;
-  const date = new Date(value);
-  return Number.isFinite(date.getTime()) ? date : null;
+  return parseIranianDate(value);
 }
 
 function parseNumber(value) {
-  if (value === undefined || value === null || String(value).trim() === "") return Number.NaN;
-  const parsed = Number(normalizeDigits(value));
-  return Number.isFinite(parsed) ? parsed : Number.NaN;
+  return parseIranianNumber(value);
 }
 
 function optionalNumber(value) {
   if (value === undefined || value === null || String(value).trim() === "") return null;
-  const parsed = Number(normalizeDigits(value));
+  const parsed = parseIranianNumber(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
@@ -318,16 +323,18 @@ function optionalPositiveNumber(value) {
   return parsed !== null && parsed > 0 ? parsed : null;
 }
 
-function normalizeDigits(value) {
-  return String(value)
-    .replace(/[۰-۹]/g, digit => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
-    .replace(/[٠-٩]/g, digit => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
-    .replace(/,/g, "")
-    .trim();
+function parseMoney(value, sourceUnit) {
+  const result = normalizeCurrencyAmount(value, sourceUnit, "toman");
+  return result.value === null ? Number.NaN : result.value;
+}
+
+function optionalMoney(value, sourceUnit) {
+  if (value === undefined || value === null || String(value).trim() === "") return null;
+  return normalizeCurrencyAmount(value, sourceUnit, "toman").value;
 }
 
 function normalizeToken(value) {
-  return String(value || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return normalizePersianText(value).toLowerCase().replace(/[\s-]+/g, "_");
 }
 
 function differenceDays(later, earlier) {

@@ -15,6 +15,7 @@ let currentBehavioralWorkspace = null;
 let retentionPresets = [];
 let retentionCsvText = "";
 let retentionPreview = null;
+let retentionOutcomeCsvText = "";
 let presentationStepIndex = 0;
 const presentationRequested = new URLSearchParams(window.location.search).get("present") === "1";
 const MAX_IMPORT_FILE_BYTES = 1800000;
@@ -224,37 +225,45 @@ function setupNavigation() {
   if (dateTarget) dateTarget.textContent = `آخرین به‌روزرسانی: ${new Date().toLocaleDateString("fa-IR")}`;
 }
 
+function setupLegacyLab() {
+  const button = document.getElementById("legacyLabButton");
+  if (!button) return;
+  button.addEventListener("click", () => {
+    const open = button.getAttribute("aria-pressed") !== "true";
+    button.setAttribute("aria-pressed", String(open));
+    button.textContent = open ? "بستن آزمایشگاه" : "آزمایشگاه دمو";
+    document.querySelectorAll(".legacy-lab-section, [data-legacy-nav]").forEach(element => {
+      element.hidden = !open;
+    });
+    if (open) document.getElementById("uplift")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
+
 function getPresentationSteps() {
-  const audience = currentOverview?.summary?.atRiskAudience || 0;
-  const queueSize = currentOverview?.decisionQueue?.length || 0;
-  const readiness = currentOverview?.readiness?.score || 0;
-  const outcome = currentPilotState?.outcome;
-  const snapshot = currentPilotState?.savingsSnapshot;
-  const outcomeTitle = outcome?.summary?.recommendationFa
-    ? `نتیجه پایلوت: ${outcome.summary.recommendationFa}`
-    : "پیش از افزایش بودجه، اثر واقعی باید با گروه کنترل سنجیده شود.";
-  const outcomeSummary = outcome
-    ? `${snapshot?.evidenceTagFa || "نتیجه پایلوت"}؛ سود افزایشی مشاهده‌شده ${formatMoney(outcome.summary.observedIncrementalProfit)} است و محدودیت تصمیم کنار آن نمایش داده می‌شود.`
-    : "هر عدد مالی با نوع شواهد نمایش داده می‌شود؛ برآورد تاریخی جای نتیجه افزایشی تأییدشده را نمی‌گیرد.";
+  const retention = currentRetentionWorkspace?.workspace;
+  const audience = retention?.metrics?.units || 0;
+  const queueSize = retention?.queue?.length || 0;
+  const readiness = currentRetentionWorkspace?.analysis?.readiness?.score || 0;
+  const evidence = retention?.evidenceLabelFa || "بدون شواهد";
 
   return [
     {
       kicker: "۱ از ۳ · مسئله",
-      title: `${formatNumber(audience)} مشتری در معرض ریزش‌اند؛ اما ریسک بالا به‌تنهایی مجوز تخفیف نیست.`,
-      summary: `آمادگی داده اکنون ${formatPercent(readiness)} است. ابتدا کیفیت شواهد و ارزش اقتصادی هر تصمیم بررسی می‌شود.`,
+      title: `${formatNumber(audience)} مشتری در چرخه خرید بررسی شده‌اند؛ ریسک بالا به‌تنهایی مجوز تخفیف نیست.`,
+      summary: `آمادگی داده اکنون ${formatPercent(readiness)} است و سطح شواهد «${evidence}» باقی می‌ماند.`,
       contentIds: ["command", "snapshot"]
     },
     {
       kicker: "۲ از ۳ · تصمیم",
-      title: `برای ${formatNumber(queueSize)} گروه مشتری، اقدام متناسب با سود و قابلیت نجات پیشنهاد شده است.`,
-      summary: "خروجی اصلی یک صف اقدام است: بدون اقدام، تماس کم‌هزینه، آزمایش بیشتر یا مشوق هدفمند؛ نه تخفیف یکسان برای همه.",
-      contentIds: ["customers", "decisions"]
+      title: `${formatNumber(queueSize)} تصمیم قاعده‌محور برای بررسی عملیاتی آماده است.`,
+      summary: "Saveability و سود افزایشی فردی تا دریافت outcome تصادفی ناموجود می‌مانند؛ این صف مجوز اقدام زنده نیست.",
+      contentIds: ["retention"]
     },
     {
       kicker: "۳ از ۳ · اثبات",
-      title: outcomeTitle,
-      summary: outcomeSummary,
-      contentIds: ["experiments"]
+      title: "پیش از افزایش بودجه، سیاست MarginLift باید با سیاست فعلی CRM مقایسه شود.",
+      summary: "KPI اصلی سود مشارکتی افزایشی ۳۰روزه است؛ Scale فقط پس از آزمایش سالم و تطبیق مالی مجاز می‌شود.",
+      contentIds: ["retention"]
     }
   ];
 }
@@ -689,7 +698,7 @@ function renderRetentionWorkspace() {
   document.getElementById("retentionStatus").textContent = workspace.statusFa;
   document.getElementById("retentionHeadline").textContent = toPersianDigits(workspace.headlineFa);
   document.getElementById("retentionNextAction").textContent = toPersianDigits(workspace.nextActionFa);
-  document.getElementById("retentionEvidenceBadge").textContent = workspace.evidenceLevel === "no_evidence" ? "بدون شواهد" : "برآورد تاریخی";
+  document.getElementById("retentionEvidenceBadge").textContent = workspace.evidenceLabelFa || "بدون شواهد";
   document.getElementById("retentionProof").textContent = toPersianDigits(stale ? "تعریف چرخه تغییر کرده" : (workspace.evidenceLabelFa || "هنوز تحلیلی ثبت نشده است"));
 
   const hasAnalysis = Boolean(analysis);
@@ -698,6 +707,7 @@ function renderRetentionWorkspace() {
   setRetentionFlowState("retentionFlowData", hasAnalysis ? "done" : "current");
   setRetentionFlowState("retentionFlowDecision", hasDecision ? "done" : hasAnalysis ? "current" : "pending");
   setRetentionFlowState("retentionFlowPilot", hasPilot ? "done" : hasDecision ? "current" : "pending");
+  renderMetricContract(currentRetentionWorkspace.metricContract);
 
   const metrics = [
     ["واحد مشتری قابل بررسی", workspace.metrics.units],
@@ -753,6 +763,69 @@ function setRetentionFlowState(id, state) {
   element.classList.add(`is-${state}`);
 }
 
+function renderRetentionExecutive() {
+  if (!currentRetentionWorkspace) return;
+  const { analysis, workspace, metricContract, stale, outcome, evidence } = currentRetentionWorkspace;
+  const readiness = analysis?.readiness?.score || 0;
+  const queue = workspace?.queue || [];
+  const evidenceLabel = evidence?.labelFa || workspace?.evidenceLabelFa || "بدون شواهد";
+  document.getElementById("commandEvidence").textContent = evidenceLabel;
+  document.getElementById("readinessValue").textContent = formatPercent(readiness);
+  document.getElementById("readinessHeroValue").textContent = formatNumber(readiness);
+  document.getElementById("readinessLabel").textContent = stale ? "نیازمند تحلیل مجدد" : analysis ? analysis.readiness.statusFa : "در انتظار داده";
+  document.getElementById("readinessMeter").style.width = `${readiness}%`;
+  document.querySelector(".pulse-meter")?.setAttribute("aria-valuenow", String(readiness));
+  document.getElementById("pulseHeadline").textContent = outcome
+    ? outcome.summary?.decisionFa || "نتیجه پایلوت نیازمند تصمیم است"
+    : queue.length ? `${formatNumber(queue.length)} تصمیم قاعده‌محور نیازمند بررسی است` : "برای ساخت تصمیم، داده ناشناس وارد کنید";
+  document.getElementById("pulseNote").textContent = evidence?.claimFa || workspace?.evidenceClaimFa || workspace?.nextActionFa || "هنوز شواهدی ثبت نشده است.";
+  document.getElementById("queueCount").textContent = formatNumber(queue.length);
+  document.getElementById("contractStatus").textContent = metricContract
+    ? `${metricContract.statusFa} / ${metricContract.primaryMetricFa}`
+    : "قرارداد معیار هنوز ساخته نشده است";
+  document.getElementById("dataSource").textContent = analysis
+    ? `${analysis.name} / برش ${toPersianDigits(String(analysis.cutoffAt || "").slice(0, 10))}`
+    : "هنوز داده‌ای وارد نشده است";
+  document.getElementById("snapshotEvidence").textContent = evidenceLabel;
+  const verified = outcome?.evidenceLevel === "verified_incremental";
+  const profitEstimate = outcome?.summary?.incrementalContributionProfitPerAssignedCustomer;
+  document.getElementById("savingsSnapshot").innerHTML = [
+    ["سود افزایشی ۳۰روزه", profitEstimate == null ? "داده موجود نیست" : `${formatMoney(profitEstimate)} / مشتری`, verified ? "اثر ITT با تطبیق Finance تأیید شده است." : "برآورد پایلوت است و هنوز تأیید مالی نشده است."],
+    ["هزینه مشوق قابل حذف", "داده موجود نیست", "بدون سیاست فعلی CRM و outcome ادعای صرفه‌جویی نمی‌شود."],
+    ["درآمد در معرض ریسک", "داده موجود نیست", "تا تأیید تعریف مالی مشتری محاسبه نمی‌شود."],
+    ["مجوز تصمیم", verified ? "Scale / Review / Stop" : outcome ? "بازبینی پایلوت" : currentRetentionShadow?.latestRun ? "فقط Shadow" : "فقط تحلیل", verified ? "با رعایت Guardrail و تصمیم انسانی قابل استفاده است." : "هیچ تخفیف خودکاری مجاز نیست."]
+  ].map(item => `<div class="snapshot-stat"><span>${item[0]}</span><strong>${item[1]}</strong><small>${item[2]}</small></div>`).join("");
+  document.getElementById("metricGrid").innerHTML = [
+    ["مشتریان بررسی‌شده", formatNumber(workspace?.metrics?.units || 0), "در کانال تنظیم‌شده"],
+    ["واجد شرایط تحلیل", formatNumber(workspace?.metrics?.eligibleUnits || 0), "نه الزاماً واجد شرایط تماس"],
+    ["میانه خرید مجدد", workspace?.metrics?.medianRepurchaseDays == null ? "ناموجود" : `${formatNumber(workspace.metrics.medianRepurchaseDays)} روز`, "خط مبنای تاریخی"],
+    ["تصمیم قابل بررسی", formatNumber(queue.length), outcome ? "اثر policy اندازه‌گیری شده؛ اثر فردی هنوز ناموجود است" : "Saveability هنوز اندازه‌گیری نشده است"]
+  ].map((item, index) => `<article class="metric-card metric-${index + 1}"><span>${item[0]}</span><strong class="number">${item[1]}</strong><small>${item[2]}</small></article>`).join("");
+}
+
+function renderMetricContract(contract) {
+  if (!contract) return;
+  document.getElementById("metricContractStatus").textContent = contract.statusFa;
+  document.getElementById("metricContractStatus").className = `pill ${contract.status === "locked" ? "save" : "warn"}`;
+  document.getElementById("metricChurnDefinition").value = contract.channelChurnDefinitionFa || "";
+  document.getElementById("metricEligibility").value = contract.eligibilityFa || "";
+  document.getElementById("metricMarginDefinition").value = contract.finance?.grossMarginDefinitionFa || "";
+  document.getElementById("metricCurrentPolicy").value = contract.currentPolicy?.descriptionFa || "";
+  document.getElementById("metricCurrentPolicyOwner").value = contract.currentPolicy?.ownerFa || "";
+  document.getElementById("metricCrmOwner").value = contract.owners?.crmFa || "";
+  document.getElementById("metricDataOwner").value = contract.owners?.dataFa || "";
+  document.getElementById("metricFinanceOwner").value = contract.owners?.financeFa || "";
+  document.getElementById("metricExperimentOwner").value = contract.owners?.experimentFa || "";
+  document.getElementById("metricActionsLogged").checked = Boolean(contract.currentPolicy?.actionsLogged);
+  document.getElementById("metricPolicyReproducible").checked = Boolean(contract.currentPolicy?.reproducible);
+  const locked = contract.status === "locked";
+  const canManage = ["owner", "admin"].includes(currentSession?.role);
+  document.querySelectorAll("#metricContractForm input, #metricContractForm textarea, #metricContractForm button:not(#metricNewVersionButton)").forEach(element => { element.disabled = locked || !canManage; });
+  document.getElementById("metricNewVersionButton").hidden = !locked || !canManage;
+  const missing = contract.readiness?.missingFa || [];
+  setMessage("metricContractMessage", locked ? "قرارداد قفل شده و برای ثبت آزمایش قابل استفاده است." : `موارد باقی‌مانده: ${missing.join("، ") || "آماده قفل"}`, locked ? "success" : "");
+}
+
 function renderRetentionShadow() {
   const latest = currentRetentionShadow?.latestRun;
   const status = document.getElementById("retentionShadowStatus");
@@ -770,6 +843,52 @@ function renderRetentionShadow() {
     <div><span>خارج از ظرفیت</span><strong class="number">${formatNumber(latest.summary.overflowCustomers)}</strong></div>
     <div><span>هم‌پوشانی مشتری</span><strong class="number">${formatNumber(latest.summary.duplicateCustomers)}</strong></div>
   </div>`;
+}
+
+function renderRetentionLiveWorkspace() {
+  const state = currentRetentionWorkspace || {};
+  const experiment = state.experiment;
+  const outcome = state.outcome;
+  const contractLocked = state.metricContract?.status === "locked";
+  const shadowReady = currentRetentionShadow?.readyForExperiment === true;
+  const evidence = state.evidence || { key: "none", labelFa: "بدون شواهد" };
+  const gates = [
+    ["داده Retention", Boolean(state.analysis), state.analysis ? "تحلیل نسخه‌دار موجود است" : "فایل تراکنش لازم است"],
+    ["Metric Contract", contractLocked, contractLocked ? "تعریف‌ها و مالک‌ها قفل شده‌اند" : "تأیید CRM، داده و Finance لازم است"],
+    ["دو Shadow Run", shadowReady, shadowReady ? "دو اجرای متوالی پایدار است" : "دو اجرای یکسان و بدون تماس لازم است"],
+    ["آزمایش سیاست‌ها", Boolean(experiment), experiment ? "Assignment قفل و قابل حسابرسی است" : "هنوز ثبت نشده است"],
+    ["Outcome و ITT", Boolean(outcome), outcome ? outcome.integrity?.statusFa : "در انتظار پایان پنجره نتیجه"],
+    ["تطبیق Finance", outcome?.summary?.financeVerificationStatus === "verified", outcome?.summary?.financeVerificationStatus === "verified" ? "مبلغ‌ها با Finance تطبیق شده‌اند" : "هنوز تأیید نشده است"]
+  ];
+  document.getElementById("retentionPilotGates").innerHTML = gates.map(([label, ready, detail]) => `
+    <div class="retention-pilot-gate ${ready ? "is-ready" : ""}"><strong>${ready ? "✓ " : "○ "}${escapeHtml(label)}</strong><small>${escapeHtml(detail)}</small></div>`).join("");
+
+  const status = document.getElementById("retentionLiveStatus");
+  status.textContent = evidence.labelFa;
+  status.className = `pill ${evidence.key === "verified_incremental" ? "save" : outcome ? "warn" : ""}`;
+  const canOperate = ["owner", "admin", "analyst"].includes(currentSession?.role);
+  document.getElementById("retentionRegisterExperimentButton").disabled = !canOperate || !contractLocked || !shadowReady || Boolean(experiment);
+  document.getElementById("retentionDownloadAssignmentsButton").disabled = !canOperate || !experiment;
+  document.getElementById("retentionOutcomeFile").disabled = !canOperate || !experiment;
+  document.getElementById("retentionImportOutcomeButton").disabled = !canOperate || !experiment || !retentionOutcomeCsvText;
+
+  const result = document.getElementById("retentionLiveResult");
+  if (!outcome) {
+    result.innerHTML = "<p>تا دریافت Outcome کامل، سود افزایشی، Saveability و مجوز Scale ناموجود می‌ماند.</p>";
+  } else {
+    const estimate = outcome.summary?.incrementalContributionProfitPerAssignedCustomer;
+    const interval = outcome.summary?.confidenceInterval95 || {};
+    result.innerHTML = `<dl>
+      <div><dt>تصمیم</dt><dd>${escapeHtml(outcome.summary?.decisionFa || "نیازمند بازبینی")}</dd></div>
+      <div><dt>سود افزایشی به‌ازای مشتری</dt><dd>${estimate == null ? "ناموجود" : formatMoney(estimate)}</dd></div>
+      <div><dt>بازه ۹۵٪</dt><dd>${interval.lower == null ? "ناموجود" : `${formatMoney(interval.lower)} تا ${formatMoney(interval.upper)}`}</dd></div>
+    </dl>`;
+  }
+
+  const financePanel = document.getElementById("retentionFinanceVerification");
+  const canVerify = ["owner", "admin"].includes(currentSession?.role) && outcome?.integrity?.decisionEligible && outcome?.summary?.financeVerificationStatus !== "verified";
+  financePanel.hidden = !canVerify;
+  document.getElementById("retentionVerifyFinanceButton").dataset.outcomeId = outcome?.id || "";
 }
 
 function renderBehavioralWorkspace() {
@@ -873,7 +992,9 @@ async function loadDashboard() {
   renderOperations();
   renderRetentionWorkspace();
   renderRetentionShadow();
+  renderRetentionLiveWorkspace();
   renderBehavioralWorkspace();
+  renderRetentionExecutive();
   if (document.body.classList.contains("presentation-mode")) renderPresentationStep(false);
   window.MarginLiftMotion?.refresh(document.getElementById("appShell"));
 }
@@ -941,6 +1062,7 @@ async function enterApp() {
 
 function applyRoleAccess() {
   const isViewer = currentSession?.role === "viewer";
+  const canManageMetricContract = ["owner", "admin"].includes(currentSession?.role);
   document.querySelectorAll("#campaignUploadForm input, #campaignUploadForm button, #outcomeUploadForm input, #outcomeUploadForm button")
     .forEach(control => { control.disabled = isViewer; });
   document.getElementById("exportAudienceButton").disabled = isViewer;
@@ -951,6 +1073,10 @@ function applyRoleAccess() {
     .forEach(control => { control.disabled = isViewer; });
   document.querySelectorAll("#retentionConfigForm input, #retentionConfigForm select, #retentionConfigForm button, #retentionUploadForm input, #retentionUploadForm select, #retentionUploadForm button")
     .forEach(control => { control.disabled = isViewer; });
+  document.querySelectorAll("#retentionRegisterExperimentButton, #retentionDownloadAssignmentsButton, #retentionOutcomeFile, #retentionImportOutcomeButton, #retentionVerifyFinanceButton")
+    .forEach(control => { control.disabled = isViewer; });
+  document.querySelectorAll("#metricContractForm input, #metricContractForm textarea, #metricContractForm button")
+    .forEach(control => { control.disabled = !canManageMetricContract; });
   syncFileControls();
   if (isViewer) {
     setMessage("uploadMessage", "این حساب برای مشاهده دمو ساخته شده است و داده‌ها را تغییر نمی‌دهد.", "");
@@ -961,6 +1087,18 @@ function applyRoleAccess() {
 function setupRetentionWorkspace() {
   const cutoff = document.getElementById("retentionCutoff");
   cutoff.value = toPersianDigits(new Date().toISOString().slice(0, 10));
+
+  document.getElementById("metricContractForm").addEventListener("submit", async event => {
+    event.preventDefault();
+    try {
+      await submitMetricContract("save", event.currentTarget.querySelector("button[type='submit']"));
+    } catch (error) {
+      setMessage("metricContractMessage", error.message, "error");
+    }
+  });
+  document.querySelectorAll("[data-metric-action]").forEach(button => button.addEventListener("click", () => {
+    submitMetricContract(button.dataset.metricAction, button).catch(error => setMessage("metricContractMessage", error.message, "error"));
+  }));
 
   document.getElementById("retentionPreset").addEventListener("change", event => {
     const preset = retentionPresets.find(item => item.key === event.target.value);
@@ -1080,6 +1218,87 @@ function setupRetentionWorkspace() {
     }
   });
 
+  document.getElementById("retentionRegisterExperimentButton").addEventListener("click", async event => {
+    const button = event.currentTarget;
+    setButtonBusy(button, true, "در حال ثبت...");
+    try {
+      await apiRequest("/api/retention/experiments/register", {
+        method: "POST",
+        body: JSON.stringify({ name: "پایلوت سیاست فعلی CRM در برابر MarginLift" })
+      });
+      await loadDashboard();
+      setMessage("retentionLiveMessage", "آزمایش قفل شد؛ Assignment را دریافت و بدون جابه‌جایی گروه‌ها اجرا کنید.", "success");
+    } catch (error) {
+      setMessage("retentionLiveMessage", error.message, "error");
+    } finally {
+      setButtonBusy(button, false);
+    }
+  });
+
+  document.getElementById("retentionDownloadAssignmentsButton").addEventListener("click", async () => {
+    const response = await fetch("/api/retention/experiments/current/assignments.csv", { credentials: "same-origin" });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      return setMessage("retentionLiveMessage", payload.error?.message || "Assignment آماده نشد.", "error");
+    }
+    downloadBlob(await response.blob(), "marginlift-retention-policy-assignments.csv");
+  });
+
+  document.getElementById("retentionOutcomeFile").addEventListener("change", async event => {
+    const file = event.target.files[0];
+    retentionOutcomeCsvText = "";
+    if (!file) return renderRetentionLiveWorkspace();
+    if (fileIsTooLarge(file)) return setMessage("retentionLiveMessage", "فایل برای بارگذاری مرورگر بزرگ است؛ پایلوت واقعی باید با Batch داخل VPC اجرا شود.", "error");
+    retentionOutcomeCsvText = await file.text();
+    document.getElementById("retentionImportOutcomeButton").disabled = false;
+    setMessage("retentionLiveMessage", "فایل انتخاب شد؛ ابتدا سلامت آن بررسی و سپس نسخه‌دار ثبت می‌شود.", "");
+  });
+
+  document.getElementById("retentionImportOutcomeButton").addEventListener("click", async event => {
+    const button = event.currentTarget;
+    setButtonBusy(button, true, "در حال ممیزی...");
+    try {
+      const preview = await apiRequest("/api/retention/outcomes/preview", {
+        method: "POST",
+        body: JSON.stringify({ csvText: retentionOutcomeCsvText })
+      });
+      if (preview.integrity?.fatal) throw new Error(preview.integrity.statusFa);
+      const outcome = await apiRequest("/api/retention/outcomes/import", {
+        method: "POST",
+        body: JSON.stringify({ name: "Outcome پایلوت سیاست نگهداشت", csvText: retentionOutcomeCsvText })
+      });
+      retentionOutcomeCsvText = "";
+      document.getElementById("retentionOutcomeFile").value = "";
+      await loadDashboard();
+      setMessage("retentionLiveMessage", `${outcome.evidenceLabelFa}؛ ${outcome.summary.decisionFa}`, outcome.integrity.decisionEligible ? "success" : "error");
+    } catch (error) {
+      setMessage("retentionLiveMessage", error.message, "error");
+    } finally {
+      setButtonBusy(button, false);
+    }
+  });
+
+  document.getElementById("retentionVerifyFinanceButton").addEventListener("click", async event => {
+    const button = event.currentTarget;
+    setButtonBusy(button, true, "در حال تأیید...");
+    try {
+      const outcomeId = button.dataset.outcomeId;
+      const result = await apiRequest(`/api/retention/outcomes/${encodeURIComponent(outcomeId)}/verify-finance`, {
+        method: "POST",
+        body: JSON.stringify({
+          reviewerFa: document.getElementById("retentionFinanceReviewer").value,
+          reasonFa: document.getElementById("retentionFinanceReason").value
+        })
+      });
+      await loadDashboard();
+      setMessage("retentionLiveMessage", `${result.evidenceLabelFa}؛ نتیجه برای تصمیم مدیریتی قابل استناد است.`, "success");
+    } catch (error) {
+      setMessage("retentionLiveMessage", error.message, "error");
+    } finally {
+      setButtonBusy(button, false);
+    }
+  });
+
   document.getElementById("retentionExperimentBriefButton").addEventListener("click", async () => {
     const query = new URLSearchParams({
       baselineRate: String(Number(document.getElementById("retentionBaselineRate").value) / 100),
@@ -1115,6 +1334,35 @@ function setupRetentionWorkspace() {
       setButtonBusy(button, false);
     }
   });
+}
+
+async function submitMetricContract(action, button) {
+  setButtonBusy(button, true, action === "lock" ? "در حال قفل..." : "در حال ثبت...");
+  try {
+    const payload = action === "new_version" ? { action } : {
+      action,
+      channelChurnDefinitionFa: document.getElementById("metricChurnDefinition").value,
+      eligibilityFa: document.getElementById("metricEligibility").value,
+      finance: { grossMarginDefinitionFa: document.getElementById("metricMarginDefinition").value },
+      currentPolicy: {
+        descriptionFa: document.getElementById("metricCurrentPolicy").value,
+        ownerFa: document.getElementById("metricCurrentPolicyOwner").value,
+        actionsLogged: document.getElementById("metricActionsLogged").checked,
+        reproducible: document.getElementById("metricPolicyReproducible").checked
+      },
+      owners: {
+        crmFa: document.getElementById("metricCrmOwner").value,
+        dataFa: document.getElementById("metricDataOwner").value,
+        financeFa: document.getElementById("metricFinanceOwner").value,
+        experimentFa: document.getElementById("metricExperimentOwner").value
+      }
+    };
+    const contract = await apiRequest("/api/retention/metric-contract", { method: "PATCH", body: JSON.stringify(payload) });
+    await loadDashboard();
+    setMessage("metricContractMessage", action === "lock" ? "قرارداد معیار قفل شد." : `نسخه ${toPersianDigits(contract.version)} ثبت شد.`, "success");
+  } finally {
+    setButtonBusy(button, false);
+  }
 }
 
 async function refreshRetentionPreview() {
@@ -1319,6 +1567,7 @@ async function init() {
   setupAuth();
   setupFileControls();
   setupNavigation();
+  setupLegacyLab();
   setupPresentationMode();
   setupUpload();
   setupActions();

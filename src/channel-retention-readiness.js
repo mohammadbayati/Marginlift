@@ -1,3 +1,5 @@
+const { normalizePersianText, parseIranianDate, parseIranianNumber } = require("./iran-data");
+
 const DEFAULT_CHANNEL_RETENTION_CONTRACT = Object.freeze({
   minimumHistoryDays: 365,
   minimumCustomers: 1000,
@@ -279,21 +281,15 @@ function hasValue(value) {
 }
 
 function parseNumber(value) {
-  const normalized = String(value || "")
-    .replace(/[۰-۹]/g, digit => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
-    .replace(/[٠-٩]/g, digit => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
-    .replace(/,/g, "")
-    .trim();
-  return Number(normalized);
+  return parseIranianNumber(value);
 }
 
 function validDate(value) {
-  if (!value) return false;
-  return Number.isFinite(new Date(value).getTime());
+  return Boolean(parseIranianDate(value));
 }
 
 function normalizeGroup(value) {
-  return String(value || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return normalizePersianText(value).toLowerCase().replace(/[\s-]+/g, "_");
 }
 
 function countBy(rows, field) {
@@ -313,7 +309,7 @@ function countDuplicateValues(rows, field) {
 
 function calculateCoverageDays(rows, field) {
   if (rows.length < 2) return 0;
-  const timestamps = rows.map(row => new Date(row[field]).getTime()).filter(Number.isFinite);
+  const timestamps = rows.map(row => parseIranianDate(row[field])?.getTime()).filter(Number.isFinite);
   if (timestamps.length < 2) return 0;
   return Math.floor((Math.max(...timestamps) - Math.min(...timestamps)) / 86400000);
 }

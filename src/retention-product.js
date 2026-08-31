@@ -4,6 +4,8 @@ const { auditChannelRetentionData } = require("./channel-retention-readiness");
 const { buildChannelRetentionDataset } = require("./channel-retention-dataset");
 const { applyContactPolicy, buildContactSafetyWorkspace } = require("./contact-policy");
 const { buildSurvivalBaseline } = require("./survival-baseline");
+const { evidenceMeta } = require("./evidence");
+const { normalizeIranianColumn, parseIranianDate } = require("./iran-data");
 
 const PRESETS = Object.freeze({
   generic_ecommerce: Object.freeze({
@@ -275,6 +277,7 @@ function normalizeRetentionConfig(input = {}, fallbackKey = "generic_ecommerce")
   return {
     presetKey,
     version: Number(input.version || base.version || 1),
+    currencyUnit: ["rial", "toman"].includes(input.currencyUnit) ? input.currencyUnit : (base.currencyUnit || "toman"),
     display,
     mapping,
     defaults,
@@ -322,7 +325,8 @@ function analyzeRetentionRows(rows, configInput, options = {}) {
     horizonsDays: config.lifecycle.horizonsDays,
     useCase: `${config.presetKey}_retention`,
     unitOfAnalysis: "customer_channel_product_type",
-    channelLabelFa: config.display.channelFa
+    channelLabelFa: config.display.channelFa,
+    currencyUnit: config.currencyUnit
   };
   const readiness = auditChannelRetentionData(canonicalRows, [], readinessOptions);
   const cutoff = resolveCutoff(canonicalRows, options.cutoff);
@@ -336,7 +340,8 @@ function analyzeRetentionRows(rows, configInput, options = {}) {
       lifecycle: config.lifecycle,
       useCase: `${config.presetKey}_retention`,
       unitOfAnalysis: "customer_channel_product_type",
-      channelLabelFa: config.display.channelFa
+      channelLabelFa: config.display.channelFa,
+      currencyUnit: config.currencyUnit
     });
     if (dataset.episodes.length) {
       baseline = buildSurvivalBaseline(dataset, { horizons: config.lifecycle.horizonsDays });
@@ -364,7 +369,8 @@ function buildRetentionWorkspace(configInput, readiness = null, dataset = null, 
     return {
       status: "awaiting_data",
       statusFa: "در انتظار داده",
-      evidenceLevel: "no_evidence",
+      evidenceLevel: "none",
+      evidenceLabelFa: evidenceMeta("none").labelFa,
       headlineFa: `چرخه خرید ${config.display.purchaseObjectFa} را اندازه‌گیری کنید`,
       nextActionFa: "فایل تراکنش را وارد کنید تا آمادگی داده و خط مبنا ساخته شود.",
       policyVersion,
@@ -385,8 +391,9 @@ function buildRetentionWorkspace(configInput, readiness = null, dataset = null, 
   return {
     status,
     statusFa: status === "baseline_ready" ? "خط مبنا آماده است" : readiness.statusFa,
-    evidenceLevel: "observational_baseline",
-    evidenceLabelFa: "برآورد تاریخی؛ هنوز اثر مداخله تأیید نشده است",
+    evidenceLevel: "observational_estimate",
+    evidenceLabelFa: evidenceMeta("observational_estimate").labelFa,
+    evidenceClaimFa: evidenceMeta("observational_estimate").claimFa,
     policyVersion,
     headlineFa: median === null
       ? "برای تخمین پایدار چرخه خرید، داده بیشتری لازم است"
@@ -421,10 +428,14 @@ function buildRetentionDecisionQueue(configInput, dataset) {
 
 function toQueueItem(snapshot, config, policyVersion) {
   const action = actionForState(snapshot.state);
+  const decisionId = createDecisionId(snapshot, policyVersion);
   return {
+    decisionId,
     customerIdHash: snapshot.customerIdHash,
+    asOf: snapshot.indexDate || null,
     channel: snapshot.operator,
     productType: snapshot.packageType,
+    lifecycleState: snapshot.state,
     state: snapshot.state,
     stateFa: stateLabel(snapshot.state),
     daysFromDue: snapshot.daysFromDue,
@@ -434,13 +445,41 @@ function toQueueItem(snapshot, config, policyVersion) {
     recommendedActionFa: action.labelFa,
     riskBand: action.riskBand,
     riskLabelFa: action.riskLabelFa,
+    riskProbability: null,
+    riskStatus: "not_estimated",
+    saveabilityByAction: null,
+    saveabilityStatus: "not_estimable_without_randomized_outcome",
+    actionAlternatives: actionAlternatives(action.key),
     incentivePolicy: action.incentivePolicy,
     incentivePolicyFa: action.incentivePolicyFa,
     decisionReasonFa: action.reasonFa,
     incentiveAllowed: false,
+    expectedIncrementalProfit: null,
+    actionCost: null,
+    profitabilityStatus: "not_estimable_without_metric_contract_and_outcome",
+    confidence: "low",
+    confidenceFa: "پایین؛ تصمیم قاعده‌محور",
+    evidenceLevel: "observational_estimate",
     policyVersion,
-    evidenceLabelFa: `برآورد تاریخی در ${config.display.channelFa}`
+    modelVersion: null,
+    datasetVersion: snapshot.datasetVersion || null,
+    guardrails: ["contact_safety", "margin_required", "holdout_required"],
+    override: null,
+    evidenceLabelFa: `${evidenceMeta("observational_estimate").labelFa} در ${config.display.channelFa}`
   };
+}
+
+function createDecisionId(snapshot, policyVersion) {
+  const payload = [snapshot.snapshotKey, snapshot.customerIdHash, snapshot.indexDate, policyVersion].join(":");
+  return `dec_${crypto.createHash("sha256").update(payload).digest("hex").slice(0, 20)}`;
+}
+
+function actionAlternatives(recommendedAction) {
+  return [
+    { action: "no_action", labelFa: "بدون اقدام", status: recommendedAction === "no_action" ? "recommended" : "available" },
+    { action: "message_no_discount", labelFa: "پیام بدون تخفیف", status: ["reminder_test", "channel_nudge_test"].includes(recommendedAction) ? "recommended" : "available" },
+    { action: "targeted_discount", labelFa: "تخفیف هدفمند", status: recommendedAction === "offer_eligibility_review" ? "test_only" : "not_estimable" }
+  ];
 }
 
 function retentionPolicyVersion(config) {
@@ -512,9 +551,10 @@ function stateLabel(state) {
 }
 
 function resolveCutoff(rows, supplied) {
-  if (supplied && Number.isFinite(new Date(supplied).getTime())) return new Date(supplied).toISOString();
+  const suppliedDate = parseIranianDate(supplied);
+  if (suppliedDate) return suppliedDate.toISOString();
   const timestamps = rows
-    .map(row => new Date(row.purchased_at).getTime())
+    .map(row => parseIranianDate(row.purchased_at)?.getTime())
     .filter(Number.isFinite);
   if (!timestamps.length) return null;
   return new Date(Math.max(...timestamps) + 86400000).toISOString();
@@ -552,11 +592,7 @@ function mappingField(key, labelFa, required, aliases) {
 }
 
 function normalizeColumnName(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[\s\-]+/g, "_")
-    .replace(/[\u200c\u200d]/g, "");
+  return normalizeIranianColumn(value).replace(/[\u200c\u200d]/g, "");
 }
 
 function validColumnName(value) {

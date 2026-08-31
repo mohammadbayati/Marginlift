@@ -43,6 +43,19 @@ const rerun = buildChannelRetentionDataset(rows, {
 });
 assert.strictEqual(dataset.datasetVersion, rerun.datasetVersion);
 
+const iranDataset = buildChannelRetentionDataset([
+  { ...transaction("iran_1", "iran_t1", "۱۴۰۳/۱۰/۱۲", "completed"), paid_amount: "۵۰۰٬۰۰۰", net_revenue: "۲۵٬۰۰۰" },
+  { ...transaction("iran_1", "iran_t2", "۱۴۰۴/۰۱/۰۱", "completed"), paid_amount: "۵۰۰٬۰۰۰", net_revenue: "۲۵٬۰۰۰" }
+], {
+  cutoff: "۱۴۰۴/۰۲/۰۱",
+  currencyUnit: "rial",
+  contract: { minimumCustomers: 1, minimumRepeatCustomers: 1, minimumHistoryDays: 1 }
+});
+assert.strictEqual(iranDataset.currencyContract.sourceUnit, "rial");
+assert.strictEqual(iranDataset.currencyContract.canonicalUnit, "toman");
+assert.strictEqual(iranDataset.snapshots[0].averagePaidAmount, 50000);
+assert.strictEqual(iranDataset.snapshots[0].averageContributionMargin, 2500);
+
 assert.strictEqual(classifyState(-8), "active");
 assert.strictEqual(classifyState(-7), "due");
 assert.strictEqual(classifyState(29), "due");

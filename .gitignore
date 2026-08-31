@@ -23,3 +23,12 @@ Cognitive_bias_codex_en.png
 .impeccable/
 skills-lock.json
 private/fonts/
+web/node_modules/
+web/dist/
+web/.prerender/
+web/.e2e-db.json
+web/.e2e-artifacts/
+web/.debug-db.json
+web/.debug-artifacts/
+web/playwright-report/
+web/test-results/

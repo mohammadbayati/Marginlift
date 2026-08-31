@@ -89,15 +89,14 @@ async function run() {
     assert.match(String(executiveReportStyles.payload), /A4 portrait/);
 
     const publicHome = await request("/");
-    assert(publicHome.payload.includes("تخفیف کمتر"));
-    assert(publicHome.payload.includes("/marginlift-command-center.png"));
+    assert(publicHome.payload.includes("CRM اجرا می‌کند"));
+    assert(publicHome.payload.includes("/assets/marginlift-command-center-"));
 
     const productLogin = await request("/login");
-    assert(productLogin.payload.includes('id="authShell"'));
-    assert(productLogin.payload.includes('id="appShell"'));
-    assert(productLogin.payload.includes('id="presentationModeButton"'));
-    assert(productLogin.payload.includes('id="presentationGuide"'));
-    assert(productLogin.payload.includes('id="usabilityConsoleLink"'));
+    assert(productLogin.payload.includes('id="login-email"'));
+    assert(productLogin.payload.includes('id="login-password"'));
+    assert(productLogin.payload.includes("ورود به مرکز تصمیم"));
+    assert(productLogin.payload.includes("اثر افزایشی تأییدشده"));
 
     const fontAsset = await request("/fonts/Estedad-Variable.woff2");
     assert.strictEqual(fontAsset.response.status, 200);
@@ -281,6 +280,8 @@ async function run() {
     assert.strictEqual(retentionPreview.payload.data.readyForImport, true);
     assert.strictEqual(retentionPreview.payload.data.mapping.customerId, "customer_id_hash");
     assert.strictEqual(retentionPreview.payload.data.privacy.blocked, false);
+    assert.strictEqual(retentionPreview.payload.data.canImport, true);
+    assert.match(retentionPreview.payload.data.datasetHash, /^sha256:[a-f0-9]{64}$/);
 
     const piiRetentionPreview = await request("/api/retention/preview", {
       method: "POST",
@@ -290,15 +291,27 @@ async function run() {
     assert.strictEqual(piiRetentionPreview.response.status, 200);
     assert.strictEqual(piiRetentionPreview.payload.data.readyForImport, false);
     assert.strictEqual(piiRetentionPreview.payload.data.privacy.blocked, true);
+    assert.strictEqual(piiRetentionPreview.payload.data.canImport, false);
+    assert.ok(piiRetentionPreview.payload.data.quality.groups.critical.length >= 1);
+
+    const changedRetentionImport = await request("/api/retention/import", {
+      method: "POST",
+      cookie,
+      body: { name: "فایل تغییرکرده", csvText: `${retentionCsv}\n`, cutoff: "2026-02-01T00:00:00Z", expectedDatasetHash: "sha256:invalid" }
+    });
+    assert.strictEqual(changedRetentionImport.response.status, 409);
+    assert.strictEqual(changedRetentionImport.payload.error.code, "RETENTION_DATASET_HASH_MISMATCH");
 
     const retentionImport = await request("/api/retention/import", {
       method: "POST",
       cookie,
-      body: { name: "تحلیل نگهداشت تست", csvText: retentionCsv, cutoff: "2026-02-01T00:00:00Z" }
+      body: { name: "تحلیل نگهداشت تست", csvText: retentionCsv, cutoff: "2026-02-01T00:00:00Z", expectedDatasetHash: retentionPreview.payload.data.datasetHash }
     });
     assert.strictEqual(retentionImport.response.status, 201);
-    assert.strictEqual(retentionImport.payload.data.workspace.evidenceLevel, "observational_baseline");
+    assert.strictEqual(retentionImport.payload.data.workspace.evidenceLevel, "observational_estimate");
     assert.ok(retentionImport.payload.data.workspace.queue.every(item => item.incentiveAllowed === false));
+    assert.ok(retentionImport.payload.data.workspace.queue.every(item => item.saveabilityByAction === null));
+    assert.ok(retentionImport.payload.data.workspace.queue.every(item => item.expectedIncrementalProfit === null));
 
     const retentionWorkspace = await request("/api/retention/workspace", { cookie });
     assert.strictEqual(retentionWorkspace.response.status, 200);
@@ -308,6 +321,52 @@ async function run() {
     assert.strictEqual(retentionWorkspace.payload.data.analysis.baseline.modelCard.decisionPermission, "shadow_only");
     assert.strictEqual(retentionWorkspace.payload.data.workspace.contactSafety.contractReady, true);
     assert.ok(retentionWorkspace.payload.data.workspace.contactSafety.summary.actionAllowed >= 1);
+    assert.strictEqual(retentionWorkspace.payload.data.evidence.key, "observational_estimate");
+    assert.strictEqual(retentionWorkspace.payload.data.today.state, "observational_ready");
+    assert.strictEqual(retentionWorkspace.payload.data.dataContext.datasetHash, retentionPreview.payload.data.datasetHash);
+    assert.ok(retentionWorkspace.payload.data.visualizations.evidenceLadder.available);
+    assert.ok(retentionWorkspace.payload.data.visualizations.retentionCohort.available);
+    assert.strictEqual(retentionWorkspace.payload.data.visualizations.treatmentControl.available, false);
+
+    const retentionDecisions = await request("/api/retention/decisions?pageSize=2", { cookie });
+    assert.strictEqual(retentionDecisions.response.status, 200);
+    assert.strictEqual(retentionDecisions.payload.data.items.length, 2);
+    const overriddenDecision = await request(`/api/retention/decisions/${retentionDecisions.payload.data.items[0].decisionId}/override`, {
+      method: "POST",
+      cookie,
+      body: { overrideAction: "no_action", reasonFa: "به‌دلیل کمپین هم‌زمان، این مشتری فعلاً تماس نگیرد." }
+    });
+    assert.strictEqual(overriddenDecision.response.status, 200);
+    assert.strictEqual(overriddenDecision.payload.data.effectiveAction, "no_action");
+    const decisionReceipt = await request(`/api/retention/decisions/${retentionDecisions.payload.data.items[0].decisionId}/receipt`, { cookie });
+    assert.strictEqual(decisionReceipt.response.status, 200);
+    assert.strictEqual(decisionReceipt.payload.data.schemaVersion, "retention_decision_receipt_v1");
+    assert.ok(decisionReceipt.payload.data.unknowns.includes("saveability_by_action"));
+    assert.ok(decisionReceipt.payload.data.overrideHistory.length >= 1);
+
+    const metricContractDraft = await request("/api/retention/metric-contract", { cookie });
+    assert.strictEqual(metricContractDraft.response.status, 200);
+    assert.strictEqual(metricContractDraft.payload.data.status, "draft");
+    const metricContractBody = {
+      action: "save",
+      finance: { grossMarginDefinitionFa: "کمیسیون خالص اپراتور پس از کسر برگشت و هزینه متغیر" },
+      currentPolicy: {
+        descriptionFa: "سیاست فعلی CRM براساس خواب خرید، سقف تماس و تقویم کمپین اجرا می‌شود.",
+        ownerFa: "مدیر CRM",
+        actionsLogged: true,
+        reproducible: true
+      },
+      owners: { crmFa: "مدیر CRM", dataFa: "مدیر داده", financeFa: "مدیر مالی", experimentFa: "مالک آزمایش" }
+    };
+    const savedMetricContract = await request("/api/retention/metric-contract", { method: "PATCH", cookie, body: metricContractBody });
+    assert.strictEqual(savedMetricContract.response.status, 200);
+    for (const action of ["approve_crm", "approve_data", "approve_finance"]) {
+      const approval = await request("/api/retention/metric-contract", { method: "PATCH", cookie, body: { action } });
+      assert.strictEqual(approval.response.status, 200);
+    }
+    const lockedMetricContract = await request("/api/retention/metric-contract", { method: "PATCH", cookie, body: { action: "lock" } });
+    assert.strictEqual(lockedMetricContract.response.status, 200);
+    assert.strictEqual(lockedMetricContract.payload.data.status, "locked");
 
     const contactPolicyWorkspace = await request("/api/contact-policy/workspace", { cookie: viewerCookie });
     assert.strictEqual(contactPolicyWorkspace.response.status, 200);
@@ -318,14 +377,19 @@ async function run() {
     assert.strictEqual(retentionAudience.response.status, 200);
     assert.match(String(retentionAudience.payload), /customer_id_hash,state,days_from_due/);
     assert.match(String(retentionAudience.payload), /preferred_channel,contact_count_30d,action_allowed/);
-    assert.match(String(retentionAudience.payload), /observational_baseline/);
-    assert.match(String(retentionAudience.payload), /true,false,observational_baseline/);
+    assert.match(String(retentionAudience.payload), /observational_estimate/);
+    assert.match(String(retentionAudience.payload), /true,false,observational_estimate/);
 
     for (const role of ["executive", "crm", "finance", "data"]) {
       const readout = await request(`/api/retention/readout.md?role=${role}`, { cookie });
       assert.strictEqual(readout.response.status, 200);
       assert.match(String(readout.payload), /مرز ادعا/);
-      assert.match(String(readout.payload), /holdout/);
+      assert.match(String(readout.payload), /holdout/i);
+      const jsonReadout = await request(`/api/retention/readout.json?role=${role}`, { cookie });
+      assert.strictEqual(jsonReadout.response.status, 200);
+      assert.strictEqual(jsonReadout.payload.data.role, role);
+      assert.strictEqual(jsonReadout.payload.data.evidence.key, "observational_estimate");
+      assert.strictEqual(jsonReadout.payload.data.owners.length, 3);
     }
 
     const shadowRun = await request("/api/retention/shadow-runs", {
@@ -337,9 +401,60 @@ async function run() {
     assert.strictEqual(shadowRun.payload.data.liveActionAllowed, false);
     assert.ok(shadowRun.payload.data.summary.selectedCustomers <= 3);
 
+    const secondShadowRun = await request("/api/retention/shadow-runs", {
+      method: "POST",
+      cookie,
+      body: { capacity: 3 }
+    });
+    assert.strictEqual(secondShadowRun.response.status, 201);
+    assert.strictEqual(secondShadowRun.payload.data.stability.passed, true);
+
     const shadowWorkspace = await request("/api/retention/shadow-workspace", { cookie });
     assert.strictEqual(shadowWorkspace.response.status, 200);
-    assert.strictEqual(shadowWorkspace.payload.data.latestRun.id, shadowRun.payload.data.id);
+    assert.strictEqual(shadowWorkspace.payload.data.latestRun.id, secondShadowRun.payload.data.id);
+    assert.strictEqual(shadowWorkspace.payload.data.readyForExperiment, true);
+
+    const retentionExperiment = await request("/api/retention/experiments/register", {
+      method: "POST",
+      cookie,
+      body: { name: "آزمایش سیاست نگهداشت تست" }
+    });
+    assert.strictEqual(retentionExperiment.response.status, 201);
+    assert.strictEqual(retentionExperiment.payload.data.status, "registered");
+    assert.deepStrictEqual(retentionExperiment.payload.data.design.comparison, ["current_crm_policy", "marginlift_policy"]);
+    assert.strictEqual(retentionExperiment.payload.data.design.analysisMethod, "intention_to_treat");
+
+    const retentionAssignments = await request("/api/retention/experiments/current/assignments.csv", { cookie });
+    assert.strictEqual(retentionAssignments.response.status, 200);
+    assert.match(String(retentionAssignments.payload), /customer_id_hash,assigned_policy,assigned_at/);
+
+    const assignmentLines = String(retentionAssignments.payload).replace(/^\uFEFF/, "").trim().split(/\r?\n/);
+    const retentionOutcomeCsv = [
+      "customer_id_hash,assigned_policy,actual_action,assigned_at,delivered_at,exposed_at,outcome_at,repurchased,net_revenue,contribution_margin,incentive_cost,channel_cost,refund_amount,opt_out,complaint",
+      ...assignmentLines.slice(1).map((line, index) => {
+        const columns = line.split(",");
+        const policy = columns[2];
+        const assignedAt = columns[3];
+        const outcomeAt = new Date(new Date(assignedAt).getTime() + 31 * 86400000).toISOString();
+        return [columns[1], policy, policy === "marginlift_policy" ? "message_no_discount" : "no_action", assignedAt, assignedAt, assignedAt, outcomeAt, index % 2 === 0, policy === "marginlift_policy" ? 150000 : 100000, policy === "marginlift_policy" ? 60000 : 40000, 0, policy === "marginlift_policy" ? 1000 : 0, 0, false, false].join(",");
+      })
+    ].join("\n");
+    const retentionOutcomePreview = await request("/api/retention/outcomes/preview", {
+      method: "POST",
+      cookie,
+      body: { csvText: retentionOutcomeCsv, analyzedAt: new Date(Date.now() + 31 * 86400000).toISOString() }
+    });
+    assert.strictEqual(retentionOutcomePreview.response.status, 200);
+    assert.ok(["pass", "needs_review"].includes(retentionOutcomePreview.payload.data.integrity.status));
+
+    const retentionOutcomeImport = await request("/api/retention/outcomes/import", {
+      method: "POST",
+      cookie,
+      body: { name: "Outcome retention test", csvText: retentionOutcomeCsv, analyzedAt: new Date(Date.now() + 31 * 86400000).toISOString() }
+    });
+    assert.strictEqual(retentionOutcomeImport.response.status, 201);
+    assert.strictEqual(retentionOutcomeImport.payload.data.evidenceLevel, "pilot_estimate");
+    assert.strictEqual(retentionOutcomeImport.payload.data.summary.financeVerificationStatus, "pending");
 
     const retentionBrief = await request("/api/retention/experiment-brief.md?baselineRate=0.2&minimumDetectableEffect=0.03&outcomeWindowDays=30&holdoutRate=0.2", { cookie });
     assert.strictEqual(retentionBrief.response.status, 200);

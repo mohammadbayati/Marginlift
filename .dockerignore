@@ -2,6 +2,8 @@
 .gitignore
 .env
 node_modules
+web/node_modules
+web/dist
 data/*.json
 data/*.tmp
 data/backups

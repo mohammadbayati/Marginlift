@@ -730,6 +730,47 @@ body.presentation-mode #experiments .flow-panel { display: none; }
 .retention-advanced > summary > span:last-child { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid var(--line-strong); border-radius: 50%; color: var(--muted); font-size: 1rem; transition: transform .2s ease; }
 .retention-advanced[open] > summary > span:last-child { transform: rotate(45deg); }
 .retention-config-panel .retention-config-form { margin-block-start: 18px; padding-block-start: 16px; border-block-start: 1px solid var(--line); }
+
+.metric-contract-panel { margin-block: 18px; }
+.metric-contract-panel > summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; cursor: pointer; font-weight: 800; }
+.metric-contract-form { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-block-start: 18px; padding-block-start: 16px; border-block-start: 1px solid var(--line); }
+.metric-contract-form label:has(textarea), .metric-contract-checks, .metric-contract-actions, .metric-contract-form .auth-hint { grid-column: 1 / -1; }
+.metric-contract-form textarea { width: 100%; min-height: 76px; resize: vertical; padding: 12px; border: 1px solid var(--line-strong); border-radius: var(--radius-md); color: var(--ink); background: #fff; line-height: 1.8; }
+.metric-contract-form textarea:focus { border-color: var(--decision); outline: 0; box-shadow: var(--focus); }
+.metric-contract-checks, .metric-contract-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.metric-contract-checks label { display: flex; grid-template-columns: auto 1fr; align-items: center; gap: 8px; }
+.metric-contract-checks input { width: 18px; min-height: 18px; }
+
+.retention-live-workspace { margin-block-start: 22px; padding-block-start: 22px; border-block-start: 1px solid var(--line); }
+.retention-live-heading, .retention-live-actions { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.retention-live-heading h3 { margin: 5px 0 0; font-size: .86rem; }
+.retention-pilot-gates { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 16px 0; }
+.retention-pilot-gate { min-height: 82px; padding: 12px; border: 1px solid var(--line); background: var(--surface-subtle); }
+.retention-pilot-gate strong, .retention-pilot-gate small { display: block; }
+.retention-pilot-gate strong { font-size: .66rem; }
+.retention-pilot-gate small { margin-block-start: 6px; color: var(--muted); font-size: .56rem; }
+.retention-pilot-gate.is-ready { border-color: #91d8c8; background: #eefaf7; }
+.retention-live-actions { justify-content: flex-start; }
+.retention-outcome-file { display: inline-flex; align-items: center; gap: 10px; min-height: 42px; padding: 7px 11px; border: 1px solid var(--line); background: #fff; font-size: .62rem; font-weight: 800; }
+.retention-outcome-file input { max-width: 220px; }
+.retention-live-result { margin-block-start: 14px; padding: 14px; color: #f5f8fa; background: #11171e; }
+.retention-live-result p { margin: 0; }
+.retention-live-result dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin: 0; background: #35404b; }
+.retention-live-result dl div { padding: 12px; background: #11171e; }
+.retention-live-result dt { color: #9eabb6; font-size: .56rem; }
+.retention-live-result dd { margin: 6px 0 0; font-size: .72rem; font-weight: 850; }
+.retention-finance-verification { display: grid; grid-template-columns: 1fr 2fr auto; gap: 10px; align-items: end; margin-block-start: 12px; }
+.retention-finance-verification label { display: grid; gap: 6px; color: var(--ink-soft); font-size: .58rem; font-weight: 800; }
+.retention-finance-verification input { min-height: 42px; padding: 9px 11px; border: 1px solid var(--line-strong); background: #fff; }
+
+@media (max-width: 760px) {
+  .metric-contract-form { grid-template-columns: 1fr; }
+  .metric-contract-form > * { grid-column: 1; }
+  .metric-contract-actions .primary-button, .metric-contract-actions .secondary-button { width: 100%; }
+  .retention-pilot-gates, .retention-live-result dl { grid-template-columns: 1fr; }
+  .retention-live-actions > *, .retention-outcome-file { width: 100%; }
+  .retention-finance-verification { grid-template-columns: 1fr; }
+}
 .retention-contract-note { margin: 0; padding: 11px 13px; border-inline-start: 2px solid var(--decision); color: var(--muted); background: var(--surface-subtle); font-size: .62rem; line-height: 1.8; }
 .retention-contract-note strong { color: var(--ink); }
 

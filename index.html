@@ -116,16 +116,16 @@
           <a class="active" href="#command"><span class="nav-index">۰۱</span>مرکز فرمان</a>
           <a href="#retention"><span class="nav-index">۰۲</span>حفظ مشتری</a>
           <a href="#behavioral"><span class="nav-index">۰۳</span>رفتار و مداخله</a>
-          <a href="#customers"><span class="nav-index">۰۴</span>صف تصمیم</a>
-          <a href="#decisions"><span class="nav-index">۰۵</span>سیاست اقدام</a>
-          <span class="nav-group-label">تحلیل</span>
-          <a href="#uplift"><span class="nav-index">۰۶</span>اثر افزایشی</a>
-          <a href="#customer360"><span class="nav-index">۰۷</span>مشتریان</a>
-          <a href="#experiments"><span class="nav-index">۰۸</span>شواهد و آزمایش</a>
-          <a href="#governance"><span class="nav-index">۰۹</span>سلامت مدل</a>
+          <a href="#customers" data-legacy-nav hidden><span class="nav-index">۰۴</span>صف تصمیم قدیمی</a>
+          <a href="#decisions" data-legacy-nav hidden><span class="nav-index">۰۵</span>سیاست اقدام قدیمی</a>
+          <span class="nav-group-label" data-legacy-nav hidden>آزمایشگاه دمو</span>
+          <a href="#uplift" data-legacy-nav hidden><span class="nav-index">۰۶</span>اثر افزایشی نمونه</a>
+          <a href="#customer360" data-legacy-nav hidden><span class="nav-index">۰۷</span>مشتریان نمونه</a>
+          <a href="#experiments" data-legacy-nav hidden><span class="nav-index">۰۸</span>آزمایش قدیمی</a>
+          <a href="#governance" data-legacy-nav hidden><span class="nav-index">۰۹</span>مدل‌های نمونه</a>
           <span class="nav-group-label">عملیات</span>
           <a href="#operations"><span class="nav-index">۱۰</span>اعتماد و دسترسی</a>
-          <a href="#data"><span class="nav-index">۱۱</span>داده و پایلوت</a>
+          <a href="#data" data-legacy-nav hidden><span class="nav-index">۱۱</span>ورود داده قدیمی</a>
           <a id="usabilityConsoleLink" href="/internal/usability-test" target="_blank" rel="noopener" hidden><span class="nav-index">۱۲</span>آزمایش کاربر</a>
         </nav>
 
@@ -146,6 +146,7 @@
           </div>
           <div class="topbar-actions">
             <button class="presentation-launch-button" id="presentationModeButton" type="button" aria-pressed="false">شروع ارائه</button>
+            <button class="text-button" id="legacyLabButton" type="button" aria-pressed="false">آزمایشگاه دمو</button>
             <span class="live-status"><span class="status-dot"></span>داده نمونه فعال</span>
             <button class="icon-button" id="exportReportButton" type="button" title="دریافت گزارش" aria-label="دریافت گزارش">↓</button>
             <div class="topbar-user" aria-label="کاربر فعال"><span class="topbar-avatar" id="topbarAvatar" aria-hidden="true">م</span><div><strong id="topbarUser">کاربر MarginLift</strong><small id="topbarRole">مشاهده‌گر</small></div></div>
@@ -184,12 +185,12 @@
 
         <section class="command-hero" id="command" aria-labelledby="pulseHeadline">
           <div class="hero-intro">
-            <div class="decision-brief-meta"><span class="decision-label"><span class="status-dot" aria-hidden="true"></span>تصمیم پیشنهادی امروز</span><span class="evidence-label">برآورد پایلوت</span></div>
+            <div class="decision-brief-meta"><span class="decision-label"><span class="status-dot" aria-hidden="true"></span>تصمیم پیشنهادی امروز</span><span class="evidence-label" id="commandEvidence">بدون شواهد</span></div>
             <h1 id="pulseHeadline">صف تصمیم در حال آماده‌سازی است</h1>
             <p id="pulseNote">کیفیت داده، گروه کنترل و حاشیه سود برای هر تصمیم بررسی می‌شود.</p>
             <div class="hero-actions">
-              <a class="primary-button button-link" href="#customers">مشاهده صف تصمیم <span aria-hidden="true">←</span></a>
-              <a class="quiet-link" href="#data">بررسی آمادگی داده</a>
+              <a class="primary-button button-link" href="#retentionQueue">مشاهده صف تصمیم <span aria-hidden="true">←</span></a>
+              <a class="quiet-link" href="#retention">بررسی آمادگی داده</a>
             </div>
           </div>
           <aside class="hero-pulse" aria-label="وضعیت موتور تصمیم">
@@ -221,6 +222,34 @@
             <li id="retentionFlowDecision"><span>۲</span><div><strong>تصمیم نگهداشت</strong><small>ریسک، اقدام و تخفیف</small></div></li>
             <li id="retentionFlowPilot"><span>۳</span><div><strong>پایلوت A/B</strong><small>اثبات اثر واقعی</small></div></li>
           </ol>
+
+          <details class="panel retention-advanced metric-contract-panel" id="metricContractPanel">
+            <summary><span>قرارداد معیار و سیاست فعلی</span><span class="pill" id="metricContractStatus">نیازمند تکمیل</span></summary>
+            <form class="retention-config-form metric-contract-form" id="metricContractForm">
+              <label>تعریف Channel Churn<textarea id="metricChurnDefinition" rows="2" required></textarea></label>
+              <label>جامعه واجد شرایط<textarea id="metricEligibility" rows="2" required></textarea></label>
+              <label>تعریف حاشیه سود<input id="metricMarginDefinition" maxlength="300" required></label>
+              <label>توصیف سیاست فعلی CRM<textarea id="metricCurrentPolicy" rows="2" required></textarea></label>
+              <label>مالک سیاست فعلی<input id="metricCurrentPolicyOwner" maxlength="80" required></label>
+              <label>مالک CRM<input id="metricCrmOwner" maxlength="80" required></label>
+              <label>مالک داده<input id="metricDataOwner" maxlength="80" required></label>
+              <label>مالک مالی<input id="metricFinanceOwner" maxlength="80" required></label>
+              <label>مالک آزمایش<input id="metricExperimentOwner" maxlength="80" required></label>
+              <div class="metric-contract-checks">
+                <label><input id="metricActionsLogged" type="checkbox"> اقدام‌های سیاست فعلی ثبت می‌شوند</label>
+                <label><input id="metricPolicyReproducible" type="checkbox"> سیاست فعلی قابل بازتولید است</label>
+              </div>
+              <div class="metric-contract-actions">
+                <button class="secondary-button" type="submit">ذخیره پیش‌نویس</button>
+                <button class="secondary-button" type="button" data-metric-action="approve_crm">تأیید CRM</button>
+                <button class="secondary-button" type="button" data-metric-action="approve_data">تأیید داده</button>
+                <button class="secondary-button" type="button" data-metric-action="approve_finance">تأیید مالی</button>
+                <button class="primary-button" type="button" data-metric-action="lock">قفل قرارداد</button>
+                <button class="secondary-button" id="metricNewVersionButton" type="button" data-metric-action="new_version" hidden>نسخه جدید</button>
+              </div>
+              <p class="auth-hint" id="metricContractMessage" role="status">تا قفل‌شدن قرارداد، اجرای Live مجاز نیست.</p>
+            </form>
+          </details>
 
           <div class="retention-setup-grid">
             <details class="panel retention-config-panel retention-advanced">
@@ -273,8 +302,8 @@
             <section class="retention-model-card" id="retentionModelCard" aria-label="شناسنامه مدل نگهداشت"></section>
           </article>
 
-          <article class="panel retention-queue-panel">
-            <div class="panel-heading"><div><span class="mini-label">خروجی قابل اجرا</span><h3>چه کسی، چه اقدامی، با چه تخفیفی؟</h3></div><div class="retention-export-tools"><select id="retentionReadoutRole" aria-label="مخاطب گزارش"><option value="executive">مدیریت ارشد</option><option value="crm">CRM و رشد</option><option value="finance">مدیریت مالی</option><option value="data">داده و تحلیل</option></select><button class="secondary-button" id="retentionReadoutButton" type="button">گزارش نقش‌محور</button><button class="secondary-button" id="retentionAudienceButton" type="button">خروجی CRM</button></div></div>
+          <article class="panel retention-queue-panel" id="retentionQueue">
+            <div class="panel-heading"><div><span class="mini-label">خروجی قابل بازبینی</span><h3>چه کسی نیازمند بررسی است و اقدام کم‌ریسک چیست؟</h3></div><div class="retention-export-tools"><select id="retentionReadoutRole" aria-label="مخاطب گزارش"><option value="executive">مدیریت ارشد</option><option value="crm">CRM و رشد</option><option value="finance">مدیریت مالی</option><option value="data">داده و تحلیل</option></select><button class="secondary-button" id="retentionReadoutButton" type="button">گزارش نقش‌محور</button><button class="secondary-button" id="retentionAudienceButton" type="button">خروجی CRM</button></div></div>
             <div class="decision-table-wrap"><table class="decision-table"><thead><tr><th>شناسه ناشناس</th><th>ریسک عدم خرید</th><th>اقدام پیشنهادی</th><th>تصمیم تخفیف</th><th>دلیل</th></tr></thead><tbody id="retentionQueueRows"></tbody></table></div>
           </article>
 
@@ -300,6 +329,24 @@
             </details>
             <div class="retention-demo-tools"><span>برای ارائه، یک سناریوی تمیز و برچسب‌خورده بارگذاری کنید؛ داده‌های قبلی حذف نمی‌شوند.</span><select id="retentionDemoPreset" aria-label="سناریوی نمایشی"><option value="generic_ecommerce">فروشگاه اینترنتی</option><option value="super_app_packages">خرید بسته اینترنت</option><option value="subscription_services">تمدید اشتراک</option></select><button class="secondary-button" id="retentionDemoResetButton" type="button">بارگذاری سناریوی نمونه</button></div>
             <p class="auth-hint" id="retentionShadowMessage" role="status">اجرای زنده فقط پس از تأیید طرح آزمایش مجاز است.</p>
+            <section class="retention-live-workspace" aria-labelledby="retentionLiveTitle">
+              <div class="retention-live-heading"><div><span class="mini-label">Live Pilot Workspace</span><h3 id="retentionLiveTitle">از Shadow تا تصمیم Scale، بدون جهش در سطح ادعا</h3></div><span class="pill" id="retentionLiveStatus">در انتظار گیت‌ها</span></div>
+              <div class="retention-pilot-gates" id="retentionPilotGates"></div>
+              <div class="retention-live-actions">
+                <button class="primary-button" id="retentionRegisterExperimentButton" type="button">ثبت آزمایش سیاست‌ها</button>
+                <button class="secondary-button" id="retentionDownloadAssignmentsButton" type="button">دریافت Assignment</button>
+                <label class="retention-outcome-file">فایل Outcome CSV<input id="retentionOutcomeFile" type="file" accept=".csv,text/csv"></label>
+                <button class="secondary-button" id="retentionImportOutcomeButton" type="button">بررسی و ثبت Outcome</button>
+                <a class="quiet-link" href="/retention-outcome-template.csv" download>قالب Outcome</a>
+              </div>
+              <div class="retention-live-result" id="retentionLiveResult"><p>تا پایان پنجره Outcome، سود افزایشی و Saveability ناموجود می‌ماند.</p></div>
+              <div class="retention-finance-verification" id="retentionFinanceVerification" hidden>
+                <label>بازبین مالی<input id="retentionFinanceReviewer" maxlength="80" placeholder="نام یا سمت نماینده Finance"></label>
+                <label>یادداشت تطبیق مالی<input id="retentionFinanceReason" maxlength="500" placeholder="منبع مبلغ‌ها و نتیجه تطبیق را ثبت کنید"></label>
+                <button class="secondary-button" id="retentionVerifyFinanceButton" type="button">تأیید تطبیق Finance</button>
+              </div>
+              <p class="auth-hint" id="retentionLiveMessage" role="status">ابتدا Metric Contract را قفل و دو Shadow Run پایدار اجرا کنید.</p>
+            </section>
           </article>
         </section>
 
@@ -334,7 +381,7 @@
           </section>
         </section>
 
-        <section class="content-section" id="customers">
+        <section class="content-section legacy-lab-section" id="customers" hidden>
           <div class="section-heading">
             <div><p class="section-kicker">صف تصمیم</p><h2>چه کسی به اقدام نیاز دارد؟</h2><p>هر ردیف یک تصمیم اقتصادی است؛ ریسک بالا به‌تنهایی مجوز تخفیف نیست.</p></div>
             <span class="section-tag" id="queueSource">برآورد اولیه سگمنت</span>
@@ -354,12 +401,12 @@
           </div>
         </section>
 
-        <section class="content-section" id="decisions">
+        <section class="content-section legacy-lab-section" id="decisions" hidden>
           <div class="section-heading"><div><p class="section-kicker">Policy engine</p><h2>از سیگنال تا اقدام</h2><p>«هیچ اقدامی نکن» هم یک تصمیم معتبر است، وقتی هزینه از اثر احتمالی بیشتر باشد.</p></div><span class="section-tag">Profit first</span></div>
           <div class="action-grid" id="actionCards"></div>
         </section>
 
-        <section class="content-section" id="uplift">
+        <section class="content-section legacy-lab-section" id="uplift" hidden>
           <div class="section-heading"><div><p class="section-kicker">Uplift Intelligence</p><h2>اثر واقعی را از هم‌بستگی جدا کنید.</h2><p>جزئیات علمی در این بخش می‌ماند؛ نمای مدیریتی فقط نتیجه اقتصادی و سطح اعتماد را نشان می‌دهد.</p></div><span class="section-tag" id="upliftModelStatus">در حال تحلیل</span></div>
           <div class="uplift-lab">
             <article class="panel uplift-summary"><div class="panel-heading"><div><span class="mini-label">Targeting point</span><h3>بهترین نقطه هدف‌گیری</h3></div></div><div class="uplift-summary-grid" id="upliftSummary"></div></article>
@@ -370,7 +417,7 @@
           <div class="model-card-strip" id="upliftModelCards"></div>
         </section>
 
-        <section class="content-section" id="customer360">
+        <section class="content-section legacy-lab-section" id="customer360" hidden>
           <div class="section-heading"><div><p class="section-kicker">Customer 360</p><h2>تصمیم را تا سطح مشتری پایین بیاورید.</h2><p>ریسک، ارزش، اقدام پیشنهادی و سود افزایشی در یک نمای قابل ارسال به CRM.</p></div><button class="secondary-button" id="exportAudienceButton" type="button">دریافت خروجی مخاطبان</button></div>
           <div class="customer-product-grid">
             <article class="panel customer-panel"><div class="panel-heading"><div><span class="mini-label">اولویت اجرا</span><h3>مشتریان آماده اقدام</h3></div><span class="pill save" id="customerModelStatus">در حال تحلیل</span></div><div class="customer-list" id="customerCards"></div></article>
@@ -378,7 +425,7 @@
           </div>
         </section>
 
-        <section class="content-section" id="experiments">
+        <section class="content-section legacy-lab-section" id="experiments" hidden>
           <div class="section-heading"><div><p class="section-kicker">Evidence & Experiment</p><h2>قبل از مقیاس، اثبات کنید.</h2><p>طراحی آزمایش، گاردریل مالی و قرارداد تصمیم در یک مسیر قابل پیگیری.</p></div><span class="section-tag">Fixed horizon / No peeking</span></div>
           <section class="panel experiment-builder"><div class="experiment-copy"><span class="mini-label">فرضیه پایلوت</span><h3 id="experimentHypothesis">—</h3><p>معیار اصلی، سود افزایشی است؛ conversion فقط یک شاخص کمکی است.</p></div><div class="experiment-grid" id="experimentPlan"></div></section>
           <section class="flow-panel panel"><div class="panel-heading"><div><span class="mini-label">Decision pipeline</span><h3>هر تصمیم از چه مراحلی عبور می‌کند؟</h3></div><span class="pill save">Closed loop</span></div><div class="stage-grid" id="stageGrid"></div></section>
@@ -388,7 +435,7 @@
           </div>
         </section>
 
-        <section class="content-section governance-section" id="governance">
+        <section class="content-section governance-section legacy-lab-section" id="governance" hidden>
           <div class="section-heading"><div><p class="section-kicker">Model Governance</p><h2>آیا می‌توان به تصمیم مدل اعتماد کرد؟</h2><p>بک‌تست، تغییر داده و نتیجه واقعی پایلوت جداگانه پایش می‌شوند؛ هیچ مدلی خودکار ارتقا پیدا نمی‌کند.</p></div><span class="section-tag" id="governanceClaim">در حال ارزیابی</span></div>
           <section class="panel governance-summary" aria-label="خلاصه سلامت مدل">
             <div><span>وضعیت بک‌تست</span><strong id="backtestStatus">—</strong><small id="backtestEvidence">—</small></div>
@@ -430,7 +477,7 @@
           </section>
         </section>
 
-        <section class="content-section data-workspace" id="data">
+        <section class="content-section data-workspace legacy-lab-section" id="data" hidden>
           <div class="section-heading"><div><p class="section-kicker">Data & Pilot</p><h2>از فایل خام تا تصمیم پایلوت</h2><p>MarginLift ابتدا نوع داده و محدودیت ادعا را تشخیص می‌دهد، سپس مسیر درست را پیشنهاد می‌کند.</p></div><span class="section-tag">CSV امن و ناشناس</span></div>
           <section class="data-panel panel">
             <div class="data-copy">

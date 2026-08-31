@@ -29,8 +29,8 @@ function buildRetentionShadowRun(record, options = {}) {
     liveActionAllowed: false,
     status: ready ? "ready" : selected.length ? "needs_review" : "blocked",
     statusFa: ready ? "اجرای سایه آماده است" : selected.length ? "نیازمند بازبینی هم‌پوشانی" : "مخاطب واجد شرایط وجود ندارد",
-    evidenceLevel: "observational_shadow",
-    evidenceLabelFa: "شبیه‌سازی عملیاتی؛ بدون تماس با مشتری",
+    evidenceLevel: "shadow_result",
+    evidenceLabelFa: "نتیجه Shadow؛ بدون تماس با مشتری",
     source: {
       analysisId: record.id,
       datasetVersion: record.baseline?.modelCard?.datasetVersion || "",

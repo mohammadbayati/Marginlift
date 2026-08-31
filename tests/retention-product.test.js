@@ -27,7 +27,7 @@ for (let customer = 1; customer <= 10; customer += 1) {
 
 const analysis = analyzeRetentionRows(rows, apConfig, { cutoff: "2025-04-15T00:00:00Z" });
 assert.strictEqual(analysis.readiness.status, "ready");
-assert.strictEqual(analysis.workspace.evidenceLevel, "observational_baseline");
+assert.strictEqual(analysis.workspace.evidenceLevel, "observational_estimate");
 assert.strictEqual(analysis.workspace.metrics.units, 10);
 assert.ok(analysis.workspace.queue.length >= 1);
 assert.ok(analysis.workspace.queue.every(item => item.incentiveAllowed === false));
@@ -38,6 +38,10 @@ assert.ok(analysis.workspace.queue.every(item => item.evidenceLabelFa.includes("
 assert.ok(analysis.workspace.policyVersion);
 assert.strictEqual(analysis.decisionQueue.length, analysis.workspace.metrics.queueSize);
 assert.ok(analysis.decisionQueue.every(item => item.policyVersion === analysis.workspace.policyVersion));
+assert.ok(analysis.decisionQueue.every(item => item.riskProbability === null));
+assert.ok(analysis.decisionQueue.every(item => item.saveabilityByAction === null));
+assert.ok(analysis.decisionQueue.every(item => item.expectedIncrementalProfit === null));
+assert.ok(analysis.decisionQueue.every(item => item.decisionId && item.evidenceLevel === "observational_estimate"));
 
 const ecommerce = getRetentionPreset("generic_ecommerce");
 const mapped = mapRetentionRows([{
