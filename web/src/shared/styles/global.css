@@ -244,6 +244,9 @@ tbody tr:hover { background: #f8fafb; }
 .report-evidence { display: grid; grid-template-columns: 1.25fr 1fr; gap: 8mm; }
 .report-evidence dl { border-block-start: 1px solid var(--line); }
 .report-evidence dl div { display: flex; justify-content: space-between; gap: 16px; padding-block: 3mm; border-block-end: 1px solid var(--line); }
+.a4-report.is-finance { gap: 5mm; padding: 12mm 16mm; }
+.finance-readout ul { display: grid; gap: 1.5mm; margin: 3mm 0 0; padding: 0; color: var(--muted); font-size: 10px; list-style: none; }
+.finance-readout li strong { color: var(--ink); }
 .report-next { padding: 5mm; border: 1px solid var(--line); border-radius: 6px; background: #f7f8fa; }
 .report-next ol { display: grid; gap: 3mm; margin: 4mm 0 0; padding: 0; list-style: none; }
 .report-next li { display: grid; grid-template-columns: 35mm 1fr; gap: 5mm; padding-block-end: 3mm; border-block-end: 1px solid var(--line); }

@@ -93,7 +93,12 @@ function run() {
   assert.strictEqual(buildRetentionToday({ record, workspace: record.workspace, evidence: evidenceMeta("shadow_result"), shadowRun: { id: "shadow_1" } }).state, "shadow_ready");
   assert.strictEqual(buildRetentionToday({ record, workspace: record.workspace, evidence: evidenceMeta("pilot_estimate"), experiment: { id: "exp_1" } }).state, "pilot_registered");
   assert.strictEqual(buildRetentionToday({ record, workspace: record.workspace, evidence: evidenceMeta("pilot_estimate"), outcome: { summary: {} } }).state, "needs_review");
-  assert.strictEqual(buildRetentionToday({ record, workspace: record.workspace, evidence: evidenceMeta("verified_incremental"), outcome: { summary: { incrementalContributionProfitPerAssignedCustomer: 1500 } } }).state, "verified");
+  const verifiedToday = buildRetentionToday({ record, workspace: record.workspace, evidence: evidenceMeta("verified_incremental"), outcome: { summary: { incrementalContributionProfitPerAssignedCustomer: 1500, decision: "scale", recommendationFa: "افزایش مرحله‌ای" } } });
+  assert.strictEqual(verifiedToday.state, "verified");
+  assert.strictEqual(verifiedToday.decisionFa, "Scale کنترل‌شده");
+  assert.strictEqual(verifiedToday.claimBoundary.canRecommendScale, true);
+  const stoppedToday = buildRetentionToday({ record, workspace: record.workspace, evidence: evidenceMeta("verified_incremental"), outcome: { summary: { incrementalContributionProfitPerAssignedCustomer: -100, decision: "stop" } } });
+  assert.strictEqual(stoppedToday.claimBoundary.canRecommendScale, false);
 
   const receipt = buildRetentionDecisionReceipt({ record, contract, decisionId: "dec_1" });
   assert.deepStrictEqual(receipt.unknowns.sort(), ["expected_incremental_profit", "risk_probability", "saveability_by_action"].sort());
@@ -105,6 +110,25 @@ function run() {
     assert.strictEqual(readout.evidence.key, "observational_estimate");
     assert.strictEqual(readout.owners.length, 3);
   }
+
+  const verifiedOutcome = {
+    evidenceLevel: "verified_incremental",
+    summary: {
+      decision: "scale",
+      recommendationFa: "افزایش مرحله‌ای",
+      incrementalContributionProfitPerAssignedCustomer: 1500,
+      confidenceInterval95: { lower: 500, upper: 2500 },
+      financeVerificationStatus: "verified"
+    },
+    guardrails: { configured: true, passed: true, checks: [] },
+    financeReconciliation: { status: "verified", tolerance: 0, checks: [] },
+    integrity: { decisionEligible: true }
+  };
+  const verifiedContract = enrichRetentionWorkspace({ ...base, evidence: evidenceMeta("verified_incremental"), outcome: verifiedOutcome }, { record, outcome: verifiedOutcome });
+  const financeReadout = buildRetentionReadout({ contract: verifiedContract, organization: { id: "org_1", name: "MarginLift" }, record }, "finance");
+  assert.strictEqual(financeReadout.finalDecision, "scale");
+  assert.strictEqual(financeReadout.financeVerified, true);
+  assert.strictEqual(financeReadout.evidence.boundary.canRecommendScale, true);
 
   console.log("retention-ux-contract.test.js passed");
 }

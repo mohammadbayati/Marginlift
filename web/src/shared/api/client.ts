@@ -97,9 +97,14 @@ export const api = {
     request("/api/retention/experiments/register", ExperimentSchema, json("POST", { name })),
   previewOutcome: (csvText: string) =>
     request("/api/retention/outcomes/preview", OutcomePreviewSchema, json("POST", { csvText })),
-  importOutcome: (csvText: string) =>
-    request("/api/retention/outcomes/import", z.record(z.string(), z.unknown()), json("POST", { name: "Outcome پایلوت سیاست نگهداشت", csvText })),
-  verifyFinance: (outcomeId: string, body: { reviewerFa: string; reasonFa: string }) =>
+  importOutcome: (csvText: string, expectedOutcomeHash: string) =>
+    request("/api/retention/outcomes/import", z.record(z.string(), z.unknown()), json("POST", { name: "Outcome پایلوت سیاست نگهداشت", csvText, expectedOutcomeHash })),
+  verifyFinance: (outcomeId: string, body: {
+    reviewerFa: string;
+    reasonFa: string;
+    toleranceToman: number;
+    reconciliation: Record<string, number>;
+  }) =>
     request(`/api/retention/outcomes/${encodeURIComponent(outcomeId)}/verify-finance`, OutcomeSchema, json("POST", body)),
   governance: () => request("/api/model-governance/overview", GovernanceSchema),
   configuration: () => request("/api/retention/configuration", ConfigurationResponseSchema),

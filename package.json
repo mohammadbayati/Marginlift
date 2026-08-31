@@ -27,6 +27,7 @@
     "retention:dataset": "node scripts/build-channel-retention-dataset.js",
     "retention:baseline": "node scripts/build-survival-baseline.js",
     "retention:model": "python scripts/train-discrete-time-survival.py",
+    "retention:holdout:verify": "python scripts/verify_live_holdout.py",
     "retention:model:test": "python -m unittest tests/test_survival_model.py"
   },
   "engines": {

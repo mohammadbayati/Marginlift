@@ -1,0 +1,46 @@
+{
+  "organization": "نام مشتری",
+  "useCase": "مثلاً خرید مجدد بسته اینترنت",
+  "metricContract": {
+    "outcomeWindowDays": 30,
+    "followupWindowsDays": [90, 180],
+    "minimumSamplePerPolicy": null,
+    "samplePlanning": {
+      "assumedContributionProfitStdDev": null,
+      "minimumDetectableContributionProfitPerCustomer": null
+    },
+    "primaryMetric": "incremental_contribution_profit_per_assigned_customer",
+    "currencyUnit": "toman",
+    "channelChurnDefinitionFa": "",
+    "eligibilityFa": "",
+    "finance": {
+      "grossMarginDefinitionFa": "",
+      "contributionProfitFormulaFa": "درآمد خالص منهای هزینه متغیر، مشوق، کانال و بازپرداخت"
+    },
+    "currentPolicy": {
+      "descriptionFa": "",
+      "ownerFa": "",
+      "actionsLogged": false,
+      "reproducible": false
+    },
+    "decisionRules": {
+      "minIncrementalNetRevenuePerAssignedCustomer": null,
+      "maxIncrementalIncentiveCostPerAssignedCustomer": null,
+      "maxOptOutRateDelta": null,
+      "maxComplaintRateDelta": null,
+      "thresholdBasisFa": ""
+    },
+    "owners": {
+      "crmFa": "",
+      "dataFa": "",
+      "financeFa": "",
+      "experimentFa": ""
+    }
+  },
+  "approvalEvidence": {
+    "crmReference": "",
+    "dataReference": "",
+    "financeReference": "",
+    "approvedAt": ""
+  }
+}

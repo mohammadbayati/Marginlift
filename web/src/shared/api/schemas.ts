@@ -211,6 +211,16 @@ export const MetricContractSchema = z
     status: z.string().default("draft"),
     statusFa: z.string().default("پیش‌نویس"),
     primaryMetricFa: z.string().default("سود مشارکتی افزایشی"),
+    minimumSamplePerPolicy: z.number().nullable().default(null),
+    samplePlanning: z
+      .object({
+        method: z.string().default("two_arm_mean_difference_normal_approximation"),
+        assumedContributionProfitStdDev: z.number().nullable().default(null),
+        minimumDetectableContributionProfitPerCustomer: z.number().nullable().default(null),
+        recommendedMinimumSamplePerPolicy: z.number().nullable().default(null),
+      })
+      .passthrough()
+      .default({}),
     channelChurnDefinitionFa: z.string().default(""),
     eligibilityFa: z.string().default(""),
     finance: z
@@ -229,6 +239,18 @@ export const MetricContractSchema = z
         ownerFa: z.string().default(""),
         actionsLogged: z.boolean().default(false),
         reproducible: z.boolean().default(false),
+      })
+      .passthrough()
+      .default({}),
+    decisionRules: z
+      .object({
+        requirePositiveLowerBoundForScale: z.boolean().default(true),
+        stopWhenPointEstimateNegative: z.boolean().default(true),
+        minIncrementalNetRevenuePerAssignedCustomer: z.number().nullable().default(null),
+        maxIncrementalIncentiveCostPerAssignedCustomer: z.number().nullable().default(null),
+        maxOptOutRateDelta: z.number().nullable().default(null),
+        maxComplaintRateDelta: z.number().nullable().default(null),
+        thresholdBasisFa: z.string().default(""),
       })
       .passthrough()
       .default({}),
@@ -311,6 +333,29 @@ export const OutcomeSchema = z
       })
       .passthrough()
       .default({}),
+    guardrails: z
+      .object({
+        configured: z.boolean().default(false),
+        passed: z.boolean().default(false),
+        checks: z.array(z.object({ key: z.string(), labelFa: z.string(), observed: z.number(), threshold: z.number().nullable(), passed: z.boolean() }).passthrough()).default([]),
+      })
+      .passthrough()
+      .optional(),
+    financeReconciliation: z
+      .object({
+        status: z.string().default("pending"),
+        expected: z.object({
+          totalNetRevenue: z.number(),
+          totalContributionMargin: z.number(),
+          totalIncentiveCost: z.number(),
+          totalChannelCost: z.number(),
+          totalRefundAmount: z.number(),
+        }).optional(),
+        tolerance: z.number().nullable().optional(),
+        checks: z.array(z.unknown()).default([]),
+      })
+      .passthrough()
+      .optional(),
   })
   .passthrough();
 export type Outcome = z.infer<typeof OutcomeSchema>;
@@ -326,6 +371,16 @@ export const RetentionWorkspaceSchema = z
       latestRun: z.record(z.string(), z.unknown()).nullable().default(null),
       healthyConsecutiveRuns: z.number().default(0),
       readyForExperiment: z.boolean().default(false),
+    }).default({}),
+    experimentAdmission: z.object({
+      ready: z.boolean().default(false),
+      checks: z.array(z.object({ key: z.string(), labelFa: z.string(), passed: z.boolean(), detailFa: z.string() })).default([]),
+      blockersFa: z.array(z.string()).default([]),
+      population: z.object({
+        uniqueCustomers: z.number().default(0),
+        minimumSamplePerPolicy: z.number().default(0),
+        requiredTotal: z.number().nullable().default(null),
+      }).default({}),
     }).default({}),
     analysis: z
       .object({
@@ -552,6 +607,7 @@ export type SettingsForm = z.infer<typeof SettingsFormSchema>;
 
 export const OutcomePreviewSchema = z
   .object({
+    outcomeDatasetHash: z.string(),
     integrity: z
       .object({
         fatal: z.boolean().default(false),
@@ -621,6 +677,19 @@ export const RetentionReadoutSchema = z
       policyVersion: z.string().nullable(),
     }),
     owners: z.array(z.object({ roleFa: z.string(), actionFa: z.string() })).default([]),
+    financeVerified: z.boolean().optional(),
+    finalDecision: z.string().nullable().optional(),
+    confidenceInterval95: z.object({ lower: z.number(), upper: z.number() }).nullable().optional(),
+    guardrails: z.object({
+      configured: z.boolean().default(false),
+      passed: z.boolean().default(false),
+      checks: z.array(z.object({ key: z.string(), labelFa: z.string(), observed: z.number(), threshold: z.number().nullable(), passed: z.boolean() }).passthrough()).default([]),
+    }).passthrough().nullable().optional(),
+    reconciliation: z.object({
+      status: z.string(),
+      tolerance: z.number().nullable().optional(),
+      checks: z.array(z.object({ key: z.string(), labelFa: z.string(), difference: z.number().nullable(), passed: z.boolean() }).passthrough()).default([]),
+    }).passthrough().nullable().optional(),
   })
   .passthrough();
 export type RetentionReadout = z.infer<typeof RetentionReadoutSchema>;

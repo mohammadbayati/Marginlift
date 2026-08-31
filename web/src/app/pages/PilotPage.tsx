@@ -5,11 +5,28 @@ import { api, downloadApiFile } from "../../shared/api/client";
 import { formatNumber, formatToman } from "../../shared/lib/format";
 import { ErrorState, EvidenceBadge, LoadingState } from "../../shared/ui";
 
+const financeFields = [
+  ["totalNetRevenue", "درآمد خالص"],
+  ["totalContributionMargin", "حاشیه سود مشارکتی"],
+  ["totalIncentiveCost", "هزینه مشوق"],
+  ["totalChannelCost", "هزینه کانال"],
+  ["totalRefundAmount", "بازپرداخت"],
+] as const;
+type FinanceField = (typeof financeFields)[number][0];
+
 export function PilotPage() {
   const [outcomeCsv, setOutcomeCsv] = useState("");
   const [outcomeName, setOutcomeName] = useState("");
   const [reviewerFa, setReviewerFa] = useState("");
   const [financeReasonFa, setFinanceReasonFa] = useState("");
+  const [financeTolerance, setFinanceTolerance] = useState("0");
+  const [financeValues, setFinanceValues] = useState<Record<FinanceField, string>>({
+    totalNetRevenue: "",
+    totalContributionMargin: "",
+    totalIncentiveCost: "",
+    totalChannelCost: "",
+    totalRefundAmount: "",
+  });
   const queryClient = useQueryClient();
   const query = useQuery({ queryKey: ["retention-workspace"], queryFn: api.retentionWorkspace });
   const session = useQuery({ queryKey: ["session"], queryFn: api.session });
@@ -17,9 +34,14 @@ export function PilotPage() {
   const shadowMutation = useMutation({ mutationFn: () => api.createShadowRun({ name: `Shadow Run ${new Date().toLocaleDateString("fa-IR")}` }), onSuccess: refresh });
   const registerMutation = useMutation({ mutationFn: () => api.registerExperiment("Current CRM Policy در برابر MarginLift Policy"), onSuccess: refresh });
   const outcomePreview = useMutation({ mutationFn: () => api.previewOutcome(outcomeCsv) });
-  const outcomeImport = useMutation({ mutationFn: () => api.importOutcome(outcomeCsv), onSuccess: refresh });
+  const outcomeImport = useMutation({ mutationFn: () => api.importOutcome(outcomeCsv, outcomePreview.data?.outcomeDatasetHash || ""), onSuccess: refresh });
   const financeMutation = useMutation({
-    mutationFn: (outcomeId: string) => api.verifyFinance(outcomeId, { reviewerFa, reasonFa: financeReasonFa }),
+    mutationFn: (outcomeId: string) => api.verifyFinance(outcomeId, {
+      reviewerFa,
+      reasonFa: financeReasonFa,
+      toleranceToman: Number(financeTolerance),
+      reconciliation: Object.fromEntries(financeFields.map(([key]) => [key, Number(financeValues[key])])),
+    }),
     onSuccess: refresh,
   });
 
@@ -32,6 +54,7 @@ export function PilotPage() {
   const financeVerified = data.outcome?.summary.financeVerificationStatus === "verified";
   const canOperate = session.data ? ["owner", "admin", "analyst"].includes(session.data.role) : false;
   const canVerifyFinance = session.data ? ["owner", "admin"].includes(session.data.role) : false;
+  const financeReady = financeFields.every(([key]) => financeValues[key].trim() !== "") && Number.isFinite(Number(financeTolerance)) && Number(financeTolerance) >= 0;
   const steps = [
     { key: "data", label: "داده", complete: Boolean(data.analysis), status: data.analysis ? "نسخه داده ثبت شده" : "در انتظار Data Contract" },
     { key: "contract", label: "قرارداد معیار", complete: data.metricContract.status === "locked", status: data.metricContract.statusFa },
@@ -75,9 +98,14 @@ export function PilotPage() {
           {steps.map((item) => <li key={item.key} className={item.complete ? "is-complete" : ""}>{item.complete ? <Check aria-hidden="true" size={17} /> : <Circle aria-hidden="true" size={17} />}<div><strong>{item.label}</strong><span>{item.status}</span></div></li>)}
         </ol>
 
+        <div className="contract-gaps" aria-live="polite">
+          <strong>{data.experimentAdmission.ready ? "گیت Live Holdout آماده است" : "موانع تولید Assignment واقعی"}</strong>
+          <ul>{data.experimentAdmission.checks.map((item) => <li key={item.key}>{item.passed ? "تأیید: " : "نیازمند اقدام: "}{item.labelFa}{item.passed ? "" : ` — ${item.detailFa}`}</li>)}</ul>
+        </div>
+
         <div className="pilot-actions">
           <button className="button button-secondary" type="button" disabled={!canOperate || !data.analysis || data.metricContract.status !== "locked" || shadowMutation.isPending || data.shadow.readyForExperiment} onClick={() => shadowMutation.mutate()}><Eye aria-hidden="true" size={17} />اجرای Shadow</button>
-          <button className="button button-primary" type="button" disabled={!canOperate || !data.shadow.readyForExperiment || Boolean(experimentId) || registerMutation.isPending} onClick={() => registerMutation.mutate()}><FlaskConical aria-hidden="true" size={17} />ثبت آزمایش</button>
+          <button className="button button-primary" type="button" disabled={!canOperate || !data.experimentAdmission.ready || Boolean(experimentId) || registerMutation.isPending} onClick={() => registerMutation.mutate()}><FlaskConical aria-hidden="true" size={17} />ثبت آزمایش</button>
           <button className="button button-secondary" type="button" disabled={!experimentId} onClick={() => downloadApiFile("/api/retention/experiments/current/assignments.csv", "marginlift-retention-policy-assignments.csv")}><Download aria-hidden="true" size={17} />دریافت Assignment</button>
         </div>
       </section>
@@ -91,8 +119,15 @@ export function PilotPage() {
 
       {outcomeId && !financeVerified ? <section className="workflow-panel" aria-labelledby="finance-title">
         <div className="section-heading"><ShieldCheck aria-hidden="true" size={22} /><div><h2 id="finance-title">تطبیق Finance</h2><p>فقط پس از تطبیق دستی درآمد، هزینه مشوق، کانال و بازپرداخت تأیید کنید.</p></div></div>
+        {data.outcome?.financeReconciliation?.expected ? <dl className="metric-strip">
+          {financeFields.map(([key, label]) => <div key={key}><dt>{label} محاسبه‌شده</dt><dd>{formatToman(data.outcome?.financeReconciliation?.expected?.[key] ?? null)}</dd></div>)}
+        </dl> : null}
         <div className="form-grid"><label className="field"><span>نام یا نقش بازبین</span><input value={reviewerFa} onChange={(event) => setReviewerFa(event.target.value)} disabled={!canVerifyFinance} /></label><label className="field"><span>شرح تطبیق</span><input value={financeReasonFa} onChange={(event) => setFinanceReasonFa(event.target.value)} disabled={!canVerifyFinance} /></label></div>
-        <button className="button button-primary" type="button" disabled={!canVerifyFinance || reviewerFa.trim().length < 2 || financeReasonFa.trim().length < 12 || financeMutation.isPending} onClick={() => financeMutation.mutate(outcomeId)}>تأیید تطبیق مالی</button>
+        <div className="form-grid">
+          {financeFields.map(([key, label]) => <label className="field" key={key}><span>{label} طبق منبع Finance</span><input type="number" value={financeValues[key]} onChange={(event) => setFinanceValues((current) => ({ ...current, [key]: event.target.value }))} disabled={!canVerifyFinance} /></label>)}
+          <label className="field"><span>تلورانس مجاز (تومان)</span><input type="number" min="0" value={financeTolerance} onChange={(event) => setFinanceTolerance(event.target.value)} disabled={!canVerifyFinance} /></label>
+        </div>
+        <button className="button button-primary" type="button" disabled={!canVerifyFinance || !financeReady || reviewerFa.trim().length < 2 || financeReasonFa.trim().length < 12 || financeMutation.isPending} onClick={() => financeMutation.mutate(outcomeId)}>تأیید تطبیق مالی و صدور تصمیم</button>
       </section> : null}
 
       {operationError ? <p className="form-message is-error" role="alert">{(operationError as Error).message}</p> : null}

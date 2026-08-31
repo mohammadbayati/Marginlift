@@ -89,7 +89,7 @@ function enrichRetentionWorkspace(baseInput = {}, context = {}) {
 function buildRetentionToday(input = {}) {
   const state = resolveTodayState(input);
   const evidenceLevel = input.evidence?.key || input.workspace?.evidenceLevel || (input.record ? "observational_estimate" : "none");
-  const copy = todayCopy(state, input.workspace || {});
+  const copy = state === "verified" ? verifiedCopy(input.outcome) : todayCopy(state, input.workspace || {});
   return {
     state,
     labelFa: copy.labelFa,
@@ -102,8 +102,18 @@ function buildRetentionToday(input = {}) {
     primaryMetric: primaryMetric(state, input),
     evidenceLevel,
     evidence: evidenceMeta(evidenceLevel),
-    claimBoundary: claimBoundary(evidenceLevel)
+    claimBoundary: claimBoundary(evidenceLevel, input.outcome)
   };
+}
+
+function verifiedCopy(outcome) {
+  const decision = outcome?.summary?.decision;
+  const values = {
+    scale: { labelFa: "اثر افزایشی تأییدشده", decisionFa: "Scale کنترل‌شده", headlineFa: "سود افزایشی و Guardrailها تأیید شده‌اند", blockerFa: "مانع بحرانی ثبت نشده است.", nextActionFa: "دامنه را مرحله‌ای افزایش دهید و holdout را حفظ کنید." },
+    review: { labelFa: "اثر افزایشی تأییدشده", decisionFa: "Review", headlineFa: "نتیجه معتبر است اما برای Scale کافی نیست", blockerFa: "فاصله اطمینان یا Guardrailها نیازمند تصمیم انسانی است.", nextActionFa: "فرضیه، segment یا اندازه نمونه را بازبینی کنید." },
+    stop: { labelFa: "اثر افزایشی تأییدشده", decisionFa: "Stop", headlineFa: "سیاست جدید ارزش ادامه‌دادن ندارد", blockerFa: "سود منفی یا نقض Guardrail ثبت شده است.", nextActionFa: "بودجه و تماس را متوقف و علت شکست را بررسی کنید." }
+  };
+  return values[decision] || todayCopy("verified", {});
 }
 
 function resolveTodayState(input) {
@@ -257,14 +267,17 @@ function unavailable(key, evidenceLevel, reason) {
   return { key, available: false, evidenceLevel, unit: null, data: null, reason, sourceFa: "موتور شواهد MarginLift" };
 }
 
-function claimBoundary(level) {
+function claimBoundary(level, outcome = null) {
+  const canRecommendScale = level === "verified_incremental" && outcome?.summary?.decision === "scale";
   return {
     evidenceLevel: level,
     canClaimCausality: level === "verified_incremental",
     canClaimIncrementalProfit: level === "verified_incremental",
-    canRecommendScale: level === "verified_incremental",
+    canRecommendScale,
     disclaimerRequired: level !== "verified_incremental",
-    claimFa: evidenceMeta(level).claimFa
+    claimFa: level === "verified_incremental" && outcome?.summary?.recommendationFa
+      ? `${evidenceMeta(level).claimFa} ${outcome.summary.recommendationFa}`
+      : evidenceMeta(level).claimFa
   };
 }
 
@@ -297,7 +310,15 @@ function buildRetentionReadout({ contract, organization, record }, roleInput) {
   const content = {
     executive: { ...common, queueSize: queue.length, recommendationFa: today.decisionFa },
     crm: { ...common, actionMix: summarizeActions(queue), contactSafety: contract.workspace?.contactSafety || null },
-    finance: { ...common, profitWaterfall: contract.visualizations?.profitWaterfall, financeVerified: today.evidenceLevel === "verified_incremental" },
+    finance: {
+      ...common,
+      profitWaterfall: contract.visualizations?.profitWaterfall,
+      financeVerified: today.evidenceLevel === "verified_incremental",
+      finalDecision: contract.outcome?.summary?.decision || null,
+      guardrails: contract.outcome?.guardrails || null,
+      reconciliation: contract.outcome?.financeReconciliation || null,
+      confidenceInterval95: contract.outcome?.summary?.confidenceInterval95 || null
+    },
     data: { ...common, dataContext: contract.dataContext, treatmentControl: contract.visualizations?.treatmentControl, retentionCohort: contract.visualizations?.retentionCohort }
   }[role];
   return { schemaVersion: "retention_readout_v1", role, ...content };

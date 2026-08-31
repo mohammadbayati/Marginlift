@@ -18,6 +18,14 @@ type ContractForm = {
   dataOwnerFa: string;
   financeOwnerFa: string;
   experimentOwnerFa: string;
+  minimumSamplePerPolicy: number | null;
+  assumedContributionProfitStdDev: number | null;
+  minimumDetectableContributionProfitPerCustomer: number | null;
+  minIncrementalNetRevenuePerAssignedCustomer: number | null;
+  maxIncrementalIncentiveCostPerAssignedCustomer: number | null;
+  maxOptOutRateDelta: number | null;
+  maxComplaintRateDelta: number | null;
+  thresholdBasisFa: string;
 };
 
 export function SettingsPage() {
@@ -62,6 +70,14 @@ export function SettingsPage() {
       dataOwnerFa: contract.owners.dataFa,
       financeOwnerFa: contract.owners.financeFa,
       experimentOwnerFa: contract.owners.experimentFa,
+      minimumSamplePerPolicy: contract.minimumSamplePerPolicy,
+      assumedContributionProfitStdDev: contract.samplePlanning.assumedContributionProfitStdDev,
+      minimumDetectableContributionProfitPerCustomer: contract.samplePlanning.minimumDetectableContributionProfitPerCustomer,
+      minIncrementalNetRevenuePerAssignedCustomer: contract.decisionRules.minIncrementalNetRevenuePerAssignedCustomer,
+      maxIncrementalIncentiveCostPerAssignedCustomer: contract.decisionRules.maxIncrementalIncentiveCostPerAssignedCustomer,
+      maxOptOutRateDelta: contract.decisionRules.maxOptOutRateDelta,
+      maxComplaintRateDelta: contract.decisionRules.maxComplaintRateDelta,
+      thresholdBasisFa: contract.decisionRules.thresholdBasisFa,
     });
   }, [contract, contractForm]);
 
@@ -74,7 +90,19 @@ export function SettingsPage() {
       action,
       channelChurnDefinitionFa: values.channelChurnDefinitionFa,
       eligibilityFa: values.eligibilityFa,
+      minimumSamplePerPolicy: values.minimumSamplePerPolicy,
+      samplePlanning: {
+        assumedContributionProfitStdDev: values.assumedContributionProfitStdDev,
+        minimumDetectableContributionProfitPerCustomer: values.minimumDetectableContributionProfitPerCustomer,
+      },
       finance: { grossMarginDefinitionFa: values.grossMarginDefinitionFa },
+      decisionRules: {
+        minIncrementalNetRevenuePerAssignedCustomer: values.minIncrementalNetRevenuePerAssignedCustomer,
+        maxIncrementalIncentiveCostPerAssignedCustomer: values.maxIncrementalIncentiveCostPerAssignedCustomer,
+        maxOptOutRateDelta: values.maxOptOutRateDelta,
+        maxComplaintRateDelta: values.maxComplaintRateDelta,
+        thresholdBasisFa: values.thresholdBasisFa,
+      },
       currentPolicy: {
         descriptionFa: values.currentPolicyDescriptionFa,
         ownerFa: values.currentPolicyOwnerFa,
@@ -117,6 +145,15 @@ export function SettingsPage() {
           <label className="field full-width"><span>تعریف Channel Churn</span><textarea rows={2} {...contractForm.register("channelChurnDefinitionFa")} disabled={!canEdit || contractLocked} /></label>
           <label className="field full-width"><span>جامعه واجد شرایط</span><textarea rows={2} {...contractForm.register("eligibilityFa")} disabled={!canEdit || contractLocked} /></label>
           <label className="field full-width"><span>تعریف حاشیه سود مورد تأیید Finance</span><input {...contractForm.register("grossMarginDefinitionFa")} disabled={!canEdit || contractLocked} /></label>
+          <label className="field"><span>حداقل نمونه هر سیاست</span><input type="number" min="2" step="1" {...contractForm.register("minimumSamplePerPolicy", { valueAsNumber: true })} disabled={!canEdit || contractLocked} /></label>
+          <label className="field"><span>انحراف معیار سود تاریخی (تومان)</span><input type="number" min="1" step="1" {...contractForm.register("assumedContributionProfitStdDev", { valueAsNumber: true })} disabled={!canEdit || contractLocked} /></label>
+          <label className="field"><span>حداقل اثر مالی قابل تشخیص (تومان)</span><input type="number" min="1" step="1" {...contractForm.register("minimumDetectableContributionProfitPerCustomer", { valueAsNumber: true })} disabled={!canEdit || contractLocked} /></label>
+          <div className="field"><span>کف نمونه محاسبه‌شده</span><strong>{contract?.samplePlanning.recommendedMinimumSamplePerPolicy ?? "پس از ورود دو عدد بالا"} مشتری در هر سیاست</strong></div>
+          <label className="field"><span>کف درآمد افزایشی به‌ازای مشتری (تومان)</span><input type="number" step="1" {...contractForm.register("minIncrementalNetRevenuePerAssignedCustomer", { valueAsNumber: true })} disabled={!canEdit || contractLocked} /></label>
+          <label className="field"><span>سقف افزایش هزینه مشوق به‌ازای مشتری</span><input type="number" min="0" step="1" {...contractForm.register("maxIncrementalIncentiveCostPerAssignedCustomer", { valueAsNumber: true })} disabled={!canEdit || contractLocked} /></label>
+          <label className="field"><span>سقف افزایش opt-out (مثلاً 0.005)</span><input type="number" min="0" max="1" step="0.001" {...contractForm.register("maxOptOutRateDelta", { valueAsNumber: true })} disabled={!canEdit || contractLocked} /></label>
+          <label className="field"><span>سقف افزایش شکایت (مثلاً 0.002)</span><input type="number" min="0" max="1" step="0.001" {...contractForm.register("maxComplaintRateDelta", { valueAsNumber: true })} disabled={!canEdit || contractLocked} /></label>
+          <label className="field full-width"><span>مبنای تصویب thresholdها</span><textarea rows={2} {...contractForm.register("thresholdBasisFa")} disabled={!canEdit || contractLocked} placeholder="منبع baseline، منطق مالی و تاریخ تأیید مشترک CRM و Finance" /></label>
           <label className="field"><span>شرح سیاست فعلی CRM</span><input {...contractForm.register("currentPolicyDescriptionFa")} disabled={!canEdit || contractLocked} /></label>
           <label className="field"><span>مالک سیاست فعلی</span><input {...contractForm.register("currentPolicyOwnerFa")} disabled={!canEdit || contractLocked} /></label>
           <label className="check-field"><input type="checkbox" {...contractForm.register("actionsLogged")} disabled={!canEdit || contractLocked} /><span>اقدام‌های سیاست فعلی ثبت می‌شوند</span></label>

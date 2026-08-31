@@ -18,7 +18,19 @@ assert.strictEqual(metricContractReadiness(contract).ready, false);
 
 contract = applyMetricContractChange(contract, {
   action: "save",
+  minimumSamplePerPolicy: 20,
+  samplePlanning: {
+    assumedContributionProfitStdDev: 10000,
+    minimumDetectableContributionProfitPerCustomer: 10000
+  },
   finance: { grossMarginDefinitionFa: "کمیسیون خالص اپراتور پس از برگشت" },
+  decisionRules: {
+    minIncrementalNetRevenuePerAssignedCustomer: 0,
+    maxIncrementalIncentiveCostPerAssignedCustomer: 2000,
+    maxOptOutRateDelta: 0.005,
+    maxComplaintRateDelta: 0.002,
+    thresholdBasisFa: "مصوب Finance و CRM براساس baseline سود و نرخ شکایت دوره قبل"
+  },
   currentPolicy: {
     descriptionFa: "سیاست فعلی CRM براساس خواب خرید و سقف تماس اجرا می‌شود.",
     ownerFa: "مالک CRM",
@@ -37,6 +49,7 @@ contract = applyMetricContractChange(contract, { action: "approve_crm" }, { acto
 contract = applyMetricContractChange(contract, { action: "approve_data" }, { actorId: "data" });
 contract = applyMetricContractChange(contract, { action: "approve_finance" }, { actorId: "finance" });
 assert.strictEqual(metricContractReadiness(contract).ready, true);
+assert.strictEqual(contract.samplePlanning.recommendedMinimumSamplePerPolicy, 16);
 
 contract = applyMetricContractChange(contract, { action: "lock" }, { actorId: "owner" });
 assert.strictEqual(contract.status, "locked");

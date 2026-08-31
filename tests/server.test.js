@@ -270,7 +270,16 @@ async function run() {
     assert.strictEqual(retentionConfigurationUpdate.response.status, 200);
     assert.strictEqual(retentionConfigurationUpdate.payload.data.configuration.display.purchaseObjectFa, "بسته اینترنت آزمایشی");
 
-    const retentionCsv = fs.readFileSync(path.join(__dirname, "..", "synthetic-package-transactions.csv"), "utf8");
+    const retentionCsv = fs.readFileSync(path.join(__dirname, "..", "synthetic-package-transactions.csv"), "utf8")
+      + Array.from({ length: 20 }, (_, index) => {
+        const customer = `hash_test_${String(index + 1).padStart(3, "0")}`;
+        const firstDate = `2025-01-${String((index % 20) + 1).padStart(2, "0")}T10:00:00Z`;
+        const secondDate = `2025-02-${String((index % 20) + 1).padStart(2, "0")}T10:00:00Z`;
+        return [
+          `${customer},txn_test_${index + 1}a,${firstDate},completed,operator_test,monthly_10gb,monthly,30,500000,25000,0,0,,granted,push,false,0,`,
+          `${customer},txn_test_${index + 1}b,${secondDate},completed,operator_test,monthly_10gb,monthly,30,500000,25000,0,0,,granted,push,false,0,`
+        ].join("\n");
+      }).join("\n");
     const retentionPreview = await request("/api/retention/preview", {
       method: "POST",
       cookie,
@@ -349,7 +358,19 @@ async function run() {
     assert.strictEqual(metricContractDraft.payload.data.status, "draft");
     const metricContractBody = {
       action: "save",
+      minimumSamplePerPolicy: 2,
+      samplePlanning: {
+        assumedContributionProfitStdDev: 1,
+        minimumDetectableContributionProfitPerCustomer: 3
+      },
       finance: { grossMarginDefinitionFa: "کمیسیون خالص اپراتور پس از کسر برگشت و هزینه متغیر" },
+      decisionRules: {
+        minIncrementalNetRevenuePerAssignedCustomer: 0,
+        maxIncrementalIncentiveCostPerAssignedCustomer: 2000,
+        maxOptOutRateDelta: 0.01,
+        maxComplaintRateDelta: 0.01,
+        thresholdBasisFa: "مصوب مشترک Finance و CRM بر مبنای baseline دوره پیش از پایلوت"
+      },
       currentPolicy: {
         descriptionFa: "سیاست فعلی CRM براساس خواب خرید، سقف تماس و تقویم کمپین اجرا می‌شود.",
         ownerFa: "مدیر CRM",
@@ -426,17 +447,17 @@ async function run() {
 
     const retentionAssignments = await request("/api/retention/experiments/current/assignments.csv", { cookie });
     assert.strictEqual(retentionAssignments.response.status, 200);
-    assert.match(String(retentionAssignments.payload), /customer_id_hash,assigned_policy,assigned_at/);
+    assert.match(String(retentionAssignments.payload), /assignment_id,customer_id_hash,assigned_policy,assigned_at,outcome_closes_at,assignment_registry_hash/);
 
     const assignmentLines = String(retentionAssignments.payload).replace(/^\uFEFF/, "").trim().split(/\r?\n/);
     const retentionOutcomeCsv = [
-      "customer_id_hash,assigned_policy,actual_action,assigned_at,delivered_at,exposed_at,outcome_at,repurchased,net_revenue,contribution_margin,incentive_cost,channel_cost,refund_amount,opt_out,complaint",
+      "customer_id_hash,assigned_policy,actual_action,assigned_at,delivered_at,exposed_at,outcome_at,repurchased,net_revenue,contribution_margin,incentive_cost,channel_cost,refund_amount,opt_out,complaint,contaminated",
       ...assignmentLines.slice(1).map((line, index) => {
         const columns = line.split(",");
-        const policy = columns[2];
-        const assignedAt = columns[3];
-        const outcomeAt = new Date(new Date(assignedAt).getTime() + 31 * 86400000).toISOString();
-        return [columns[1], policy, policy === "marginlift_policy" ? "message_no_discount" : "no_action", assignedAt, assignedAt, assignedAt, outcomeAt, index % 2 === 0, policy === "marginlift_policy" ? 150000 : 100000, policy === "marginlift_policy" ? 60000 : 40000, 0, policy === "marginlift_policy" ? 1000 : 0, 0, false, false].join(",");
+        const policy = columns[3];
+        const assignedAt = columns[4];
+        const outcomeAt = columns[5];
+        return [columns[2], policy, policy === "marginlift_policy" ? "message_no_discount" : "no_action", assignedAt, assignedAt, assignedAt, outcomeAt, index % 2 === 0, policy === "marginlift_policy" ? 150000 : 100000, policy === "marginlift_policy" ? 60000 : 40000, 0, policy === "marginlift_policy" ? 1000 : 0, 0, false, false, false].join(",");
       })
     ].join("\n");
     const retentionOutcomePreview = await request("/api/retention/outcomes/preview", {
@@ -445,16 +466,67 @@ async function run() {
       body: { csvText: retentionOutcomeCsv, analyzedAt: new Date(Date.now() + 31 * 86400000).toISOString() }
     });
     assert.strictEqual(retentionOutcomePreview.response.status, 200);
-    assert.ok(["pass", "needs_review"].includes(retentionOutcomePreview.payload.data.integrity.status));
+    assert.strictEqual(retentionOutcomePreview.payload.data.integrity.status, "pass", JSON.stringify(retentionOutcomePreview.payload.data.integrity));
+    assert.strictEqual(retentionOutcomePreview.payload.data.integrity.decisionEligible, true);
+
+    const unpreviewedRetentionOutcome = await request("/api/retention/outcomes/import", {
+      method: "POST",
+      cookie,
+      body: { name: "Outcome without preview", csvText: retentionOutcomeCsv, analyzedAt: new Date(Date.now() + 31 * 86400000).toISOString() }
+    });
+    assert.strictEqual(unpreviewedRetentionOutcome.response.status, 409);
+    assert.strictEqual(unpreviewedRetentionOutcome.payload.error.code, "OUTCOME_PREVIEW_REQUIRED");
+
+    const changedRetentionOutcome = await request("/api/retention/outcomes/import", {
+      method: "POST",
+      cookie,
+      body: { name: "Changed outcome", csvText: retentionOutcomeCsv.replace(/,false,false/, ",false,true"), expectedOutcomeHash: retentionOutcomePreview.payload.data.outcomeDatasetHash, analyzedAt: new Date(Date.now() + 31 * 86400000).toISOString() }
+    });
+    assert.strictEqual(changedRetentionOutcome.response.status, 409);
+    assert.strictEqual(changedRetentionOutcome.payload.error.code, "OUTCOME_HASH_MISMATCH");
 
     const retentionOutcomeImport = await request("/api/retention/outcomes/import", {
       method: "POST",
       cookie,
-      body: { name: "Outcome retention test", csvText: retentionOutcomeCsv, analyzedAt: new Date(Date.now() + 31 * 86400000).toISOString() }
+      body: { name: "Outcome retention test", csvText: retentionOutcomeCsv, expectedOutcomeHash: retentionOutcomePreview.payload.data.outcomeDatasetHash, analyzedAt: new Date(Date.now() + 31 * 86400000).toISOString() }
     });
     assert.strictEqual(retentionOutcomeImport.response.status, 201);
     assert.strictEqual(retentionOutcomeImport.payload.data.evidenceLevel, "pilot_estimate");
     assert.strictEqual(retentionOutcomeImport.payload.data.summary.financeVerificationStatus, "pending");
+
+    const financeVerification = await request(`/api/retention/outcomes/${retentionOutcomeImport.payload.data.id}/verify-finance`, {
+      method: "POST",
+      cookie,
+      body: {
+        reviewerFa: "مدیر مالی تست",
+        reasonFa: "مجموع درآمد، حاشیه سود و هزینه‌ها با دفتر مالی تطبیق داده شد.",
+        toleranceToman: 0,
+        reconciliation: retentionOutcomeImport.payload.data.financeReconciliation.expected
+      }
+    });
+    assert.strictEqual(financeVerification.response.status, 200);
+    assert.strictEqual(financeVerification.payload.data.evidenceLevel, "verified_incremental");
+    assert.ok(["scale", "review", "stop"].includes(financeVerification.payload.data.summary.decision));
+
+    const duplicateFinanceVerification = await request(`/api/retention/outcomes/${retentionOutcomeImport.payload.data.id}/verify-finance`, {
+      method: "POST",
+      cookie,
+      body: {
+        reviewerFa: "مدیر مالی تست",
+        reasonFa: "تلاش تکراری برای تأیید همان نسخه Outcome انجام شد.",
+        toleranceToman: 0,
+        reconciliation: retentionOutcomeImport.payload.data.financeReconciliation.expected
+      }
+    });
+    assert.strictEqual(duplicateFinanceVerification.response.status, 409);
+
+    const changedVerifiedOutcome = await request("/api/retention/outcomes/import", {
+      method: "POST",
+      cookie,
+      body: { name: "Outcome after verification", csvText: retentionOutcomeCsv, expectedOutcomeHash: retentionOutcomePreview.payload.data.outcomeDatasetHash, analyzedAt: new Date(Date.now() + 31 * 86400000).toISOString() }
+    });
+    assert.strictEqual(changedVerifiedOutcome.response.status, 409);
+    assert.strictEqual(changedVerifiedOutcome.payload.error.code, "VERIFIED_OUTCOME_IMMUTABLE");
 
     const retentionBrief = await request("/api/retention/experiment-brief.md?baselineRate=0.2&minimumDetectableEffect=0.03&outcomeWindowDays=30&holdoutRate=0.2", { cookie });
     assert.strictEqual(retentionBrief.response.status, 200);
