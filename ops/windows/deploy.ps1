@@ -23,6 +23,8 @@ if (-not (Test-Path -LiteralPath $KeyPath)) {
 Push-Location $repoRoot
 try {
   Write-Host "[1/6] Running tests..."
+  npm run web:build
+  Assert-NativeCommand "Frontend build"
   npm test
   Assert-NativeCommand "Tests"
 
