@@ -2,7 +2,8 @@
 param(
   [string]$ServerHost = "91.107.190.221",
   [string]$ServerUser = "root",
-  [string]$KeyPath = (Join-Path $HOME ".ssh\marginlift_deploy")
+  [string]$KeyPath = (Join-Path $HOME ".ssh\marginlift_deploy"),
+  [switch]$SkipGitPush
 )
 
 $ErrorActionPreference = "Stop"
@@ -36,8 +37,12 @@ try {
   }
 
   Write-Host "[2/6] Pushing main to GitHub..."
-  git push origin main
-  Assert-NativeCommand "Git push"
+  if ($SkipGitPush) {
+    Write-Host "[2/6] Skipping Git push; deploying the explicitly selected commit."
+  } else {
+    git push origin main
+    Assert-NativeCommand "Git push"
+  }
 
   Write-Host "[3/6] Building release archive..."
   Remove-Item -LiteralPath $archive, $checksum -Force -ErrorAction SilentlyContinue
