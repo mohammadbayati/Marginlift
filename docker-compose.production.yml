@@ -38,6 +38,10 @@ services:
       - ./data:/app/data
       - ./private/fonts:/app/private/fonts:ro
       - artifact_data:/app/private/artifacts
+    networks:
+      default:
+        aliases:
+          - marginlift-production-app
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 30s

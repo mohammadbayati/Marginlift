@@ -8,7 +8,7 @@ www.marginlift.ir {
 
 marginlift.ir {
   encode gzip
-  reverse_proxy app:3000
+  reverse_proxy marginlift-production-app:3000
 }
 
 staging.marginlift.ir {

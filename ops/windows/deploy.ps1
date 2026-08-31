@@ -111,7 +111,7 @@ chmod +x ops/vm/deploy.sh ops/vm/backup.sh ops/vm/verify-backup.sh ops/vm/instal
 docker compose -f docker-compose.production.yml up -d postgres
 timeout 120s docker compose -f docker-compose.production.yml run --rm app npm run db:migrate
 docker compose -f docker-compose.production.yml up -d --force-recreate app
-docker compose -f docker-compose.production.yml up -d caddy
+docker compose -f docker-compose.production.yml up -d --force-recreate caddy
 docker compose -f docker-compose.production.yml exec -T app \
   sh -lc 'test -f /app/src/retention-shadow.js && test -f /app/synthetic-subscription-transactions.csv'
 docker compose -f docker-compose.production.yml exec -T app node -e \
