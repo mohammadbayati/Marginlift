@@ -123,6 +123,9 @@ docker compose -f docker-compose.production.yml ps
 
 rm -f "$RELEASE" "$CHECKSUM"
 '@
+  # Bash on the VM expects LF-only input; PowerShell here-strings otherwise
+  # encode CRLF and fail before the remote script can normalize its files.
+  $remoteScript = $remoteScript -replace "`r`n", "`n"
   $remotePayload = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($remoteScript))
 
   # Execute from a file so Docker commands cannot consume the remaining script via stdin.
