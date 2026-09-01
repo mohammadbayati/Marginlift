@@ -6,6 +6,19 @@ import { formatNumber, formatToman } from "../../shared/lib/format";
 import { ErrorState, EvidenceBadge, LoadingState } from "../../shared/ui";
 import { usePersona } from "../persona";
 
+const personaFocus = {
+  executive: "اثر مالی و تصمیم سرمایه‌گذاری",
+  crm: "صف اقدام و محدودیت تماس",
+  finance: "سود، هزینه و قابلیت تطبیق",
+  data: "کیفیت داده و زنجیره شواهد",
+} as const;
+
+const provenanceLabels = {
+  no_data: "داده‌ای ثبت نشده",
+  sample_data: "داده نمونه",
+  customer_data_without_verified_pilot: "داده مشتری · بدون پایلوت تأییدشده",
+} as const;
+
 export function TodayPage() {
   const { persona } = usePersona();
   const query = useQuery({ queryKey: ["retention-workspace"], queryFn: api.retentionWorkspace });
@@ -13,7 +26,7 @@ export function TodayPage() {
   if (query.isLoading) return <LoadingState label="در حال آماده‌سازی تصمیم امروز…" />;
   if (query.isError || !query.data) return <ErrorState error={query.error} onRetry={() => query.refetch()} />;
 
-  const { workspace, analysis, today } = query.data;
+  const { workspace, analysis, today, dataContext } = query.data;
   const metricValue = today.primaryMetric.available
     ? today.primaryMetric.unit === "toman"
       ? formatToman(today.primaryMetric.value)
@@ -54,6 +67,26 @@ export function TodayPage() {
           {today.cta.labelFa}
           <ArrowLeft aria-hidden="true" size={17} />
         </Link>
+      </section>
+
+      <section className="trust-strip" aria-label="شناسنامه تصمیم">
+        <div><span>محیط داده</span><strong>{provenanceLabels[dataContext.provenance]}</strong></div>
+        <div><span>منبع</span><strong>{dataContext.source || "ثبت نشده"}</strong></div>
+        <div><span>حجم بررسی</span><strong>{formatNumber(dataContext.rowCount ?? analysis?.rowCount ?? null)} ردیف</strong></div>
+        <div><span>تمرکز این نما</span><strong>{personaFocus[persona]}</strong></div>
+      </section>
+
+      <section className="value-path" aria-labelledby="value-path-title">
+        <div className="value-path-intro">
+          <span className="eyebrow">خروجی این چرخه</span>
+          <h2 id="value-path-title">از داده‌ی ناشناس تا تصمیمی که بتوان آن را توضیح داد.</h2>
+          <p>{analysis ? "این تحلیل آماده‌ی بازبینی است؛ هر عدد باید همراه با منبع، تاریخ و سطح شواهد خوانده شود." : "این محیط بعد از ورود داده، فقط سه خروجی عملی می‌سازد: آمادگی، تصمیم و مدرک قابل بازبینی."}</p>
+        </div>
+        <ol className="value-path-steps">
+          <li><strong>۰۱</strong><span>آمادگی داده و مرز ادعا</span></li>
+          <li><strong>۰۲</strong><span>اقدام یا عدم اقدام برای تیم اجرا</span></li>
+          <li><strong>۰۳</strong><span>گزارش و رسید تصمیم برای مدیریت</span></li>
+        </ol>
       </section>
 
       <section className="context-line" aria-label="وضعیت عملیاتی">

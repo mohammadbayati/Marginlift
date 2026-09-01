@@ -93,7 +93,7 @@ export function DataPage() {
             <div className="section-heading"><FileSpreadsheet aria-hidden="true" size={22} /><div><h2>فایل تراکنش ناشناس</h2><p>شناسه مشتری باید هش‌شده باشد؛ اطلاعات تماس مستقیم پذیرفته نمی‌شود.</p></div></div>
             <div className="form-grid">
               <label className="field"><span>نام تحلیل</span><input {...form.register("name")} placeholder="مثلاً چرخه خرید مرداد" /></label>
-              <label className="field"><span>تاریخ برش</span><input {...form.register("cutoff")} type="date" /></label>
+              <label className="field"><span>تاریخ برش (میلادی)</span><input {...form.register("cutoff")} type="date" /></label>
               <label className="file-drop full-width">
                 <Upload aria-hidden="true" size={24} />
                 <strong>{fileName || "انتخاب فایل CSV"}</strong>
@@ -112,7 +112,7 @@ export function DataPage() {
             <dl className="metric-strip">
               <div><dt>ردیف خوانده‌شده</dt><dd>{formatNumber(preview.data.rowCount)}</dd></div>
               <div><dt>ستون شناسایی‌شده</dt><dd>{formatNumber(preview.data.columns.length)}</dd></div>
-              <div><dt>وضعیت ورود</dt><dd>{preview.data.canImport ? "آماده ورود" : "نیازمند اصلاح"}</dd></div>
+              <div><dt>وضعیت ورود</dt><dd>{preview.data.canImport ? (preview.data.quality.status === "ready" ? "آماده ورود" : "آماده ورود؛ سطح ادعا محدود") : "نیازمند اصلاح"}</dd></div>
             </dl>
             {preview.data.privacy.blocked ? <p className="privacy-warning" role="alert"><AlertTriangle aria-hidden="true" size={18} />این فایل شامل داده‌ای است که با قرارداد حریم خصوصی سازگار نیست.</p> : null}
             {preview.data.qualityIssues.length ? <div className="quality-issues" aria-label="نتیجه ممیزی کیفیت">{preview.data.qualityIssues.map((issue) => <div key={`${issue.group}-${issue.code}`} className={`quality-issue is-${issue.group}`}><strong>{issue.group === "critical" ? "بحرانی" : issue.group === "fixable" ? "قابل اصلاح" : "پیشنهادی"}</strong><span>{issue.messageFa}</span></div>)}</div> : null}

@@ -102,6 +102,19 @@ bdi, .technical-id { direction: ltr; unicode-bidi: isolate; font-family: ui-mono
 .context-line > div + div { border-inline-start: 1px solid var(--line); }
 .context-line span { color: var(--muted); font-size: 12px; }
 .context-line strong { font-size: 14px; line-height: 1.8; }
+.trust-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.trust-strip > div { min-height: 84px; display: grid; align-content: center; gap: 5px; padding: 14px 16px; }
+.trust-strip > div + div { border-inline-start: 1px solid var(--line); }
+.trust-strip span { color: var(--muted); font-size: 12px; }
+.trust-strip strong { overflow-wrap: anywhere; font-size: 13px; line-height: 1.7; }
+.value-path { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(300px, .85fr); gap: 28px; padding: 28px 32px; border-radius: 8px; color: #fff; background: var(--ink); }
+.value-path .eyebrow { color: #79d9bd; }
+.value-path h2 { max-width: 660px; margin-block-end: 8px; font-size: 24px; }
+.value-path p { max-width: 660px; color: #c9ced5; font-size: 13px; }
+.value-path-steps { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; border-block-start: 1px solid #40464e; }
+.value-path-steps li { display: flex; align-items: center; gap: 14px; min-height: 52px; border-block-end: 1px solid #40464e; }
+.value-path-steps strong { color: #79d9bd; font-size: 12px; }
+.value-path-steps span { color: #fff; font-size: 13px; }
 
 .async-state { min-height: 130px; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 24px; border: 1px dashed #bdc5cf; border-radius: 8px; background: var(--surface); }
 .async-state > div { max-width: 560px; }
@@ -271,6 +284,10 @@ tbody tr:hover { background: #f8fafb; }
   .app-sidebar { width: min(290px, 88vw); }
   .page-header { align-items: flex-start; flex-direction: column; gap: 8px; }
   .decision-brief { grid-template-columns: 1fr; padding: 20px; }
+  .trust-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .trust-strip > div:nth-child(3) { border-inline-start: 0; border-block-start: 1px solid var(--line); }
+  .trust-strip > div:nth-child(4) { border-block-start: 1px solid var(--line); }
+  .value-path { grid-template-columns: 1fr; padding: 22px 20px; }
   .decision-copy h2 { font-size: 24px; }
   .single-metric { padding: 18px 0 0; border-block-start: 1px solid var(--line); border-inline-start: 0; }
   .context-line, .metric-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
