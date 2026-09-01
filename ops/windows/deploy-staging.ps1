@@ -160,13 +160,13 @@ printf '%s\n' "$IMAGE_TAG" > /root/marginlift-staging-current-image-tag
   }
 
   Write-Host "[6/7] Running staging smoke tests..."
-  $home = Invoke-WebRequest -UseBasicParsing "https://${StagingDomain}/"
-  $login = Invoke-WebRequest -UseBasicParsing "https://${StagingDomain}/login"
-  $app = Invoke-WebRequest -UseBasicParsing "https://${StagingDomain}/app/today"
-  if ($home.StatusCode -ne 200 -or $login.StatusCode -ne 200 -or $app.StatusCode -ne 200) {
+  $homeResponse = Invoke-WebRequest -UseBasicParsing "https://${StagingDomain}/"
+  $loginResponse = Invoke-WebRequest -UseBasicParsing "https://${StagingDomain}/login"
+  $appResponse = Invoke-WebRequest -UseBasicParsing "https://${StagingDomain}/app/today"
+  if ($homeResponse.StatusCode -ne 200 -or $loginResponse.StatusCode -ne 200 -or $appResponse.StatusCode -ne 200) {
     throw "Staging page smoke test failed."
   }
-  if ($home.Headers["X-Robots-Tag"] -notmatch "noindex") {
+  if ($homeResponse.Headers["X-Robots-Tag"] -notmatch "noindex") {
     throw "Staging noindex header is missing."
   }
 
