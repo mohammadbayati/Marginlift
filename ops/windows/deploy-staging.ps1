@@ -33,7 +33,7 @@ try {
   npm run web:build
   Assert-NativeCommand "Frontend build"
 
-  $changes = git status --porcelain -- . ':(exclude)business/**' ':(exclude)docs/**'
+  $changes = git status --porcelain -- . ':(exclude)business/**' ':(exclude)docs/**' ':(exclude)README-data-request-fa.md'
   Assert-NativeCommand "Git status"
   if ($changes) {
     throw "Product files have uncommitted changes. Commit them before staging deployment."
