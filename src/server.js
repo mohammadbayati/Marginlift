@@ -2954,6 +2954,13 @@ function serveStatic(requestPath, req, res) {
 function serveWebBuild(requestPath, req, res) {
   if (!fs.existsSync(webDistRoot)) return false;
 
+  if (requestPath === "/favicon.svg") {
+    const faviconPath = path.join(webDistRoot, "favicon.svg");
+    if (!fs.existsSync(faviconPath)) return false;
+    serveFile(faviconPath, req, res, "image/svg+xml", "public, max-age=86400");
+    return true;
+  }
+
   if (requestPath.startsWith("/assets/")) {
     let assetName;
     try {
