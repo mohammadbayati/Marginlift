@@ -6,6 +6,7 @@ import {
   Database,
   FileCheck2,
   FlaskConical,
+  LockKeyhole,
   Menu,
   Settings,
   ShieldCheck,
@@ -75,7 +76,7 @@ export function AppShell() {
           <span className="brand-mark" aria-hidden="true">M</span>
           <div>
             <strong>MarginLift</strong>
-            <small>Profit Control Room</small>
+            <small>مرکز کنترل سود</small>
           </div>
           <button className="icon-button mobile-close" type="button" onClick={() => setMobileOpen(false)} aria-label="بستن ناوبری">
             <X aria-hidden="true" size={20} />
@@ -83,6 +84,7 @@ export function AppShell() {
         </div>
 
         <nav className="primary-nav">
+          <span className="nav-section-label">فضای تصمیم</span>
           {navigation.map((item) => {
             const Icon = item.icon;
             return (
@@ -95,6 +97,10 @@ export function AppShell() {
         </nav>
 
         <div className="sidebar-footer">
+          <div className="sidebar-trust-note">
+            <LockKeyhole aria-hidden="true" size={16} />
+            <span><strong>محیط کنترل‌شده</strong><small>تصمیم نهایی با تأیید انسانی</small></span>
+          </div>
           <div className="persona-control" aria-label="نمای شخصی" role="group">
             <span className="control-label">نمای شخصی</span>
             <div className="segmented-control">

@@ -58,7 +58,7 @@ export function EvidencePage() {
 
   return (
     <div className="page-stack">
-      <header className="page-header"><div><span className="eyebrow">شواهد</span><h1>Evidence Room</h1></div><EvidenceBadge level={evidence.key} label={evidence.labelFa} /></header>
+      <header className="page-header"><div><span className="eyebrow">شواهد</span><h1>اتاق شواهد تصمیم</h1></div><EvidenceBadge level={evidence.key} label={evidence.labelFa} /></header>
       <p className="evidence-boundary">{evidence.claimFa}</p>
 
       <div className="evidence-grid">

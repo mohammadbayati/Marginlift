@@ -39,7 +39,7 @@ test("decision, evidence and report use the same evidence state", async ({ page 
   await expect(page.getByText("رابطه مشاهده‌شده است و اثر علّی را تأیید نمی‌کند.")).toBeVisible();
 
   await page.goto("/app/evidence");
-  await expect(page.getByRole("heading", { name: "Evidence Room" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "اتاق شواهد تصمیم" })).toBeVisible();
   await expect(page.getByText("نتیجه Shadow", { exact: true })).toBeVisible();
 
   await page.goto("/app/report?view=finance");

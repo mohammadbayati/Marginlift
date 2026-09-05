@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, BarChart3, FileCheck2, FileText, PlayCircle } from "lucide-react";
+import { ArrowLeft, BarChart3, CircleOff, FileCheck2, FileText, PlayCircle, Repeat2, ShieldCheck, UsersRound } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api } from "../../shared/api/client";
 import { formatNumber, formatToman } from "../../shared/lib/format";
@@ -57,6 +57,20 @@ export function TodayPage() {
         <span className="as-of">برش داده: {analysis?.cutoffAt ? <bdi>{analysis.cutoffAt.slice(0, 10)}</bdi> : "ثبت نشده"}</span>
       </header>
 
+      <section className="executive-pulse" aria-label="خلاصه عملیاتی امروز">
+        <div className="pulse-lead">
+          <span className="pulse-kicker"><ShieldCheck aria-hidden="true" size={15} />وضعیت تصمیم</span>
+          <strong>{workspace.statusFa}</strong>
+          <small>{workspace.headlineFa}</small>
+        </div>
+        <dl className="pulse-metrics">
+          <div><dt><UsersRound aria-hidden="true" size={16} />صف بررسی</dt><dd>{formatNumber(workspace.metrics.queueSize)}</dd></div>
+          <div><dt><ShieldCheck aria-hidden="true" size={16} />مجاز برای تماس</dt><dd>{formatNumber(workspace.metrics.contactAllowed)}</dd></div>
+          <div><dt><CircleOff aria-hidden="true" size={16} />متوقف‌شده</dt><dd>{formatNumber(workspace.metrics.contactBlocked)}</dd></div>
+          <div><dt><Repeat2 aria-hidden="true" size={16} />خریدار تکراری</dt><dd>{formatNumber(workspace.metrics.repeatCustomers)}</dd></div>
+        </dl>
+      </section>
+
       {dataContext.provenance !== "customer_data_without_verified_pilot" ? (
         <section className="demo-launcher" aria-labelledby="demo-launcher-title">
           <div className="demo-launcher-copy">
@@ -81,7 +95,7 @@ export function TodayPage() {
         </section>
       ) : null}
 
-      <section className="decision-brief" aria-labelledby="today-decision-title">
+      <section className="decision-brief decision-brief-primary" aria-labelledby="today-decision-title">
         <div className="decision-copy">
           <div className="decision-meta">
             <span>تصمیم پیشنهادی</span>
@@ -90,7 +104,7 @@ export function TodayPage() {
           <h2 id="today-decision-title">{today.decisionFa}</h2>
           <p>{today.headlineFa}</p>
           <p className="claim-copy">{today.claimBoundary.claimFa}</p>
-          <small className="decision-blocker">مانع فعلی: {today.blockerFa}</small>
+          <div className="decision-guardrail"><span>مانع فعلی</span><strong>{today.blockerFa}</strong></div>
         </div>
         <dl className="single-metric">
           <div>
