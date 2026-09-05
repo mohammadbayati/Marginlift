@@ -71,6 +71,8 @@ function json(method: "POST" | "PATCH", body: unknown): RequestInit {
 export const api = {
   session: () => request("/api/session", SessionSchema),
   retentionWorkspace: () => request("/api/retention/workspace", RetentionWorkspaceSchema),
+  loadDemoScenario: (presetKey: "generic_ecommerce" | "super_app_packages" | "subscription_services") =>
+    request("/api/retention/demo/reset", RetentionWorkspaceSchema, json("POST", { presetKey })),
   decisions: (filters: { page?: number; pageSize?: number; action?: string; evidence?: string } = {}) => {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => {

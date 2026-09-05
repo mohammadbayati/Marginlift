@@ -2,6 +2,7 @@ const assert = require("assert");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const { getDemoScenario } = require("../src/demo-scenarios");
 
 process.env.MARGINLIFT_DB = path.join(os.tmpdir(), `marginlift-test-${Date.now()}.json`);
 process.env.ARTIFACT_STORAGE_PATH = path.join(os.tmpdir(), `marginlift-artifacts-${Date.now()}`);
@@ -270,16 +271,7 @@ async function run() {
     assert.strictEqual(retentionConfigurationUpdate.response.status, 200);
     assert.strictEqual(retentionConfigurationUpdate.payload.data.configuration.display.purchaseObjectFa, "بسته اینترنت آزمایشی");
 
-    const retentionCsv = fs.readFileSync(path.join(__dirname, "..", "synthetic-package-transactions.csv"), "utf8")
-      + Array.from({ length: 20 }, (_, index) => {
-        const customer = `hash_test_${String(index + 1).padStart(3, "0")}`;
-        const firstDate = `2025-01-${String((index % 20) + 1).padStart(2, "0")}T10:00:00Z`;
-        const secondDate = `2025-02-${String((index % 20) + 1).padStart(2, "0")}T10:00:00Z`;
-        return [
-          `${customer},txn_test_${index + 1}a,${firstDate},completed,operator_test,monthly_10gb,monthly,30,500000,25000,0,0,,granted,push,false,0,`,
-          `${customer},txn_test_${index + 1}b,${secondDate},completed,operator_test,monthly_10gb,monthly,30,500000,25000,0,0,,granted,push,false,0,`
-        ].join("\n");
-      }).join("\n");
+    const retentionCsv = getDemoScenario("super_app_packages").csvText;
     const retentionPreview = await request("/api/retention/preview", {
       method: "POST",
       cookie,
@@ -539,7 +531,7 @@ async function run() {
       body: { presetKey: "subscription_services" }
     });
     assert.strictEqual(demoScenario.response.status, 201);
-    assert.strictEqual(demoScenario.payload.data.isDemoScenario, true);
+    assert.strictEqual(demoScenario.payload.data.import.isDemoScenario, true);
     assert.strictEqual(demoScenario.payload.data.configuration.presetKey, "subscription_services");
 
     const experiment = await request("/api/experiments/plan", { cookie });

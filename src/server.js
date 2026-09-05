@@ -70,6 +70,7 @@ const {
   buildSavingsSnapshot
 } = require("./pilot");
 const { appOrigin, assertProductionConfig, isProduction, maxBodyBytes, port: defaultPort, publicSignupEnabled, trustProxy } = require("./config");
+const { DEMO_SCENARIOS, getDemoScenario } = require("./demo-scenarios");
 
 const publicRoot = path.join(__dirname, "..");
 const webDistRoot = path.join(publicRoot, "web", "dist");
@@ -78,11 +79,6 @@ const privateFontRoot = path.resolve(process.env.MARGINLIFT_FONT_DIR || path.joi
 const sampleCsvPath = path.join(publicRoot, "synthetic-campaign-data.csv");
 const sampleCustomerCsvPath = path.join(publicRoot, "synthetic-customer-events.csv");
 const sampleOutcomeCsvPath = path.join(publicRoot, "synthetic-outcome-data.csv");
-const retentionDemoScenarios = Object.freeze({
-  generic_ecommerce: { file: path.join(publicRoot, "synthetic-ecommerce-transactions.csv"), cutoff: "2025-12-01", name: "سناریوی نمایشی فروشگاه اینترنتی" },
-  super_app_packages: { file: path.join(publicRoot, "synthetic-package-transactions.csv"), cutoff: "2026-02-01", name: "سناریوی نمایشی خرید بسته اینترنت" },
-  subscription_services: { file: path.join(publicRoot, "synthetic-subscription-transactions.csv"), cutoff: "2026-05-01", name: "سناریوی نمایشی تمدید اشتراک" }
-});
 const sessionTtlMs = 1000 * 60 * 60 * 24 * 7;
 const authAttempts = new Map();
 const rateLimits = Object.freeze({
@@ -536,7 +532,8 @@ async function handleApi(req, res, url) {
   if (url.pathname === "/api/retention/demo/reset" && req.method === "POST") {
     requireRole(auth, "analyst");
     const body = await readJson(req);
-    sendJson(res, 201, { data: await loadRetentionDemoScenario(auth, body, requestContext(req, auth)) });
+    const imported = await loadRetentionDemoScenario(auth, body, requestContext(req, auth));
+    sendJson(res, 201, { data: { ...(await getRetentionWorkspace(auth.organization.id)), id: imported.id, import: imported } });
     return;
   }
 
@@ -1628,16 +1625,15 @@ async function verifyRetentionOutcomeFinance(auth, outcomeId, body, context = {}
 }
 
 async function loadRetentionDemoScenario(auth, body, context = {}) {
-  const presetKey = retentionDemoScenarios[body.presetKey] ? body.presetKey : "generic_ecommerce";
-  const scenario = retentionDemoScenarios[presetKey];
+  const presetKey = DEMO_SCENARIOS[body.presetKey] ? body.presetKey : "generic_ecommerce";
+  const scenario = getDemoScenario(presetKey);
   await updateRetentionConfiguration(auth, {
     presetKey,
     readiness: { minimumHistoryDays: 30, minimumCustomers: 5, minimumRepeatCustomers: 5 }
   }, context);
-  const csvText = await fs.promises.readFile(scenario.file, "utf8");
   return importRetentionAnalysis(auth.organization.id, {
     name: scenario.name,
-    csvText,
+    csvText: scenario.csvText,
     cutoff: scenario.cutoff,
     source: "demo_scenario"
   }, context);

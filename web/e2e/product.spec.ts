@@ -11,10 +11,14 @@ async function login(page: import("@playwright/test").Page) {
 }
 
 async function loadDemo(page: import("@playwright/test").Page) {
-  const response = await page.request.post("/api/retention/demo/reset", { data: { presetKey: "generic_ecommerce" } });
-  expect(response.ok()).toBeTruthy();
-  await page.reload();
+  await page.getByLabel("نوع کسب‌وکار نمونه").selectOption("generic_ecommerce");
+  await page.getByRole("button", { name: /اجرای دموی نمونه|اجرای سناریوی دیگر/ }).click();
   await expect(page.getByText("برآورد تاریخی", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "سه توقف، یک داستان قابل ارائه" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /۱\. تصمیم‌ها/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /۲\. شواهد/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /۳\. گزارش مدیر/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: "اجرای سناریوی دیگر" })).toBeEnabled();
 }
 
 test("public page and authenticated Today have no serious axe violations", async ({ page }) => {
@@ -54,7 +58,7 @@ for (const viewport of [
     await login(page);
     await loadDemo(page);
     const geometry = await page.evaluate(() => {
-      const selectors = [".app-main", ".page-stack", ".decision-brief", ".decision-copy", ".single-metric", ".context-line"];
+      const selectors = [".app-main", ".page-stack", ".demo-launcher", ".decision-brief", ".decision-copy", ".single-metric", ".demo-route", ".context-line"];
       return {
         viewportWidth: window.innerWidth,
         documentWidth: document.documentElement.scrollWidth,
