@@ -61,6 +61,14 @@ const {
   enrichRetentionWorkspace,
   matchesExpectedDatasetHash
 } = require("./retention-ux");
+const { evaluateShadow, generateBudgetWasteReport } = require("./shadow-evaluator");
+const { orchestrateCampaign, evaluateCircuitBreaker } = require("./orchestrator");
+const { assertNoRawPii } = require("./pii-guard");
+const { assessOutcomeDrift, latestOutcomeForOrg } = require("./drift-monitor");
+const { generateMonthlyReport } = require("./billing-report");
+const { getRegistry } = require("./model-registry");
+const { buildOperationalHealth, publicLiveness } = require("./operational-health");
+const { buildTrainingExamples, appendExamples } = require("./training-store");
 const { FONT_FILENAME, inspectTypography, renderTypographyCss } = require("./typography");
 const {
   analyzeOutcomeRows,
@@ -69,8 +77,36 @@ const {
   buildReadinessAudit,
   buildSavingsSnapshot
 } = require("./pilot");
-const { appOrigin, assertProductionConfig, isProduction, maxBodyBytes, port: defaultPort, publicSignupEnabled, trustProxy } = require("./config");
 const { DEMO_SCENARIOS, getDemoScenario } = require("./demo-scenarios");
+const {
+  createPilotContract,
+  getCurrentPilotContract,
+  summarizePilotContract,
+  updatePilotContract
+} = require("./pilot-contract");
+const {
+  createBusinessImpactLedger,
+  getBusinessImpactLedger,
+  summarizeBusinessImpactLedger,
+  updateBusinessImpactLifecycle
+} = require("./business-impact-ledger");
+const {
+  createPilotWorkflow,
+  dispatchPilotWorkflowAction,
+  getPilotWorkflow,
+  summarizePilotWorkflow
+} = require("./pilot-control-room");
+const {
+  buildEvidencePackage,
+  createPilotAcceptance,
+  dispatchAcceptanceAction,
+  getPilotAcceptance,
+  summarizePilotAcceptance
+} = require("./production-acceptance");
+const { buildEnterpriseIntelligence } = require("./enterprise-intelligence");
+const { buildEnterpriseProductSurface } = require("./enterprise-product-surface");
+const { appOrigin, assertProductionConfig, isProduction, maxBodyBytes, orchestrationDriftThreshold, revenueShareRate, port: defaultPort, publicSignupEnabled, shadowScorerUrl, trustProxy } = require("./config");
+const { verifyJwt } = require("./auth");
 
 const publicRoot = path.join(__dirname, "..");
 const webDistRoot = path.join(publicRoot, "web", "dist");
@@ -175,8 +211,7 @@ async function handleRequest(req, res) {
 
 async function handleApi(req, res, url) {
   if (url.pathname === "/api/health" && (req.method === "GET" || req.method === "HEAD")) {
-    const storage = await storageHealth();
-    sendJson(res, storage.status === "ok" ? 200 : 503, { data: { status: storage.status, storage } });
+    sendJson(res, 200, { data: publicLiveness() });
     return;
   }
 
@@ -247,7 +282,16 @@ async function handleApi(req, res, url) {
     return;
   }
 
-  const auth = await requireSession(req);
+  // These API paths authenticate via JWT bearer (enterprise CRM integration)
+  // or manage their own session fallback, so the shared session gate below
+  // must not hard-block them for callers that present no session cookie.
+  const jwtAuthenticatedApiPaths = new Set([
+    "/api/v1/evaluate/shadow",
+    "/api/v1/shadow/waste-report",
+    "/api/v1/orchestrate/trigger",
+    "/api/v1/outcomes/report",
+  ]);
+  const auth = jwtAuthenticatedApiPaths.has(url.pathname) ? null : await requireSession(req);
 
   if (url.pathname === "/api/access/members" && req.method === "GET") {
     requireRole(auth, "admin");
@@ -304,6 +348,13 @@ async function handleApi(req, res, url) {
   if (url.pathname === "/api/ops/jobs" && req.method === "GET") {
     requireRole(auth, "admin");
     sendJson(res, 200, { data: await listJobs(auth.organization.id) });
+    return;
+  }
+
+  if (url.pathname === "/api/internal/health" && req.method === "GET") {
+    requireRole(auth, "admin");
+    const health = await buildOperationalHealth();
+    sendJson(res, health.status === "error" ? 503 : 200, { data: health });
     return;
   }
 
@@ -586,6 +637,105 @@ async function handleApi(req, res, url) {
     return;
   }
 
+  if (url.pathname === "/api/pilot/decision-contract" && req.method === "GET") {
+    sendJson(res, 200, { data: await getPilotDecisionContract(auth.organization.id, requestContext(req, auth)) });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/decision-contract" && req.method === "POST") {
+    requireRole(auth, "admin");
+    const body = await readJson(req);
+    sendJson(res, 201, { data: await createPilotDecisionContract(auth.organization.id, body, requestContext(req, auth)) });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/decision-contract" && req.method === "PATCH") {
+    requireRole(auth, "admin");
+    const body = await readJson(req);
+    sendJson(res, 200, { data: await updatePilotDecisionContract(auth.organization.id, body, requestContext(req, auth)) });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/business-impact" && req.method === "GET") {
+    sendJson(res, 200, { data: await getPilotBusinessImpact(auth.organization.id, requestContext(req, auth)) });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/business-impact" && req.method === "POST") {
+    requireRole(auth, "admin");
+    const body = await readJson(req);
+    sendJson(res, 201, { data: await createPilotBusinessImpact(auth.organization.id, body, requestContext(req, auth)) });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/business-impact" && req.method === "PATCH") {
+    requireRole(auth, "admin");
+    const body = await readJson(req);
+    sendJson(res, 200, { data: await updatePilotBusinessImpact(auth.organization.id, body, requestContext(req, auth)) });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/control-room" && req.method === "GET") {
+    sendJson(res, 200, { data: await getPilotControlRoom(auth.organization.id, requestContext(req, auth)) });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/control-room" && req.method === "POST") {
+    requireRole(auth, "admin");
+    const body = await readJson(req);
+    sendJson(res, 201, { data: await createPilotControlRoom(auth.organization.id, body, requestContext(req, auth)) });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/control-room" && req.method === "PATCH") {
+    requireRole(auth, "admin");
+    const body = await readJson(req);
+    sendJson(res, 200, { data: await updatePilotControlRoom(auth.organization.id, body, requestContext(req, auth)) });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/acceptance" && req.method === "GET") {
+    sendJson(res, 200, { data: await getPilotAcceptanceRecord(auth.organization.id, requestContext(req, auth), auth.organization) });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/acceptance" && req.method === "POST") {
+    requireRole(auth, "admin");
+    const body = await readJson(req);
+    sendJson(res, 201, { data: await createPilotAcceptanceRecord(auth.organization.id, body, requestContext(req, auth), auth.organization) });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/acceptance" && req.method === "PATCH") {
+    requireRole(auth, "admin");
+    const body = await readJson(req);
+    sendJson(res, 200, { data: await updatePilotAcceptanceRecord(auth.organization.id, body, requestContext(req, auth), auth.organization) });
+    return;
+  }
+
+  if (url.pathname === "/api/pilot/acceptance/package.md" && req.method === "GET") {
+    const sourceContext = await getPilotAcceptanceSourceContext(auth.organization.id, auth.organization);
+    const record = await getPilotAcceptanceRecord(auth.organization.id, requestContext(req, auth), auth.organization, sourceContext);
+    const packageData = buildEvidencePackage(record, sourceContext);
+    res.writeHead(200, {
+      "Content-Type": "text/markdown; charset=utf-8",
+      "Cache-Control": "no-store",
+      "Content-Disposition": 'attachment; filename="marginlift-acceptance-evidence-package.md"'
+    });
+    res.end(packageData.markdown);
+    return;
+  }
+
+  if (url.pathname === "/api/enterprise/intelligence" && req.method === "GET") {
+    sendJson(res, 200, { data: await getEnterpriseIntelligence(auth.organization.id) });
+    return;
+  }
+
+  if (url.pathname === "/api/enterprise/product-surface" && req.method === "GET") {
+    sendJson(res, 200, { data: await getEnterpriseProductSurface(auth) });
+    return;
+  }
+
   if (url.pathname === "/api/model-governance/overview" && req.method === "GET") {
     sendJson(res, 200, { data: await getModelGovernanceOverview(auth.organization.id) });
     return;
@@ -680,6 +830,151 @@ async function handleApi(req, res, url) {
       "Content-Disposition": 'attachment; filename="marginlift-campaign-report.md"'
     });
     res.end(report);
+    return;
+  }
+
+  if (url.pathname === "/api/v1/evaluate/shadow" && req.method === "POST") {
+    const authHeader = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+    const jwtPayload = verifyJwt(authHeader);
+    if (!jwtPayload || !jwtPayload.org) {
+      sendJson(res, 401, { error: { code: "UNAUTHORIZED", message: "JWT نامعتبر یا منقضی‌شده." } });
+      return;
+    }
+    const body = await readJson(req);
+    if (!body.audience || !Array.isArray(body.audience) || body.audience.length === 0) {
+      sendJson(res, 400, { error: { code: "INVALID_AUDIENCE", message: "لیست مخاطبان خالی یا نامعتبر است." } });
+      return;
+    }
+    assertNoRawPii(body.audience);
+    const { shadowLog, scorerResult } = await evaluateShadow(
+      jwtPayload.org,
+      body.campaign_id || null,
+      body.audience
+    );
+    await transact(db => {
+      if (!db.shadowLogs) db.shadowLogs = [];
+      db.shadowLogs.push(shadowLog);
+    });
+    sendJson(res, 200, { data: scorerResult });
+    return;
+  }
+
+  if (url.pathname === "/api/v1/shadow/waste-report" && req.method === "GET") {
+    const authHeader = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+    const jwtPayload = verifyJwt(authHeader);
+    let orgId;
+    if (jwtPayload && jwtPayload.org) {
+      orgId = jwtPayload.org;
+    } else {
+      const auth = await requireSession(req);
+      requireRole(auth, "analyst");
+      orgId = auth.organization.id;
+    }
+    const db = await readDb();
+    const orgLogs = (db.shadowLogs || []).filter(l => l.organizationId === orgId);
+    const report = generateBudgetWasteReport(orgLogs);
+    sendJson(res, 200, { data: report });
+    return;
+  }
+
+  if (url.pathname === "/api/v1/orchestrate/trigger" && req.method === "POST") {
+    const authHeader = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+    const jwtPayload = verifyJwt(authHeader);
+    if (!jwtPayload || !jwtPayload.org) {
+      sendJson(res, 401, { error: { code: "UNAUTHORIZED", message: "JWT نامعتبر یا منقضی‌شده." } });
+      return;
+    }
+    const body = await readJson(req);
+    if (!body.audience || !Array.isArray(body.audience) || body.audience.length === 0) {
+      sendJson(res, 400, { error: { code: "INVALID_AUDIENCE", message: "لیست مخاطبان خالی یا نامعتبر است." } });
+      return;
+    }
+    assertNoRawPii(body.audience);
+    const orgId = jwtPayload.org;
+    const snapshot = await readDb();
+    const latch = (snapshot.orchestrationHalts || {})[orgId];
+    // Trust a caller-supplied reading if present; otherwise measure drift from
+    // the org's own verified outcomes so the breaker is autonomous.
+    const causalDrift = body.causal_drift != null
+      ? (Number(body.causal_drift) || 0)
+      : assessOutcomeDrift(latestOutcomeForOrg(snapshot, orgId)).drift;
+    const breaker = evaluateCircuitBreaker({
+      latchOpen: Boolean(latch && latch.open),
+      causalDrift,
+      driftThreshold: orchestrationDriftThreshold,
+    });
+    const { orchestrationLog, result } = await orchestrateCampaign(
+      orgId,
+      body.campaign_id || null,
+      body.audience,
+      { causalDrift, driftThreshold: orchestrationDriftThreshold, forceHalt: breaker.halted }
+    );
+    if (breaker.halted) {
+      result.halt_reason = breaker.reason;
+      orchestrationLog.haltReason = breaker.reason;
+    }
+    await transact(db => {
+      if (!db.orchestrationLogs) db.orchestrationLogs = [];
+      // ponytail: unbounded like shadowLogs; rotate/cap when telecom volume actually lands
+      db.orchestrationLogs.push(orchestrationLog);
+      if (breaker.tripped) {
+        if (!db.orchestrationHalts) db.orchestrationHalts = {};
+        db.orchestrationHalts[orgId] = { open: true, reason: breaker.reason, drift: causalDrift, at: new Date().toISOString() };
+      }
+    });
+    sendJson(res, 200, { data: result });
+    return;
+  }
+
+  if (url.pathname === "/api/v1/orchestrate/reset" && req.method === "POST") {
+    requireRole(auth, "owner");
+    await transact(db => {
+      if (db.orchestrationHalts) delete db.orchestrationHalts[auth.organization.id];
+    });
+    sendJson(res, 200, { data: { reset: true, organizationId: auth.organization.id } });
+    return;
+  }
+
+  if (url.pathname === "/api/v1/billing/monthly-report" && req.method === "GET") {
+    requireRole(auth, "owner");
+    const db = await readDb();
+    const orgId = auth.organization.id;
+    const history = (db.monthlyReports || [])
+      .filter(r => r.organizationId === orgId)
+      .sort((a, b) => (a.period < b.period ? 1 : -1));
+    const now = new Date();
+    const current = generateMonthlyReport(
+      (db.shadowLogs || []).filter(l => l.organizationId === orgId),
+      (db.orchestrationLogs || []).filter(l => l.organizationId === orgId),
+      { year: now.getUTCFullYear(), month: now.getUTCMonth() + 1, revenueShareRate }
+    );
+    sendJson(res, 200, { data: { current, history } });
+    return;
+  }
+
+  if (url.pathname === "/api/v1/mlops/model-registry" && req.method === "GET") {
+    requireRole(auth, "owner");
+    sendJson(res, 200, { data: await getRegistry() });
+    return;
+  }
+
+  if (url.pathname === "/api/v1/outcomes/report" && req.method === "POST") {
+    const authHeader = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+    const jwtPayload = verifyJwt(authHeader);
+    if (!jwtPayload || !jwtPayload.org) {
+      sendJson(res, 401, { error: { code: "UNAUTHORIZED", message: "JWT نامعتبر یا منقضی‌شده." } });
+      return;
+    }
+    const body = await readJson(req);
+    if (!body.results || !Array.isArray(body.results) || body.results.length === 0) {
+      sendJson(res, 400, { error: { code: "INVALID_RESULTS", message: "results باید آرایه‌ای غیرخالی باشد." } });
+      return;
+    }
+    assertNoRawPii(body.results);
+    const examples = buildTrainingExamples(jwtPayload.org, body.campaign_id || null, body.results);
+    let total = 0;
+    await transact(db => { total = appendExamples(db, examples); });
+    sendJson(res, 200, { data: { accepted: examples.length, totalExamples: total } });
     return;
   }
 
@@ -801,6 +1096,12 @@ async function getRequestSession(req) {
   const membership = db.memberships.find(item => item.userId === user?.id);
   const organization = db.organizations.find(item => item.id === membership?.organizationId);
   if (!user || !membership || !organization) return null;
+
+  req.authContext = {
+    organizationId: organization.id,
+    userId: user.id,
+    role: membership.role
+  };
 
   return {
     session,
@@ -1833,6 +2134,25 @@ async function getCurrentPilotState(organizationId) {
   const readiness = buildReadinessAudit(customerAnalysis, campaign, outcome);
   const savingsSnapshot = buildSavingsSnapshot(customerAnalysis, campaign, readiness, outcome);
   const workspace = buildPilotWorkspace(readiness, customerAnalysis, outcome, experiment);
+  const decisionContract = await getPilotDecisionContract(organizationId, { organizationId });
+  const businessImpact = await getPilotBusinessImpact(organizationId, { organizationId });
+  const pilotControl = await getPilotControlRoom(organizationId, { organizationId }, {
+    decisionContract,
+    businessImpact,
+    readiness,
+    experiment
+  });
+  const acceptance = await getPilotAcceptanceRecord(organizationId, { organizationId }, null, {
+    organization: null,
+    campaign,
+    customerAnalysis,
+    decisionContract,
+    businessImpact,
+    pilotControl,
+    experiment,
+    outcome,
+    readiness
+  });
   return {
     campaign,
     customerAnalysis,
@@ -1841,8 +2161,139 @@ async function getCurrentPilotState(organizationId) {
     readiness,
     savingsSnapshot,
     workspace,
+    decisionContract: summarizePilotContract(decisionContract),
+    businessImpactSummary: summarizeBusinessImpactLedger(businessImpact),
+    pilotControlSummary: summarizePilotWorkflow(pilotControl),
+    pilotAcceptanceSummary: summarizePilotAcceptance(acceptance),
     pricing: buildPricingPlans()
   };
+}
+
+async function getPilotDecisionContract(organizationId, context = {}) {
+  const db = await readDb();
+  return getCurrentPilotContract(db, { ...context, organizationId });
+}
+
+async function createPilotDecisionContract(organizationId, body, context = {}) {
+  return transact(db => createPilotContract(db, { ...context, organizationId }, body));
+}
+
+async function updatePilotDecisionContract(organizationId, body, context = {}) {
+  return transact(db => updatePilotContract(db, { ...context, organizationId }, body));
+}
+
+async function getPilotBusinessImpact(organizationId, context = {}) {
+  const db = await readDb();
+  return getBusinessImpactLedger(db, { ...context, organizationId });
+}
+
+async function createPilotBusinessImpact(organizationId, body, context = {}) {
+  return transact(db => createBusinessImpactLedger(db, { ...context, organizationId }, body));
+}
+
+async function updatePilotBusinessImpact(organizationId, body, context = {}) {
+  return transact(db => updateBusinessImpactLifecycle(db, { ...context, organizationId }, body));
+}
+
+async function getPilotControlRoom(organizationId, context = {}, readinessContext = null) {
+  const db = await readDb();
+  const derivedReadiness = readinessContext || await getPilotControlReadinessContext(organizationId);
+  return getPilotWorkflow(db, { ...context, organizationId }, derivedReadiness);
+}
+
+async function createPilotControlRoom(organizationId, body, context = {}) {
+  const readinessContext = await getPilotControlReadinessContext(organizationId);
+  return transact(db => createPilotWorkflow(db, { ...context, organizationId }, body, readinessContext));
+}
+
+async function updatePilotControlRoom(organizationId, body, context = {}) {
+  const readinessContext = await getPilotControlReadinessContext(organizationId);
+  return transact(db => dispatchPilotWorkflowAction(db, { ...context, organizationId }, body, readinessContext));
+}
+
+async function getPilotAcceptanceRecord(organizationId, context = {}, organization = null, sourceContext = null) {
+  const db = await readDb();
+  const derivedContext = sourceContext || await getPilotAcceptanceSourceContext(organizationId, organization);
+  return getPilotAcceptance(db, { ...context, organizationId }, derivedContext);
+}
+
+async function createPilotAcceptanceRecord(organizationId, body, context = {}, organization = null) {
+  const sourceContext = await getPilotAcceptanceSourceContext(organizationId, organization);
+  return transact(db => createPilotAcceptance(db, { ...context, organizationId }, body, sourceContext));
+}
+
+async function updatePilotAcceptanceRecord(organizationId, body, context = {}, organization = null) {
+  const sourceContext = await getPilotAcceptanceSourceContext(organizationId, organization);
+  return transact(db => dispatchAcceptanceAction(db, { ...context, organizationId }, body, sourceContext));
+}
+
+async function getPilotAcceptanceSourceContext(organizationId, organization = null) {
+  const [campaign, customerAnalysis, decisionContract, businessImpact] = await Promise.all([
+    getCurrentCampaign(organizationId),
+    getCurrentCustomerAnalysis(organizationId),
+    getPilotDecisionContract(organizationId, { organizationId }),
+    getPilotBusinessImpact(organizationId, { organizationId })
+  ]);
+  const experiment = await getCurrentExperiment(organizationId, customerAnalysis.id);
+  const outcome = await getCurrentOutcomeAnalysis(organizationId, experiment?.id);
+  const readiness = buildReadinessAudit(customerAnalysis, campaign, outcome);
+  const pilotControl = await getPilotControlRoom(organizationId, { organizationId }, {
+    decisionContract,
+    businessImpact,
+    readiness,
+    experiment
+  });
+  return {
+    organization,
+    campaign,
+    customerAnalysis,
+    decisionContract,
+    businessImpact,
+    pilotControl,
+    experiment,
+    outcome,
+    readiness
+  };
+}
+
+async function getPilotControlReadinessContext(organizationId) {
+  const [campaign, customerAnalysis, decisionContract, businessImpact] = await Promise.all([
+    getCurrentCampaign(organizationId),
+    getCurrentCustomerAnalysis(organizationId),
+    getPilotDecisionContract(organizationId, { organizationId }),
+    getPilotBusinessImpact(organizationId, { organizationId })
+  ]);
+  const experiment = await getCurrentExperiment(organizationId, customerAnalysis.id);
+  const outcome = await getCurrentOutcomeAnalysis(organizationId, experiment?.id);
+  const readiness = buildReadinessAudit(customerAnalysis, campaign, outcome);
+  return {
+    decisionContract,
+    businessImpact,
+    readiness,
+    experiment
+  };
+}
+
+async function getEnterpriseIntelligence(organizationId) {
+  const db = await readDb();
+  return buildEnterpriseIntelligence(db, { organizationId });
+}
+
+async function getEnterpriseProductSurface(auth) {
+  const [pilotState, enterpriseIntelligence, modelGovernance, decisionLedger] = await Promise.all([
+    getCurrentPilotState(auth.organization.id),
+    getEnterpriseIntelligence(auth.organization.id),
+    getModelGovernanceOverview(auth.organization.id),
+    getDecisionLedger(auth.organization.id)
+  ]);
+  return buildEnterpriseProductSurface({
+    organization: auth.organization,
+    role: auth.membership?.role,
+    pilotState,
+    enterpriseIntelligence,
+    modelGovernance,
+    decisionLedger
+  });
 }
 
 async function getModelGovernanceOverview(organizationId) {
@@ -2413,6 +2864,13 @@ async function enqueueIntegrityCheck(organizationId, entityId) {
 }
 
 function requestContext(req, auth = null) {
+  if (req && auth) {
+    req.authContext = {
+      organizationId: auth?.organization?.id || null,
+      userId: auth?.user?.id || null,
+      role: auth?.membership?.role || null
+    };
+  }
   return {
     organizationId: auth?.organization?.id || null,
     actorId: auth?.user?.id || null,

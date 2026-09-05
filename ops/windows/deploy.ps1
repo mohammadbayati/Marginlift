@@ -45,6 +45,10 @@ try {
   }
 
   Write-Host "[3/6] Building release archive..."
+  $releaseSha = (git rev-parse HEAD).Trim()
+  Assert-NativeCommand "Release SHA"
+  $releaseTag = (git tag --points-at HEAD | Select-Object -First 1)
+  $releaseTag = if ($releaseTag) { $releaseTag.Trim() } else { "" }
   Remove-Item -LiteralPath $archive, $checksum -Force -ErrorAction SilentlyContinue
   git archive `
     --format=tar.gz `
@@ -86,6 +90,15 @@ fi
 
 tar -xzf "$RELEASE" -C "$STAGE_DIR"
 find "$STAGE_DIR/ops/vm" -maxdepth 1 -type f -name '*.sh' -exec sed -i 's/\r$//' {} +
+cat > "$STAGE_DIR/.marginlift-release.json" <<JSON
+{
+  "service": "marginlift",
+  "environment": "production",
+  "commitSha": "__MARGINLIFT_COMMIT_SHA__",
+  "release": "__MARGINLIFT_RELEASE_TAG__",
+  "buildTimestamp": "$STAMP"
+}
+JSON
 test -f "$STAGE_DIR/src/retention-shadow.js"
 test -f "$STAGE_DIR/synthetic-subscription-transactions.csv"
 cp /root/marginlift.env.backup "$STAGE_DIR/.env"
@@ -123,6 +136,8 @@ docker compose -f docker-compose.production.yml ps
 
 rm -f "$RELEASE" "$CHECKSUM"
 '@
+  $remoteScript = $remoteScript.Replace("__MARGINLIFT_COMMIT_SHA__", $releaseSha)
+  $remoteScript = $remoteScript.Replace("__MARGINLIFT_RELEASE_TAG__", $releaseTag)
   # Bash on the VM expects LF-only input; PowerShell here-strings otherwise
   # encode CRLF and fail before the remote script can normalize its files.
   $remoteScript = $remoteScript -replace "`r`n", "`n"
@@ -142,7 +157,7 @@ rm -f "$RELEASE" "$CHECKSUM"
     $fontResponse.StatusCode -ne 200 -or
     $retentionSampleResponse.StatusCode -ne 200 -or
     $healthResponse.data.status -ne "ok" -or
-    $healthResponse.data.storage.driver -ne "postgres"
+    $healthResponse.data.service -ne "marginlift"
   ) {
     throw "Production verification failed."
   }

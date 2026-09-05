@@ -33,6 +33,118 @@
         </div>
       </header>
 
+      <nav class="report-view-tabs" role="tablist" aria-label="سطح نمایش گزارش">
+        <button class="report-view-tab active" role="tab" aria-selected="true" data-view="command-center" id="tabCommandCenter">
+          <span class="tab-icon" aria-hidden="true">◈</span>
+          مرکز فرماندهی
+        </button>
+        <button class="report-view-tab" role="tab" aria-selected="false" data-view="data-science-lab" id="tabDataScienceLab">
+          <span class="tab-icon" aria-hidden="true">◆</span>
+          آزمایشگاه داده
+        </button>
+      </nav>
+
+      <div class="report-view report-view--command-center active" id="viewCommandCenter" role="tabpanel" aria-labelledby="tabCommandCenter">
+
+      <section class="report-sheet report-sheet--command-center" aria-labelledby="commandCenterHeadline">
+        <div class="report-cover">
+          <div class="report-cover-main">
+            <div class="report-brandline">
+              <span class="report-brandmark" aria-hidden="true">M</span>
+              <div>
+                <bdi>MarginLift</bdi>
+                <small>مرکز فرماندهی سود</small>
+              </div>
+            </div>
+            <div class="report-cover-copy">
+              <span class="report-eyebrow">گزارش عملیاتی برای مدیرعامل، مدیر مالی و مدیر بازاریابی</span>
+              <h1 id="commandCenterHeadline">چقدر بودجه هدر رفته است؟</h1>
+              <p id="commandCenterSubtitle">تحلیل سایه MarginLift نشان می‌دهد چه مقدار از بودجه مشوق به مشتریانی رسیده که نیازی به آن نداشتند.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="command-center-grid">
+          <article class="command-card command-card--waste" id="wasteRadarCard">
+            <div class="command-card-header">
+              <span class="command-card-icon" aria-hidden="true">⚠</span>
+              <div>
+                <span class="report-eyebrow">رادار هدررفت بودجه</span>
+                <h2>Budget Waste Radar</h2>
+              </div>
+            </div>
+            <div class="command-card-body">
+              <div class="waste-metric waste-metric--total">
+                <span>کل بودجه هدررفته</span>
+                <strong class="number" id="totalWasteBudget">در حال محاسبه...</strong>
+              </div>
+              <div class="waste-breakdown">
+                <div class="waste-metric waste-metric--sure-thing">
+                  <span class="waste-label">خریداران حتمی <small>(Sure Things)</small></span>
+                  <strong class="number" id="sureThingWaste">—</strong>
+                  <small id="sureThingCount">مشتریانی که بدون مشوق هم خرید می‌کردند</small>
+                </div>
+                <div class="waste-metric waste-metric--sleeping-dog">
+                  <span class="waste-label">واکنش منفی <small>(Sleeping Dogs)</small></span>
+                  <strong class="number" id="sleepingDogWaste">—</strong>
+                  <small id="sleepingDogCount">مشتریانی که مشوق اثر معکوس داشته</small>
+                </div>
+              </div>
+              <div class="waste-rate-bar" id="wasteRateBar">
+                <div class="waste-rate-fill" style="--waste-pct:0%"></div>
+                <span class="waste-rate-label"><span id="wasteRateValue">۰</span>٪ از بودجه کمپین هدر رفته</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="command-card command-card--revenue" id="netRevenueCard">
+            <div class="command-card-header">
+              <span class="command-card-icon" aria-hidden="true">▲</span>
+              <div>
+                <span class="report-eyebrow">درآمد خالص افزایشی</span>
+                <h2>Net Incremental Revenue</h2>
+              </div>
+            </div>
+            <div class="command-card-body">
+              <div class="revenue-metric">
+                <span>سود خالصی که فقط MarginLift ایجاد کرده</span>
+                <strong class="number" id="netIncrementalRevenue">در حال محاسبه...</strong>
+              </div>
+              <div class="revenue-detail">
+                <div class="revenue-row">
+                  <span>مشتریان قابل ترغیب (Persuadables)</span>
+                  <strong class="number" id="persuadableRevenue">—</strong>
+                </div>
+                <div class="revenue-row">
+                  <span>صرفه‌جویی از حذف هدررفت</span>
+                  <strong class="number" id="savingsFromWasteRemoval">—</strong>
+                </div>
+              </div>
+              <div class="revenue-roi">
+                <span>ROI بهینه‌سازی</span>
+                <strong class="number" id="optimizationRoi">—</strong>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <div class="command-cta-section">
+          <button class="command-cta-button" id="authorizeCampaignBtn" type="button">
+            <span class="cta-icon" aria-hidden="true">✦</span>
+            <div class="cta-copy">
+              <strong>تأیید بهینه‌سازی کمپین</strong>
+              <small>اجازه دهید MarginLift هدف‌گیری کمپین بعدی را بهینه کند</small>
+            </div>
+            <span class="cta-arrow" aria-hidden="true">←</span>
+          </button>
+        </div>
+
+        <footer class="report-page-footer">
+          <span><bdi>MarginLift</bdi> / مرکز فرماندهی سود</span>
+          <span>نمای مدیریتی</span>
+        </footer>
+      </section>
+
       <section class="report-sheet report-sheet--decision" aria-labelledby="decisionHeadline">
         <div class="report-cover">
           <div class="report-cover-main">
@@ -105,6 +217,10 @@
           <span>صفحه ۱ از ۳</span>
         </footer>
       </section>
+
+      </div>
+
+      <div class="report-view report-view--data-science-lab" id="viewDataScienceLab" role="tabpanel" aria-labelledby="tabDataScienceLab" hidden>
 
       <section class="report-sheet report-sheet--evidence" aria-labelledby="evidenceTitle">
         <div class="report-page-heading">
@@ -205,6 +321,9 @@
           <span>صفحه ۳ از ۳</span>
         </footer>
       </section>
+
+      </div>
+
     </main>
   </body>
 </html>

@@ -1,0 +1,9 @@
+{
+  "expectedPublicHealthStatus": "ok",
+  "expectedStorageDriver": "postgres",
+  "requiresAuthenticatedSmokeUser": true,
+  "fixtureDataPolicy": {
+    "containsRealCustomerData": false,
+    "containsSecrets": false
+  }
+}

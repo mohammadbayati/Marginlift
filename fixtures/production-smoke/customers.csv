@@ -1,0 +1,5 @@
+customer_id,segment_fa,days_since_last_purchase,orders_90d,revenue_90d_toman,gross_margin_rate,treatment,exposed,converted,outcome_revenue_toman,incentive_cost_toman,channel_cost_toman,churned,channel
+hash_0000000000000000000000000000000000000000000000000000000000001001,Fixture Smoke,21,2,700000,0.40,control,false,false,0,0,0,false,push
+hash_0000000000000000000000000000000000000000000000000000000000001002,Fixture Smoke,22,2,730000,0.40,small_discount,true,true,260000,5000,100,false,push
+hash_0000000000000000000000000000000000000000000000000000000000001003,Fixture Smoke,65,1,300000,0.35,control,false,false,0,0,0,true,sms
+hash_0000000000000000000000000000000000000000000000000000000000001004,Fixture Smoke,66,1,320000,0.35,small_discount,true,false,0,5000,100,true,sms

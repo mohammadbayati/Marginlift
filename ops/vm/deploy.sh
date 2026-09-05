@@ -10,7 +10,7 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
-for key in SESSION_SECRET POSTGRES_PASSWORD ARTIFACT_ENCRYPTION_KEY APP_ORIGIN; do
+for key in SESSION_SECRET POSTGRES_PASSWORD ARTIFACT_ENCRYPTION_KEY APP_ORIGIN SCORER_INTERNAL_TOKEN; do
   if ! grep -q "^${key}=." .env; then
     echo "Missing required production setting: $key" >&2
     exit 1
@@ -28,4 +28,10 @@ docker compose -f docker-compose.production.yml exec -T app node -e "fetch('http
 ./ops/vm/backup.sh
 ./ops/vm/verify-backup.sh
 ./ops/vm/install-backup-timer.sh
+chmod +x ops/vm/generate-report.sh ops/vm/install-report-timer.sh ops/vm/retrain.sh ops/vm/install-retrain-timer.sh
+./ops/vm/install-report-timer.sh
+./ops/vm/install-retrain-timer.sh
+# Bootstrap / refresh the model registry (promotes on first run; restarts the
+# scorer if the production model changed). Never blocks the deploy.
+./ops/vm/retrain.sh || echo "retrain step skipped (non-fatal)"
 printf '\nMarginLift VM deployment is healthy.\n'

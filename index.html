@@ -112,6 +112,16 @@
         </div>
 
         <nav class="side-nav" id="sideNav">
+          <span class="nav-group-label">Enterprise</span>
+          <a href="#enterprise-control-center" data-enterprise-section-link="control-center"><span class="nav-index">E1</span>Control Center</a>
+          <a href="#enterprise-control-center" data-enterprise-section-link="pilot"><span class="nav-index">E2</span>Pilot</a>
+          <a href="#enterprise-control-center" data-enterprise-section-link="value"><span class="nav-index">E3</span>Value</a>
+          <a href="#enterprise-control-center" data-enterprise-section-link="execution"><span class="nav-index">E4</span>Execution</a>
+          <a href="#enterprise-control-center" data-enterprise-section-link="governance"><span class="nav-index">E5</span>Governance</a>
+          <a href="#enterprise-control-center" data-enterprise-section-link="data-trust"><span class="nav-index">E6</span>Data Trust</a>
+          <a href="#enterprise-control-center" data-enterprise-section-link="evidence"><span class="nav-index">E7</span>Evidence</a>
+          <a href="#enterprise-control-center" data-enterprise-section-link="reports"><span class="nav-index">E8</span>Reports</a>
+          <a href="#enterprise-control-center" data-enterprise-section-link="settings"><span class="nav-index">E9</span>Settings</a>
           <span class="nav-group-label">امروز</span>
           <a class="active" href="#command"><span class="nav-index">۰۱</span>مرکز فرمان</a>
           <a href="#retention"><span class="nav-index">۰۲</span>حفظ مشتری</a>
@@ -159,6 +169,33 @@
           <div><span>قرارداد تصمیم</span><strong id="contractStatus">ریزش ۳۰ روزه / سود افزایشی</strong></div>
           <div><span>منبع داده</span><strong id="dataSource">کمپین‌های ۹۰ روز اخیر</strong></div>
           <div class="workspace-readiness"><span>آمادگی پایلوت</span><strong class="number" id="readinessValue">—</strong></div>
+        </section>
+
+        <section class="enterprise-product content-section" id="enterprise-control-center" aria-labelledby="enterpriseControlTitle">
+          <header class="enterprise-product-head">
+            <div>
+              <p class="section-kicker">MarginLift v1.0</p>
+              <h1 id="enterpriseControlTitle">Enterprise Control Center</h1>
+              <p>Unified product surface for existing pilot, value, governance, evidence, data trust, and execution capabilities.</p>
+            </div>
+            <div class="enterprise-state" id="enterpriseSurfaceState" role="status" aria-live="polite">Loading enterprise evidence...</div>
+          </header>
+          <nav class="enterprise-tabs" id="enterpriseProductTabs" aria-label="Enterprise product sections"></nav>
+          <div class="enterprise-layout">
+            <div class="enterprise-main">
+              <section class="enterprise-cockpit" id="enterpriseControlCards" aria-label="Executive cockpit">
+                <article class="enterprise-empty-state is-loading"><strong>Loading Control Center</strong><span>Collecting existing source-backed records.</span></article>
+              </section>
+              <section class="enterprise-section-panels" id="enterpriseSectionPanels" aria-label="Enterprise product pages"></section>
+            </div>
+            <aside class="enterprise-evidence-drawer" id="enterpriseEvidenceDrawer" aria-labelledby="enterpriseEvidenceTitle">
+              <div class="enterprise-evidence-empty">
+                <p class="mini-label">Traceability</p>
+                <h2 id="enterpriseEvidenceTitle">Why this status?</h2>
+                <p>Select an executive card or product row to inspect source module, record ID, evidence refs, audit events, blockers, risks, and report links.</p>
+              </div>
+            </aside>
+          </div>
         </section>
 
         <section class="presentation-guide" id="presentationGuide" aria-labelledby="presentationTitle" hidden>
@@ -460,6 +497,15 @@
             <div><span>صف پردازش</span><strong id="opsJobs">—</strong><small id="opsJobsNote">—</small></div>
             <div><span>ممیزی عملیات</span><strong id="opsAudit">—</strong><small id="opsAuditNote">—</small></div>
           </section>
+          <section class="panel operational-health-console" id="operationalHealthConsole" aria-labelledby="operationalHealthTitle">
+            <div class="panel-heading">
+              <div><span class="mini-label">Operational health</span><h3 id="operationalHealthTitle">Production service checks</h3></div>
+              <span class="pill" id="operationalHealthStatus">Limited</span>
+            </div>
+            <div class="health-check-grid" id="operationalHealthChecks">
+              <div class="operations-empty"><strong>Health checks are admin-only.</strong><span>Owner/admin roles can inspect database, scorer, queue, artifacts, backup, and restore state.</span></div>
+            </div>
+          </section>
           <div class="operations-grid">
             <article class="panel access-panel"><div class="panel-heading"><div><span class="mini-label">Role-based access</span><h3>اعضای فضای کاری</h3></div><span class="pill" id="memberCount">—</span></div><div class="operations-list" id="memberList"></div></article>
             <article class="panel audit-panel"><div class="panel-heading"><div><span class="mini-label">Immutable audit</span><h3>آخرین رویدادهای حساس</h3></div><span class="pill save" id="auditIntegrity">—</span></div><div class="operations-list" id="auditList"></div></article>
@@ -502,6 +548,18 @@
             <article class="panel readiness-panel"><div class="panel-heading"><div><span class="mini-label">Data Readiness</span><h3>آیا داده آماده است؟</h3></div><span class="status-badge" id="readinessAuditStatus">در حال بررسی</span></div><div class="readiness-score"><strong class="number" id="readinessAuditScore">—</strong><span id="readinessAuditNext">—</span></div><div class="readiness-checks" id="readinessChecks"></div></article>
             <article class="panel workspace-panel"><div class="panel-heading"><div><span class="mini-label">Pilot Workspace</span><h3>مسیر اجرای پایلوت</h3></div><span class="pill save" id="workspaceStatus">—</span></div><div class="workspace-steps" id="workspaceSteps"></div><div class="workspace-actions"><button class="primary-button" id="registerExperimentButton" type="button">ثبت پایلوت تصادفی</button><button class="secondary-button" id="downloadAssignmentsButton" type="button">دانلود فایل تخصیص</button></div><p class="auth-hint" id="experimentMessage" role="status">ابتدا داده مشتری را وارد و سپس assignment پایلوت را پیش از اجرا ثبت کنید.</p></article>
           </div>
+
+          <section class="panel pilot-operability-panel" id="pilotOperabilityWorkbench" aria-labelledby="pilotOperabilityTitle">
+            <div class="panel-heading">
+              <div><span class="mini-label">Pilot Operability</span><h3 id="pilotOperabilityTitle">Customer-operated pilot lifecycle</h3></div>
+              <span class="pill" id="pilotOperabilityRole">Checking access</span>
+            </div>
+            <p class="operator-note">Operate the implemented pilot contract, finance ledger, control room, and acceptance certification from one workspace. Server lifecycle gates remain authoritative.</p>
+            <div class="pilot-lifecycle-workbench" id="pilotLifecycleWorkbench" aria-live="polite">
+              <div class="enterprise-empty-state is-loading"><strong>Loading lifecycle state</strong><span>Reading existing pilot records.</span></div>
+            </div>
+            <p class="auth-hint" id="pilotLifecycleMessage" role="status"></p>
+          </section>
 
           <section class="panel outcome-panel">
             <div class="panel-heading"><div><span class="mini-label">Outcome Loop</span><h3>پیش‌بینی را با واقعیت مقایسه کنید.</h3></div><button class="secondary-button" id="downloadReadoutButton" type="button">مشاهده گزارش PDF مدیریتی</button></div>

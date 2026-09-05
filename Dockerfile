@@ -16,7 +16,7 @@ RUN npm ci --omit=dev
 COPY . .
 COPY --from=web-builder /app/web/dist ./web/dist
 
-RUN mkdir -p /app/data /app/private/artifacts && chown -R node:node /app
+RUN mkdir -p /app/data /app/private/artifacts /training && chown -R node:node /app /training
 USER node
 VOLUME ["/app/data", "/app/private/artifacts"]
 EXPOSE 3000

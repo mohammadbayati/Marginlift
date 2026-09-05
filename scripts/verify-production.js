@@ -1,10 +1,13 @@
 const assert = require("assert");
+const { validateFixtureLayer } = require("../src/fixture-strategy");
 
 const baseUrl = String(process.env.MARGINLIFT_BASE_URL || "https://marginlift.ir").replace(/\/$/, "");
 const email = String(process.env.MARGINLIFT_DEMO_EMAIL || "").trim();
 const password = String(process.env.MARGINLIFT_DEMO_PASSWORD || "");
 const expectedRole = String(process.env.MARGINLIFT_EXPECTED_ROLE || "viewer");
 const expectedStorage = String(process.env.MARGINLIFT_EXPECTED_STORAGE || "postgres");
+const expectedSha = String(process.env.MARGINLIFT_EXPECTED_SHA || process.env.MARGINLIFT_COMMIT_SHA || "").trim();
+const expectedRelease = String(process.env.MARGINLIFT_EXPECTED_RELEASE || "").trim();
 const requireInviteOnly = process.env.MARGINLIFT_REQUIRE_INVITE_ONLY !== "false";
 const requireLicensedFont = process.env.MARGINLIFT_REQUIRE_IRANSANSX === "true";
 
@@ -34,6 +37,9 @@ async function main() {
   }
 
   const evidence = [];
+  const fixtureSnapshot = validateFixtureLayer("production-smoke");
+  evidence.push(`fixtures:production-smoke:${fixtureSnapshot.digest}`);
+
   const publicSurfaces = [
     ["/", "siteMain"],
     ["/login", "authShell"],
@@ -64,7 +70,10 @@ async function main() {
   const loginPage = await request("/login");
   assert.match(String(loginPage.payload), /auth-product-preview/);
   assert.match(String(loginPage.payload), /topbarUser/);
-  evidence.push("ui-v5:auth-preview", "ui-v5:session-identity");
+  const appShell = await request("/");
+  assert.match(String(appShell.payload), /pilotLifecycleWorkbench/);
+  assert.match(String(appShell.payload), /operationalHealthConsole/);
+  evidence.push("ui-v5:auth-preview", "ui-v5:session-identity", "rc2:pilot-operability-shell");
 
   const fontStatus = await request("/api/font-status");
   expectStatus(fontStatus, 200, "font status");
@@ -82,9 +91,15 @@ async function main() {
   const health = await request("/api/health");
   expectStatus(health, 200, "health");
   assert.strictEqual(health.payload.data.status, "ok");
-  assert.strictEqual(health.payload.data.storage.driver, expectedStorage);
+  assert.strictEqual(health.payload.data.service, "marginlift");
+  assert.strictEqual(health.payload.data.storage, undefined);
+  assert.strictEqual(health.payload.data.release.service, "marginlift");
+  assert.ok(health.payload.data.release.environment, "release environment missing");
+  assert.ok(health.payload.data.release.commitSha, "release commit SHA missing");
+  if (expectedSha) assert.strictEqual(health.payload.data.release.commitSha, expectedSha);
+  if (expectedRelease) assert.strictEqual(health.payload.data.release.release, expectedRelease);
   assert.match(health.response.headers.get("content-security-policy") || "", /default-src 'self'/);
-  evidence.push(`health:${expectedStorage}:ok`, "security-headers:csp");
+  evidence.push(`release:${health.payload.data.release.commitSha}`, "health:public-liveness:ok", "security-headers:csp");
 
   const publicConfig = await request("/api/public-config");
   expectStatus(publicConfig, 200, "public config");
@@ -104,6 +119,15 @@ async function main() {
   assert.strictEqual(session.payload.data.role, expectedRole);
   evidence.push(`login:${expectedRole}`);
 
+  if (["owner", "admin"].includes(expectedRole)) {
+    const internalHealth = await request("/api/internal/health", { cookie });
+    expectStatus(internalHealth, 200, "internal health");
+    assert.strictEqual(internalHealth.payload.data.release.commitSha, health.payload.data.release.commitSha);
+    assert.strictEqual(internalHealth.payload.data.checks.database.driver, expectedStorage);
+    assert.ok(["ok", "degraded", "error"].includes(internalHealth.payload.data.status));
+    evidence.push(`internal-health:${expectedStorage}:${internalHealth.payload.data.status}`);
+  }
+
   const usabilityConsole = await request("/internal/usability-test", { cookie });
   if (expectedRole === "owner") {
     expectStatus(usabilityConsole, 200, "owner usability console");
@@ -121,6 +145,9 @@ async function main() {
     "/api/analyses/history",
     "/api/readiness/current",
     "/api/pilot/workspace",
+    "/api/enterprise/product-surface",
+    "/api/pilot/acceptance",
+    "/api/pilot/acceptance/package.md",
     "/api/model-governance/overview",
     "/api/retention/workspace",
     "/api/contact-policy/workspace",
@@ -133,10 +160,22 @@ async function main() {
   }
   evidence.push(`viewer-readable-routes:${readableRoutes.length}`);
 
+  const productSurface = await request("/api/enterprise/product-surface", { cookie });
+  expectStatus(productSurface, 200, "enterprise product surface");
+  assert.strictEqual(productSurface.payload.data.boundary.autonomousDecisions, false);
+  assert.strictEqual(productSurface.payload.data.boundary.autonomousRecommendations, false);
+  assert.ok(productSurface.payload.data.navigation.some(item => item.key === "control-center"));
+  assert.ok(!productSurface.payload.data.navigation.some(item => ["strategy", "transformation", "data-integrations"].includes(item.key)));
+  assert.ok(productSurface.payload.data.controlCenter.cards.every(item => item.trace && item.trace.sourceModule));
+  assert.ok(!productSurface.payload.data.controlCenter.cards.some(item => item.status === "unavailable"));
+  assert.ok(productSurface.payload.data.reports.some(item => item.route === "/api/pilot/acceptance/package.md"));
+  evidence.push("enterprise-product-surface:traceable-read-only");
+
   if (expectedRole === "viewer") {
     const forbiddenChecks = [
       ["/api/retention/readout.md", { cookie }],
       ["/api/exports/audience.csv", { cookie }],
+      ["/api/pilot/acceptance", { method: "PATCH", cookie, body: { action: "generate_package" } }],
       ["/api/imports/csv", { method: "POST", cookie, body: {} }],
       ["/api/outcomes/import", { method: "POST", cookie, body: {} }]
     ];

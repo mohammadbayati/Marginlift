@@ -2,6 +2,14 @@ const path = require("path");
 
 const isProduction = process.env.NODE_ENV === "production";
 const sessionSecret = process.env.SESSION_SECRET || (isProduction ? "" : "development-only-session-secret");
+const jwtSecret = process.env.JWT_SECRET || (isProduction ? "" : "development-only-jwt-secret");
+const shadowScorerUrl = process.env.SHADOW_SCORER_URL || "http://localhost:8100";
+const scorerInternalToken = process.env.SCORER_INTERNAL_TOKEN || "";
+const scorerInternalTokenId = process.env.SCORER_INTERNAL_TOKEN_ID || "";
+const parsedDriftThreshold = Number(process.env.ORCHESTRATION_DRIFT_THRESHOLD || 0.2);
+const orchestrationDriftThreshold = Number.isFinite(parsedDriftThreshold) && parsedDriftThreshold > 0 ? parsedDriftThreshold : 0.2;
+const parsedRevenueShareRate = Number(process.env.REVENUE_SHARE_RATE || 0.2);
+const revenueShareRate = Number.isFinite(parsedRevenueShareRate) && parsedRevenueShareRate >= 0 && parsedRevenueShareRate <= 1 ? parsedRevenueShareRate : 0.2;
 const maxBodyBytes = Number(process.env.MARGINLIFT_MAX_BODY_BYTES || 2 * 1024 * 1024);
 const publicSignupEnabled = process.env.MARGINLIFT_PUBLIC_SIGNUP === "true" || !isProduction;
 
@@ -22,6 +30,9 @@ function assertProductionConfig() {
   if (!isValidEncryptionKey(process.env.ARTIFACT_ENCRYPTION_KEY || "")) {
     throw new Error("ARTIFACT_ENCRYPTION_KEY must be 32 bytes (64 hex characters or base64). ");
   }
+  if (scorerInternalToken.length < 32) {
+    throw new Error("SCORER_INTERNAL_TOKEN must be at least 32 characters in production.");
+  }
 }
 
 function isValidEncryptionKey(value) {
@@ -40,11 +51,17 @@ function resolveDbPath() {
 module.exports = {
   appOrigin: process.env.APP_ORIGIN || "",
   isProduction,
+  jwtSecret,
   maxBodyBytes: Number.isFinite(maxBodyBytes) && maxBodyBytes > 0 ? maxBodyBytes : 2 * 1024 * 1024,
+  orchestrationDriftThreshold,
+  revenueShareRate,
   port: Number(process.env.PORT || 3000),
   publicSignupEnabled,
   resolveDbPath,
   sessionSecret,
+  scorerInternalToken,
+  scorerInternalTokenId,
+  shadowScorerUrl,
   trustProxy: process.env.TRUST_PROXY === "true",
   assertProductionConfig
 };

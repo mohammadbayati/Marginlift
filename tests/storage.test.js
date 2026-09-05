@@ -32,6 +32,7 @@ async function run() {
   assert.deepStrictEqual(normalized.retentionAnalyses, []);
   assert.deepStrictEqual(normalized.retentionShadowRuns, []);
   assert.deepStrictEqual(normalized.retentionMetricContracts, []);
+  assert.deepStrictEqual(normalized.pilotAcceptances, []);
 
   await transact(db => {
     db.experiments.push({ id: "exp_migrated", organizationId: "org_legacy" });

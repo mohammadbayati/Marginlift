@@ -364,12 +364,68 @@ async function initReport() {
     renderEvidencePassport(state, governance);
     renderSteps(state);
     renderLists(state, status);
+    renderCommandCenter(state).catch(() => {});
     requestAnimationFrame(() => document.documentElement.classList.add("report-ready"));
   } catch (error) {
     document.getElementById("executiveReport").innerHTML = `<section class="report-load-error"><h1>گزارش آماده نشد</h1><p>${escapeHtml(error.message)}</p><a href="/login">بازگشت به مرکز تصمیم</a></section>`;
   }
 }
 
+function initViewTabs() {
+  const tabs = document.querySelectorAll(".report-view-tab");
+  tabs.forEach(tab => {
+    tab.addEventListener("click", () => {
+      tabs.forEach(t => { t.classList.remove("active"); t.setAttribute("aria-selected", "false"); });
+      tab.classList.add("active");
+      tab.setAttribute("aria-selected", "true");
+      const target = tab.dataset.view;
+      document.querySelectorAll(".report-view").forEach(view => {
+        const isTarget = view.id === (target === "command-center" ? "viewCommandCenter" : "viewDataScienceLab");
+        view.classList.toggle("active", isTarget);
+        view.hidden = !isTarget;
+      });
+    });
+  });
+}
+
+async function renderCommandCenter(state) {
+  const snapshot = state.savingsSnapshot;
+  const outcome = state.outcome?.summary;
+  const observed = Number(outcome?.observedIncrementalProfit ?? snapshot.expectedIncrementalProfit ?? 0);
+
+  let wasteReport = null;
+  try { wasteReport = await fetchJson("/api/v1/shadow/waste-report"); } catch (_) {}
+
+  if (wasteReport && wasteReport.totalEvaluations > 0) {
+    document.getElementById("totalWasteBudget").textContent = formatMoney(wasteReport.totalWasteBudget);
+    document.getElementById("sureThingWaste").textContent = formatMoney(wasteReport.sureThingWaste);
+    document.getElementById("sureThingCount").textContent = `${formatNumber(wasteReport.sureThingCount)} مشتری — بدون نیاز به مشوق خرید می‌کنند`;
+    document.getElementById("sleepingDogWaste").textContent = formatMoney(wasteReport.sleepingDogWaste);
+    document.getElementById("sleepingDogCount").textContent = `${formatNumber(wasteReport.sleepingDogCount)} مشتری — مشوق اثر معکوس داشته`;
+    document.getElementById("wasteRateValue").textContent = formatNumber(wasteReport.wasteRate);
+    document.querySelector(".waste-rate-fill").style.setProperty("--waste-pct", `${Math.min(100, wasteReport.wasteRate)}%`);
+  } else {
+    const avoidable = Math.abs(Number(snapshot.avoidableIncentiveCost || 0));
+    document.getElementById("totalWasteBudget").textContent = avoidable > 0 ? formatMoney(avoidable) : "داده سایه موجود نیست";
+    const wasteRate = snapshot.totalCost > 0 ? Math.round((avoidable / snapshot.totalCost) * 100) : 0;
+    document.getElementById("wasteRateValue").textContent = formatNumber(wasteRate);
+    document.querySelector(".waste-rate-fill").style.setProperty("--waste-pct", `${Math.min(100, wasteRate)}%`);
+  }
+
+  document.getElementById("netIncrementalRevenue").textContent = formatMoney(observed);
+  const persuadableProfit = Number(snapshot.expectedIncrementalProfit || 0);
+  const savings = Math.abs(Number(snapshot.avoidableIncentiveCost || 0));
+  document.getElementById("persuadableRevenue").textContent = formatMoney(persuadableProfit);
+  document.getElementById("savingsFromWasteRemoval").textContent = formatMoney(savings);
+  const totalInvestment = Number(snapshot.totalCost || 1);
+  const roi = totalInvestment > 0 ? ((persuadableProfit + savings) / totalInvestment) : 0;
+  document.getElementById("optimizationRoi").textContent = `${formatNumber(Math.round(roi * 100))}٪`;
+}
+
 document.getElementById("printReportButton").addEventListener("click", () => window.print());
 document.getElementById("downloadMarkdownButton").addEventListener("click", () => downloadMarkdown().catch(error => window.alert(error.message)));
+document.getElementById("authorizeCampaignBtn").addEventListener("click", () => {
+  window.alert("درخواست بهینه‌سازی ثبت شد. تیم MarginLift با شما تماس خواهد گرفت.");
+});
+initViewTabs();
 initReport();

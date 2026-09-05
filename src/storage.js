@@ -2,12 +2,14 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { resolveDbPath } = require("./config");
+const { buildPostgresMigrations, runPostgresMigrations, validatePostgresMigrations } = require("./storage-migrations");
 
 const CURRENT_SCHEMA_VERSION = 7;
 const databaseUrl = process.env.DATABASE_URL || "";
 const storageDriver = databaseUrl ? "postgres" : "json";
 const dbPath = resolveDbPath();
 const dataDir = path.dirname(dbPath);
+const productionMode = process.env.NODE_ENV === "production";
 
 let pool = null;
 let initialization = null;
@@ -32,6 +34,10 @@ function createInitialDb() {
     retentionMetricContracts: [],
     experiments: [],
     outcomes: [],
+    pilotContracts: [],
+    businessImpactLedgers: [],
+    pilotWorkflows: [],
+    pilotAcceptances: [],
     decisionLedger: [],
     auditLog: [],
     artifacts: [],
@@ -60,6 +66,10 @@ function normalizeDb(input) {
     "retentionMetricContracts",
     "experiments",
     "outcomes",
+    "pilotContracts",
+    "businessImpactLedgers",
+    "pilotWorkflows",
+    "pilotAcceptances",
     "decisionLedger",
     "auditLog",
     "artifacts",
@@ -99,47 +109,12 @@ async function initializePostgres() {
 
   const client = await pool.connect();
   try {
-    await client.query("BEGIN");
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS marginlift_state (
-        id SMALLINT PRIMARY KEY CHECK (id = 1),
-        revision BIGINT NOT NULL DEFAULT 0,
-        payload JSONB NOT NULL,
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `);
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS marginlift_jobs (
-        id TEXT PRIMARY KEY,
-        organization_id TEXT,
-        type TEXT NOT NULL,
-        payload JSONB NOT NULL DEFAULT '{}'::jsonb,
-        status TEXT NOT NULL DEFAULT 'pending',
-        attempts INTEGER NOT NULL DEFAULT 0,
-        max_attempts INTEGER NOT NULL DEFAULT 3,
-        dedupe_key TEXT,
-        available_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        locked_at TIMESTAMPTZ,
-        completed_at TIMESTAMPTZ,
-        last_error TEXT,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `);
-    await client.query("CREATE INDEX IF NOT EXISTS marginlift_jobs_claim_idx ON marginlift_jobs (status, available_at, created_at)");
-
-    const existing = await client.query("SELECT id FROM marginlift_state WHERE id = 1");
-    if (existing.rowCount === 0) {
-      const seed = await readLegacyJsonForMigration();
-      await client.query(
-        "INSERT INTO marginlift_state (id, payload) VALUES (1, $1::jsonb)",
-        [JSON.stringify(seed)]
-      );
+    const seed = await readLegacyJsonForMigration();
+    const migrations = buildPostgresMigrations(seed);
+    if (!productionMode) {
+      await runPostgresMigrations(client, migrations);
     }
-    await client.query("COMMIT");
-  } catch (error) {
-    await client.query("ROLLBACK");
-    throw error;
+    await validatePostgresMigrations(client, migrations);
   } finally {
     client.release();
   }
@@ -235,6 +210,59 @@ async function storageHealth() {
     return { status: "ok", driver: storageDriver, latencyMs: Date.now() - startedAt };
   } catch (error) {
     return { status: "error", driver: storageDriver, latencyMs: Date.now() - startedAt };
+  }
+}
+
+async function queueHealth() {
+  const startedAt = Date.now();
+  try {
+    await initializeStorage();
+    let rows;
+    if (storageDriver === "postgres") {
+      const result = await pool.query(`
+        SELECT status, COUNT(*)::int AS count, MIN(created_at) AS oldest_created_at
+        FROM marginlift_jobs
+        GROUP BY status
+      `);
+      rows = result.rows.map(row => ({
+        status: row.status,
+        count: Number(row.count || 0),
+        oldestCreatedAt: row.oldest_created_at || null
+      }));
+    } else {
+      const db = await readDb();
+      const grouped = new Map();
+      for (const job of db.jobs || []) {
+        const current = grouped.get(job.status) || { status: job.status, count: 0, oldestCreatedAt: null };
+        current.count += 1;
+        if (!current.oldestCreatedAt || new Date(job.createdAt) < new Date(current.oldestCreatedAt)) {
+          current.oldestCreatedAt = job.createdAt || null;
+        }
+        grouped.set(job.status, current);
+      }
+      rows = Array.from(grouped.values());
+    }
+    const counts = rows.reduce((result, row) => {
+      result[row.status || "unknown"] = row.count;
+      return result;
+    }, {});
+    const oldestPending = rows
+      .filter(row => row.status === "pending" && row.oldestCreatedAt)
+      .map(row => new Date(row.oldestCreatedAt).getTime())
+      .sort((a, b) => a - b)[0];
+    return {
+      status: counts.failed ? "degraded" : "ok",
+      counts,
+      oldestPendingAgeSeconds: oldestPending ? Math.max(0, Math.floor((Date.now() - oldestPending) / 1000)) : null,
+      latencyMs: Date.now() - startedAt
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      counts: {},
+      oldestPendingAgeSeconds: null,
+      latencyMs: Date.now() - startedAt
+    };
   }
 }
 
@@ -391,6 +419,8 @@ module.exports = {
   initializeStorage,
   listJobs,
   normalizeDb,
+  queueHealth,
+  readLegacyJsonForMigration,
   readDb,
   storageDriver,
   storageHealth,

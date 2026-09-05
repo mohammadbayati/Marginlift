@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "marginlift-fixtures-v1",
+  "policy": {
+    "containsRealCustomerData": false,
+    "containsSecrets": false,
+    "separateFromRootSyntheticCsv": true
+  },
+  "layers": [
+    {
+      "id": "minimal",
+      "purpose": "Smallest valid deterministic fixture set for parser and storage parity checks.",
+      "files": [
+        { "type": "campaign", "path": "minimal/campaigns.csv" },
+        { "type": "customers", "path": "minimal/customers.csv" },
+        { "type": "outcomes", "path": "minimal/outcomes.csv" }
+      ]
+    },
+    {
+      "id": "regression",
+      "purpose": "Stable non-sensitive rows covering control, treatment, conversion, non-conversion, and cost paths.",
+      "files": [
+        { "type": "campaign", "path": "regression/campaigns.csv" },
+        { "type": "customers", "path": "regression/customers.csv" },
+        { "type": "outcomes", "path": "regression/outcomes.csv" }
+      ]
+    },
+    {
+      "id": "production-smoke",
+      "purpose": "Non-sensitive smoke contract used before live production smoke validation.",
+      "files": [
+        { "type": "campaign", "path": "production-smoke/campaigns.csv" },
+        { "type": "customers", "path": "production-smoke/customers.csv" },
+        { "type": "outcomes", "path": "production-smoke/outcomes.csv" },
+        { "type": "health-contract", "path": "production-smoke/health-contract.json" }
+      ]
+    }
+  ]
+}

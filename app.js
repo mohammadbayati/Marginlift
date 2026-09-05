@@ -9,6 +9,9 @@ let currentPilotState = null;
 let currentGovernance = null;
 let currentSession = null;
 let currentOperations = null;
+let currentEnterpriseSurface = null;
+let currentEnterpriseSection = "control-center";
+let currentPilotLifecycle = null;
 let currentRetentionWorkspace = null;
 let currentRetentionShadow = null;
 let currentBehavioralWorkspace = null;
@@ -216,7 +219,11 @@ function setupNavigation() {
     const observer = new IntersectionObserver(entries => {
       const visible = entries.filter(entry => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
       if (!visible) return;
-      navLinks.forEach(link => link.classList.toggle("active", link.getAttribute("href") === `#${visible.target.id}`));
+      navLinks.forEach(link => {
+        const matchesSection = link.getAttribute("href") === `#${visible.target.id}`;
+        const matchesEnterpriseTab = !link.dataset.enterpriseSectionLink || link.dataset.enterpriseSectionLink === currentEnterpriseSection;
+        link.classList.toggle("active", matchesSection && matchesEnterpriseTab);
+      });
     }, { rootMargin: "-18% 0px -68% 0px", threshold: [0, 0.2, 0.55] });
     observedSections.forEach(section => observer.observe(section));
   }
@@ -603,10 +610,11 @@ function renderOperations() {
     document.getElementById("opsAuditNote").textContent = "دفتر ممیزی فقط برای مدیر عملیات قابل مشاهده است.";
     document.getElementById("memberList").innerHTML = `<div class="operations-empty"><strong>نمای مدیریتی محدود است.</strong><span>برای مشاهده اعضا و audit به نقش مدیر عملیات نیاز دارید.</span></div>`;
     document.getElementById("auditList").innerHTML = `<div class="operations-empty"><strong>اصل حداقل دسترسی فعال است.</strong><span>اطلاعات حساس عملیاتی برای این نقش نمایش داده نمی‌شود.</span></div>`;
+    renderOperationalHealthConsole(null);
     return;
   }
 
-  const { metrics, jobs, audit, members, artifacts } = currentOperations;
+  const { metrics, jobs, audit, members, artifacts, health } = currentOperations;
   const pendingJobs = jobs.filter(item => ["pending", "processing"].includes(item.status)).length;
   document.getElementById("opsStorage").textContent = metrics.storageDriver === "postgres" ? "PostgreSQL" : "JSON محلی";
   document.getElementById("opsStorageNote").textContent = metrics.storageDriver === "postgres" ? "منبع اصلی production و آماده پاسخ" : "فقط برای توسعه محلی";
@@ -621,19 +629,699 @@ function renderOperations() {
   document.getElementById("memberList").innerHTML = members.map(member => `<div class="operation-row"><span class="operation-avatar">${escapeHtml((member.name || member.email).slice(0, 1).toUpperCase())}</span><div><strong>${escapeHtml(member.name || member.email)}</strong><small>${escapeHtml(member.email)}</small></div><bdi>${escapeHtml(roleLabels[member.role] || member.role)}</bdi></div>`).join("");
   document.getElementById("auditList").innerHTML = audit.entries.slice(0, 6).map(entry => `<div class="operation-row audit-row"><span class="operation-state"></span><div><strong>${escapeHtml(entry.action.replaceAll("_", " "))}</strong><small>${new Date(entry.createdAt).toLocaleString("fa-IR")}</small></div><bdi>${escapeHtml(entry.actorRole)}</bdi></div>`).join("") || `<div class="operations-empty"><strong>هنوز رویدادی ثبت نشده است.</strong><span>اولین عملیات حساس اینجا ثبت می‌شود.</span></div>`;
   document.getElementById("operations").dataset.operational = String(canOperate);
+  renderOperationalHealthConsole(health);
+}
+
+function healthBadgeState(status) {
+  if (status === "ok") return "available";
+  if (status === "error") return "blocked";
+  return "partial";
+}
+
+function healthBadgeLabel(status) {
+  if (status === "ok") return "READY";
+  if (status === "error") return "BLOCKED";
+  return "PARTIAL";
+}
+
+function renderHealthCard(label, status, detail, evidence = "") {
+  return `<article class="health-check-card" data-state="${escapeHtml(healthBadgeState(status))}">
+    <div><span class="enterprise-status" data-state="${escapeHtml(healthBadgeState(status))}">${escapeHtml(healthBadgeLabel(status))}</span><strong>${escapeHtml(label)}</strong></div>
+    <p>${escapeHtml(detail || "No detail returned.")}</p>
+    ${evidence ? `<small>${escapeHtml(evidence)}</small>` : ""}
+  </article>`;
+}
+
+function renderOperationalHealthConsole(health) {
+  const target = document.getElementById("operationalHealthChecks");
+  const status = document.getElementById("operationalHealthStatus");
+  if (!target) return;
+  const role = currentSession?.role || "viewer";
+  if (!["owner", "admin"].includes(role)) {
+    if (status) status.textContent = "Read-only";
+    target.innerHTML = `<div class="operations-empty"><strong>Health checks are admin-only.</strong><span>Owner/admin roles can inspect service, database, scorer, queue, artifacts, backup, restore, model, and audit status.</span></div>`;
+    return;
+  }
+  if (!health) {
+    if (status) status.textContent = "Unavailable";
+    target.innerHTML = `<div class="operations-empty"><strong>Operational health did not load.</strong><span>The surrounding workspace remains usable; retry or inspect the admin health endpoint.</span></div>`;
+    return;
+  }
+
+  if (status) status.textContent = health.status === "ok" ? "Ready" : statusText(health.status);
+  const checks = health.checks || {};
+  const jobs = currentOperations?.jobs || [];
+  const failedJobs = jobs.filter(item => item.status === "failed").length;
+  const pendingJobs = jobs.filter(item => ["pending", "processing"].includes(item.status)).length;
+  const audit = currentOperations?.audit;
+  const governance = currentGovernance?.modelGovernance || {};
+  const promotionGate = governance.registry?.promotionGate || {};
+  const outcomeMonitor = currentGovernance?.outcomeMonitor || {};
+  const release = health.release || {};
+
+  target.innerHTML = [
+    renderHealthCard("Application service", health.status, `Environment ${release.environment || "unknown"} / commit ${release.commitSha || "unknown"}`, `Release ${release.release || "not tagged"}${release.buildTimestamp ? ` / built ${release.buildTimestamp}` : ""}`),
+    renderHealthCard("PostgreSQL", checks.database?.status, checks.database?.message || checks.database?.driver || "Storage health returned."),
+    renderHealthCard("Shadow scorer", checks.scorer?.status, checks.scorer?.registry?.production ? `Production model ${checks.scorer.registry.production}` : "No production scorer registered."),
+    renderHealthCard("Jobs / queue", checks.queue?.status, `${formatNumber(pendingJobs)} active jobs / ${formatNumber(failedJobs)} failed jobs`, `Queue check: ${checks.queue?.message || checks.queue?.status || "unknown"}`),
+    renderHealthCard("Artifact storage", checks.artifacts?.status, currentOperations?.metrics?.artifactStorage ? `${formatNumber(currentOperations.artifacts.length)} encrypted artifacts listed.` : "Artifact storage is not enabled."),
+    renderHealthCard("Backup state", checks.backup?.status, checks.backup?.lastBackupCreatedAt ? `Last backup ${checks.backup.lastBackupCreatedAt}` : "Backup status file not available.", `Backup status: ${checks.backup?.backupStatus || "unknown"}`),
+    renderHealthCard("Restore verification", checks.backup?.verificationStatus === "ok" ? "ok" : "degraded", checks.backup?.lastRestoreVerifiedAt ? `Last restore verification ${checks.backup.lastRestoreVerifiedAt}` : "Restore verification not recorded.", `Verification status: ${checks.backup?.verificationStatus || "unknown"}`),
+    renderHealthCard("Model / drift", promotionGate.blocked ? "degraded" : "ok", `${governance.claimLevelFa || governance.claimLevel || "Model governance available."} / outcome monitor ${outcomeMonitor.status || "unknown"}`),
+    renderHealthCard("Operational audit", audit?.integrity?.valid ? "ok" : "error", audit?.integrity ? `${formatNumber(audit.integrity.checked)} audit events checked.` : "Audit integrity not loaded.")
+  ].join("");
 }
 
 async function loadOperationsData() {
   const role = currentSession?.role;
   if (!["owner", "admin"].includes(role)) return null;
-  const [metrics, jobs, audit, members, artifacts] = await Promise.all([
+  const [metrics, jobs, audit, members, artifacts, health] = await Promise.all([
     apiRequest("/api/ops/metrics"),
     apiRequest("/api/ops/jobs"),
     apiRequest("/api/audit-log"),
     apiRequest("/api/access/members"),
-    apiRequest("/api/artifacts")
+    apiRequest("/api/artifacts"),
+    apiRequest("/api/internal/health")
   ]);
-  return { metrics, jobs, audit, members, artifacts };
+  return { metrics, jobs, audit, members, artifacts, health };
+}
+
+async function loadEnterpriseProductSurface() {
+  try {
+    return { data: await apiRequest("/api/enterprise/product-surface"), error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
+}
+
+async function loadPilotLifecycle() {
+  const [contract, businessImpact, controlRoom, acceptance] = await Promise.all([
+    apiRequest("/api/pilot/decision-contract"),
+    apiRequest("/api/pilot/business-impact"),
+    apiRequest("/api/pilot/control-room"),
+    apiRequest("/api/pilot/acceptance")
+  ]);
+  return { contract, businessImpact, controlRoom, acceptance };
+}
+
+function canOperatePilotLifecycle() {
+  return ["owner", "admin"].includes(currentSession?.role);
+}
+
+function pilotLifecycleRoleText() {
+  const labels = { owner: "Owner: governance and approval", admin: "Admin: lifecycle operator", analyst: "Analyst: evidence review", viewer: "Viewer: read-only" };
+  return labels[currentSession?.role] || "Read-only";
+}
+
+function statusText(value) {
+  return String(value || "draft").replaceAll("_", " ");
+}
+
+function nextPilotWorkflowStatus(status) {
+  return ({
+    draft: "kickoff",
+    kickoff: "data_ready",
+    data_ready: "experiment_running",
+    experiment_running: "outcome_pending",
+    outcome_pending: "decision_ready",
+    decision_ready: "closed"
+  })[status] || null;
+}
+
+function nextContractStatus(status) {
+  return ({
+    draft: "approved",
+    approved: "locked",
+    locked: "experiment_running",
+    experiment_running: "outcome_review",
+    outcome_review: "closed"
+  })[status] || null;
+}
+
+function formValue(id) {
+  return document.getElementById(id)?.value?.trim() || "";
+}
+
+function formNumber(id, fallback = null) {
+  const value = Number(toLatinDigits(formValue(id)));
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function actionButton(label, action, disabled, className = "secondary-button", extra = "") {
+  return `<button class="${className}" type="button" data-pilot-action="${escapeHtml(action)}" ${disabled ? "disabled aria-disabled=\"true\"" : ""} ${extra}>${escapeHtml(label)}</button>`;
+}
+
+function renderPilotLifecycleWorkbench() {
+  const target = document.getElementById("pilotLifecycleWorkbench");
+  if (!target) return;
+  const roleBadge = document.getElementById("pilotOperabilityRole");
+  if (roleBadge) roleBadge.textContent = pilotLifecycleRoleText();
+  if (!currentPilotLifecycle) {
+    target.innerHTML = `<div class="enterprise-empty-state is-loading"><strong>Loading lifecycle state</strong><span>Reading existing pilot records.</span></div>`;
+    return;
+  }
+
+  const { contract, businessImpact, controlRoom, acceptance } = currentPilotLifecycle;
+  const canOperate = canOperatePilotLifecycle();
+  const readOnlyReason = canOperate ? "" : "Server permissions for this role are read-only for lifecycle mutations.";
+  const contractNext = nextContractStatus(contract.lifecycleStatus);
+  const workflowNext = nextPilotWorkflowStatus(controlRoom.lifecycleStatus);
+  const criteria = acceptance.acceptanceCriteria || [];
+  const openBlockers = (controlRoom.blockers || []).filter(item => !["resolved", "closed"].includes(item.status));
+
+  target.innerHTML = `
+    <article class="pilot-lifecycle-card" data-state="${escapeHtml(contract.lifecycleStatus)}">
+      <div class="pilot-lifecycle-head"><div><span class="mini-label">Pilot Contract</span><h4>${escapeHtml(statusText(contract.lifecycleStatus))}</h4></div><span class="enterprise-status" data-state="${contract.persisted ? "available" : "partial"}">${contract.persisted ? "AVAILABLE" : "DRAFT"}</span></div>
+      <form class="pilot-lifecycle-form" id="pilotContractForm">
+        <label>Business objective<input id="pilotContractObjective" value="${escapeHtml(contract.businessObjective || "")}" ${!canOperate ? "disabled" : ""}></label>
+        <label>KPI baseline<input id="pilotContractBaseline" inputmode="decimal" value="${escapeHtml(contract.primaryKpi?.baselineValue ?? "")}" ${!canOperate ? "disabled" : ""}></label>
+        <label>KPI target<input id="pilotContractTarget" inputmode="decimal" value="${escapeHtml(contract.primaryKpi?.targetValue ?? "")}" ${!canOperate ? "disabled" : ""}></label>
+        <label>Sponsor<input id="pilotContractSponsor" value="${escapeHtml(contract.ownership?.sponsor || "")}" ${!canOperate ? "disabled" : ""}></label>
+        <label>Finance owner<input id="pilotContractFinanceOwner" value="${escapeHtml(contract.ownership?.financeOwner || "")}" ${!canOperate ? "disabled" : ""}></label>
+        <div class="pilot-action-row">
+          <button class="primary-button" type="submit" ${!canOperate || ["locked", "experiment_running", "outcome_review", "closed"].includes(contract.lifecycleStatus) ? "disabled" : ""}>${contract.persisted ? "Save draft" : "Create contract"}</button>
+          ${actionButton(contractNext ? `Move to ${statusText(contractNext)}` : "Contract complete", "contract_next", !canOperate || !contract.persisted || !contractNext)}
+        </div>
+      </form>
+      <small>${escapeHtml(readOnlyReason || "Contract lock and transition validation are enforced by the server.")}</small>
+    </article>
+
+    <article class="pilot-lifecycle-card" data-state="${escapeHtml(businessImpact.lifecycleStatus)}">
+      <div class="pilot-lifecycle-head"><div><span class="mini-label">Business Impact Ledger</span><h4>${escapeHtml(statusText(businessImpact.lifecycleStatus))}</h4></div><span class="enterprise-status" data-state="${businessImpact.financeValidation?.status === "verified" ? "available" : "partial"}">${escapeHtml((businessImpact.financeValidation?.status || "not_verified").toUpperCase())}</span></div>
+      <form class="pilot-lifecycle-form" id="businessImpactForm">
+        <label>Financial objective<input id="businessImpactObjective" value="${escapeHtml(businessImpact.financialObjective || "Prove measured incremental profit from the pilot.")}" ${!canOperate ? "disabled" : ""}></label>
+        <label>Forecast impact<input id="businessImpactForecast" inputmode="decimal" value="${escapeHtml(businessImpact.forecast?.predictedImpact ?? "")}" ${!canOperate ? "disabled" : ""}></label>
+        <label>Measured impact<input id="businessImpactMeasured" inputmode="decimal" value="${escapeHtml(businessImpact.realizedImpact?.measuredImpact ?? "")}" ${!canOperate ? "disabled" : ""}></label>
+        <label>Investment cost<input id="businessImpactCost" inputmode="decimal" value="${escapeHtml(businessImpact.roi?.investmentCost ?? "")}" ${!canOperate ? "disabled" : ""}></label>
+        <label>Gross value<input id="businessImpactGross" inputmode="decimal" value="${escapeHtml(businessImpact.roi?.grossValue ?? "")}" ${!canOperate ? "disabled" : ""}></label>
+        <label>Evidence source<input id="businessImpactEvidenceSource" value="${escapeHtml(businessImpact.realizedImpact?.evidenceSource || "")}" ${!canOperate ? "disabled" : ""}></label>
+        <label>Finance verifier<input id="businessImpactVerifier" value="${escapeHtml(businessImpact.financeValidation?.verifiedBy || "")}" ${!canOperate ? "disabled" : ""}></label>
+        <div class="pilot-action-row">
+          <button class="primary-button" type="submit" ${!canOperate || !["draft"].includes(businessImpact.lifecycleStatus) ? "disabled" : ""}>${businessImpact.persisted ? "Save ledger" : "Create ledger"}</button>
+          ${actionButton("Submit", "business_submit", !canOperate || !businessImpact.persisted || businessImpact.lifecycleStatus !== "draft")}
+          ${actionButton("Verify", "business_verify", !canOperate || businessImpact.lifecycleStatus !== "submitted")}
+          ${actionButton("Reject", "business_reject", !canOperate || businessImpact.lifecycleStatus !== "submitted")}
+        </div>
+      </form>
+      <small>Finance verification requires verifier identity, timestamp, and evidence source on the backend.</small>
+    </article>
+
+    <article class="pilot-lifecycle-card" data-state="${escapeHtml(controlRoom.lifecycleStatus)}">
+      <div class="pilot-lifecycle-head"><div><span class="mini-label">Pilot Control Room</span><h4>${escapeHtml(statusText(controlRoom.lifecycleStatus))}</h4></div><span class="enterprise-status" data-state="${openBlockers.length ? "blocked" : controlRoom.persisted ? "available" : "partial"}">${openBlockers.length ? "BLOCKED" : controlRoom.persisted ? "AVAILABLE" : "DRAFT"}</span></div>
+      <div class="pilot-action-row">
+        ${actionButton("Create control room", "control_create", !canOperate || controlRoom.persisted, "primary-button")}
+        ${actionButton(workflowNext ? `Move to ${statusText(workflowNext)}` : "Workflow complete", "control_next", !canOperate || !controlRoom.persisted || !workflowNext)}
+      </div>
+      <form class="pilot-lifecycle-form compact" id="controlEvidenceForm">
+        <label>Stage<select id="controlEvidenceStage" ${!canOperate ? "disabled" : ""}>${(controlRoom.stages || []).map(stage => `<option value="${escapeHtml(stage.key)}" ${stage.key === controlRoom.lifecycleStatus ? "selected" : ""}>${escapeHtml(statusText(stage.key))}</option>`).join("")}</select></label>
+        <label>Evidence label<input id="controlEvidenceLabel" placeholder="Signed kickoff notes" ${!canOperate ? "disabled" : ""}></label>
+        <label>Evidence ref<input id="controlEvidenceRef" placeholder="doc_or_url" ${!canOperate ? "disabled" : ""}></label>
+        <button class="secondary-button" type="submit" ${!canOperate || !controlRoom.persisted ? "disabled" : ""}>Add evidence</button>
+      </form>
+      <form class="pilot-lifecycle-form compact" id="controlBlockerForm">
+        <label>Blocker<input id="controlBlockerDescription" placeholder="Describe blocker" ${!canOperate ? "disabled" : ""}></label>
+        <label>Severity<select id="controlBlockerSeverity" ${!canOperate ? "disabled" : ""}><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option><option value="low">Low</option></select></label>
+        <button class="secondary-button" type="submit" ${!canOperate || !controlRoom.persisted ? "disabled" : ""}>Add blocker</button>
+      </form>
+      <div class="pilot-blocker-list">${openBlockers.length ? openBlockers.map(blocker => `<div><span>${escapeHtml(blocker.severity)} / ${escapeHtml(blocker.status)}</span><strong>${escapeHtml(blocker.description)}</strong>${actionButton("Resolve", "control_resolve_blocker", !canOperate, "secondary-button", `data-blocker-id="${escapeHtml(blocker.id)}"` )}</div>`).join("") : `<div><strong>No open blockers</strong><span>Control-room blockers are clear.</span></div>`}</div>
+    </article>
+
+    <article class="pilot-lifecycle-card acceptance-card" data-state="${escapeHtml(acceptance.lifecycleStatus)}">
+      <div class="pilot-lifecycle-head"><div><span class="mini-label">Production Acceptance</span><h4>${escapeHtml(statusText(acceptance.lifecycleStatus))}</h4></div><span class="enterprise-status" data-state="${acceptance.certification?.status === "certified" ? "available" : "partial"}">${escapeHtml((acceptance.certification?.status || "not_certified").toUpperCase())}</span></div>
+      <div class="acceptance-criteria-list">${criteria.map(item => `<div data-state="${escapeHtml(item.status)}"><strong>${escapeHtml(item.label || item.key)}</strong><span>${escapeHtml(item.status)}${item.required ? " / required" : ""}</span></div>`).join("")}</div>
+      <div class="pilot-action-row">${actionButton("Create acceptance", "acceptance_create", !canOperate || acceptance.persisted, "primary-button")}</div>
+      <form class="pilot-lifecycle-form compact" id="acceptanceCriterionForm">
+        <label>Criterion<select id="acceptanceCriteriaKey" ${!canOperate ? "disabled" : ""}>${criteria.map(item => `<option value="${escapeHtml(item.key)}">${escapeHtml(item.label || item.key)}</option>`).join("")}</select></label>
+        <label>Evidence label<input id="acceptanceEvidenceLabel" placeholder="Evidence label" ${!canOperate ? "disabled" : ""}></label>
+        <label>Evidence ref<input id="acceptanceEvidenceRef" placeholder="doc_or_url" ${!canOperate ? "disabled" : ""}></label>
+        <label>Waiver reason<input id="acceptanceWaiverReason" placeholder="Required only for waiver" ${!canOperate ? "disabled" : ""}></label>
+        <div class="pilot-action-row">
+          <button class="secondary-button" type="submit" ${!canOperate || !acceptance.persisted || ["accepted", "rejected"].includes(acceptance.lifecycleStatus) ? "disabled" : ""}>Submit evidence</button>
+          ${actionButton("Verify criterion", "acceptance_verify", !canOperate || acceptance.lifecycleStatus !== "evidence_review")}
+          ${actionButton("Waive criterion", "acceptance_waive", !canOperate || acceptance.lifecycleStatus !== "evidence_review")}
+        </div>
+      </form>
+      <form class="pilot-lifecycle-form compact" id="acceptanceApprovalForm">
+        <label>Customer acceptor<input id="customerAcceptedBy" placeholder="customer_sponsor" ${!canOperate ? "disabled" : ""}></label>
+        <label>Executive approver<input id="executiveApprovedBy" placeholder="executive_approver" ${!canOperate ? "disabled" : ""}></label>
+        <label>Reject reason<input id="acceptanceRejectReason" placeholder="Required only for rejection" ${!canOperate ? "disabled" : ""}></label>
+        <div class="pilot-action-row">
+          ${actionButton("Request customer", "acceptance_request_customer", !canOperate || acceptance.lifecycleStatus !== "evidence_review")}
+          ${actionButton("Record customer", "acceptance_record_customer", !canOperate || acceptance.lifecycleStatus !== "customer_review")}
+          ${actionButton("Generate package", "acceptance_generate_package", !canOperate || !acceptance.persisted)}
+          ${actionButton("Request executive", "acceptance_request_executive", !canOperate || acceptance.lifecycleStatus !== "customer_review")}
+          ${actionButton("Record executive", "acceptance_record_executive", !canOperate || acceptance.lifecycleStatus !== "executive_review")}
+          ${actionButton("Certify", "acceptance_certify", !canOperate || acceptance.lifecycleStatus !== "executive_review", "primary-button")}
+          ${actionButton("Reject", "acceptance_reject", !canOperate || ["accepted", "rejected"].includes(acceptance.lifecycleStatus))}
+        </div>
+      </form>
+      <div class="pilot-action-row">
+        <a class="secondary-button button-link" href="/api/pilot/acceptance/package.md" target="_blank" rel="noopener">Download acceptance package</a>
+        <a class="secondary-button button-link" href="/api/pilot/readout.md" target="_blank" rel="noopener">Download executive readout</a>
+      </div>
+    </article>`;
+}
+
+async function reloadPilotLifecycle(message = "", kind = "success") {
+  currentPilotLifecycle = await loadPilotLifecycle();
+  currentPilotState = await apiRequest("/api/pilot/workspace");
+  const enterpriseSurfaceResult = await loadEnterpriseProductSurface();
+  currentEnterpriseSurface = enterpriseSurfaceResult.data || { error: enterpriseSurfaceResult.error };
+  renderPilotState();
+  renderPilotLifecycleWorkbench();
+  renderEnterpriseProductSurface();
+  if (message) setMessage("pilotLifecycleMessage", message, kind);
+}
+
+function pilotContractPayload() {
+  const contract = currentPilotLifecycle?.contract || {};
+  return {
+    businessObjective: formValue("pilotContractObjective"),
+    primaryKpi: {
+      ...(contract.primaryKpi || {}),
+      baselineValue: formNumber("pilotContractBaseline"),
+      targetValue: formNumber("pilotContractTarget")
+    },
+    ownership: {
+      ...(contract.ownership || {}),
+      sponsor: formValue("pilotContractSponsor"),
+      financeOwner: formValue("pilotContractFinanceOwner")
+    },
+    metadata: { source: "pilot_lifecycle_ui" }
+  };
+}
+
+function businessImpactPayload(forVerification = false) {
+  const ledger = currentPilotLifecycle?.businessImpact || {};
+  const evidenceSource = formValue("businessImpactEvidenceSource");
+  return {
+    pilotContractId: currentPilotLifecycle?.contract?.id || ledger.pilotContractId || null,
+    financialObjective: formValue("businessImpactObjective"),
+    impactModel: {
+      ...(ledger.impactModel || {}),
+      baselineValue: currentPilotLifecycle?.contract?.primaryKpi?.baselineValue ?? ledger.impactModel?.baselineValue ?? null,
+      observedValue: formNumber("businessImpactMeasured", ledger.impactModel?.observedValue ?? null)
+    },
+    forecast: {
+      ...(ledger.forecast || {}),
+      predictedImpact: formNumber("businessImpactForecast", ledger.forecast?.predictedImpact ?? null)
+    },
+    realizedImpact: {
+      ...(ledger.realizedImpact || {}),
+      measuredImpact: formNumber("businessImpactMeasured", ledger.realizedImpact?.measuredImpact ?? null),
+      evidenceSource: evidenceSource || ledger.realizedImpact?.evidenceSource || null
+    },
+    roi: {
+      investmentCost: formNumber("businessImpactCost", ledger.roi?.investmentCost ?? null),
+      grossValue: formNumber("businessImpactGross", ledger.roi?.grossValue ?? null)
+    },
+    financeValidation: forVerification ? {
+      verifiedBy: formValue("businessImpactVerifier"),
+      verifiedAt: new Date().toISOString(),
+      notes: evidenceSource ? `Evidence source: ${evidenceSource}` : null
+    } : ledger.financeValidation,
+    metadata: { source: "pilot_lifecycle_ui", evidenceSource: evidenceSource || null }
+  };
+}
+
+async function submitPilotContractForm(button) {
+  const contract = currentPilotLifecycle?.contract || {};
+  setButtonBusy(button, true, "Saving...");
+  try {
+    await apiRequest("/api/pilot/decision-contract", {
+      method: contract.persisted ? "PATCH" : "POST",
+      body: JSON.stringify(pilotContractPayload())
+    });
+    await reloadPilotLifecycle("Pilot contract saved.", "success");
+  } catch (error) {
+    setMessage("pilotLifecycleMessage", error.message, "error");
+  } finally {
+    setButtonBusy(button, false);
+  }
+}
+
+async function submitBusinessImpactForm(button) {
+  const ledger = currentPilotLifecycle?.businessImpact || {};
+  setButtonBusy(button, true, "Saving...");
+  try {
+    await apiRequest("/api/pilot/business-impact", {
+      method: ledger.persisted ? "PATCH" : "POST",
+      body: JSON.stringify(businessImpactPayload(false))
+    });
+    await reloadPilotLifecycle("Business impact ledger saved.", "success");
+  } catch (error) {
+    setMessage("pilotLifecycleMessage", error.message, "error");
+  } finally {
+    setButtonBusy(button, false);
+  }
+}
+
+async function submitControlEvidenceForm(button) {
+  setButtonBusy(button, true, "Adding...");
+  try {
+    await apiRequest("/api/pilot/control-room", {
+      method: "PATCH",
+      body: JSON.stringify({
+        action: "append_evidence",
+        stageKey: formValue("controlEvidenceStage"),
+        evidence: {
+          label: formValue("controlEvidenceLabel"),
+          referenceId: formValue("controlEvidenceRef")
+        },
+        metadata: { source: "pilot_lifecycle_ui" }
+      })
+    });
+    await reloadPilotLifecycle("Control-room evidence recorded.", "success");
+  } catch (error) {
+    setMessage("pilotLifecycleMessage", error.message, "error");
+  } finally {
+    setButtonBusy(button, false);
+  }
+}
+
+async function submitControlBlockerForm(button) {
+  setButtonBusy(button, true, "Adding...");
+  try {
+    await apiRequest("/api/pilot/control-room", {
+      method: "PATCH",
+      body: JSON.stringify({
+        action: "add_blocker",
+        description: formValue("controlBlockerDescription"),
+        severity: formValue("controlBlockerSeverity"),
+        metadata: { source: "pilot_lifecycle_ui" }
+      })
+    });
+    await reloadPilotLifecycle("Control-room blocker recorded.", "success");
+  } catch (error) {
+    setMessage("pilotLifecycleMessage", error.message, "error");
+  } finally {
+    setButtonBusy(button, false);
+  }
+}
+
+async function submitAcceptanceCriterionForm(button) {
+  setButtonBusy(button, true, "Submitting...");
+  try {
+    await apiRequest("/api/pilot/acceptance", {
+      method: "PATCH",
+      body: JSON.stringify({
+        action: "submit_evidence",
+        criteriaKey: formValue("acceptanceCriteriaKey"),
+        evidence: {
+          label: formValue("acceptanceEvidenceLabel"),
+          referenceId: formValue("acceptanceEvidenceRef")
+        },
+        metadata: { source: "pilot_lifecycle_ui" }
+      })
+    });
+    await reloadPilotLifecycle("Acceptance evidence submitted.", "success");
+  } catch (error) {
+    setMessage("pilotLifecycleMessage", error.message, "error");
+  } finally {
+    setButtonBusy(button, false);
+  }
+}
+
+async function handlePilotAction(action, button) {
+  if (!canOperatePilotLifecycle()) return setMessage("pilotLifecycleMessage", "This role is read-only for pilot lifecycle actions.", "error");
+  setButtonBusy(button, true, "Working...");
+  try {
+    const contract = currentPilotLifecycle?.contract || {};
+    const ledger = currentPilotLifecycle?.businessImpact || {};
+    const controlRoom = currentPilotLifecycle?.controlRoom || {};
+    const acceptance = currentPilotLifecycle?.acceptance || {};
+    if (action === "contract_next") {
+      await apiRequest("/api/pilot/decision-contract", { method: "PATCH", body: JSON.stringify({ lifecycleStatus: nextContractStatus(contract.lifecycleStatus), metadata: { source: "pilot_lifecycle_ui" } }) });
+    } else if (action === "business_submit") {
+      await apiRequest("/api/pilot/business-impact", { method: "PATCH", body: JSON.stringify({ action: "submit", metadata: { source: "pilot_lifecycle_ui" } }) });
+    } else if (action === "business_verify") {
+      await apiRequest("/api/pilot/business-impact", { method: "PATCH", body: JSON.stringify({ action: "verify", ...businessImpactPayload(true) }) });
+    } else if (action === "business_reject") {
+      await apiRequest("/api/pilot/business-impact", { method: "PATCH", body: JSON.stringify({ action: "reject", metadata: { source: "pilot_lifecycle_ui" } }) });
+    } else if (action === "control_create") {
+      await apiRequest("/api/pilot/control-room", { method: "POST", body: JSON.stringify({ pilotContractId: contract.id || null, businessImpactLedgerId: ledger.id || null, metadata: { source: "pilot_lifecycle_ui" } }) });
+    } else if (action === "control_next") {
+      await apiRequest("/api/pilot/control-room", { method: "PATCH", body: JSON.stringify({ action: "transition_stage", lifecycleStatus: nextPilotWorkflowStatus(controlRoom.lifecycleStatus), metadata: { source: "pilot_lifecycle_ui" } }) });
+    } else if (action === "control_resolve_blocker") {
+      await apiRequest("/api/pilot/control-room", { method: "PATCH", body: JSON.stringify({ action: "update_blocker", blockerId: button.dataset.blockerId, updates: { status: "resolved" }, metadata: { source: "pilot_lifecycle_ui" } }) });
+    } else if (action === "acceptance_create") {
+      await apiRequest("/api/pilot/acceptance", { method: "POST", body: JSON.stringify({ pilotContractId: contract.id || null, businessImpactLedgerId: ledger.id || null, pilotWorkflowId: controlRoom.id || null, metadata: { source: "pilot_lifecycle_ui" } }) });
+    } else if (action === "acceptance_verify") {
+      await apiRequest("/api/pilot/acceptance", { method: "PATCH", body: JSON.stringify({ action: "verify_criterion", criteriaKey: formValue("acceptanceCriteriaKey"), metadata: { source: "pilot_lifecycle_ui" } }) });
+    } else if (action === "acceptance_waive") {
+      await apiRequest("/api/pilot/acceptance", { method: "PATCH", body: JSON.stringify({ action: "waive_criterion", criteriaKey: formValue("acceptanceCriteriaKey"), reason: formValue("acceptanceWaiverReason"), metadata: { source: "pilot_lifecycle_ui" } }) });
+    } else if (action === "acceptance_request_customer") {
+      await apiRequest("/api/pilot/acceptance", { method: "PATCH", body: JSON.stringify({ action: "request_customer_acceptance", metadata: { source: "pilot_lifecycle_ui" } }) });
+    } else if (action === "acceptance_record_customer") {
+      await apiRequest("/api/pilot/acceptance", { method: "PATCH", body: JSON.stringify({ action: "record_customer_acceptance", customerAcceptance: { status: "accepted", acceptedBy: formValue("customerAcceptedBy"), customerRole: "customer_sponsor" }, metadata: { source: "pilot_lifecycle_ui" } }) });
+    } else if (action === "acceptance_request_executive") {
+      await apiRequest("/api/pilot/acceptance", { method: "PATCH", body: JSON.stringify({ action: "request_executive_approval", metadata: { source: "pilot_lifecycle_ui" } }) });
+    } else if (action === "acceptance_record_executive") {
+      await apiRequest("/api/pilot/acceptance", { method: "PATCH", body: JSON.stringify({ action: "record_executive_approval", executiveApproval: { status: "approved", approvedBy: formValue("executiveApprovedBy"), approverRole: "executive" }, metadata: { source: "pilot_lifecycle_ui" } }) });
+    } else if (action === "acceptance_generate_package") {
+      await apiRequest("/api/pilot/acceptance", { method: "PATCH", body: JSON.stringify({ action: "generate_package", metadata: { source: "pilot_lifecycle_ui" } }) });
+    } else if (action === "acceptance_certify") {
+      await apiRequest("/api/pilot/acceptance", { method: "PATCH", body: JSON.stringify({ action: "certify", certificationLevel: "enterprise_acceptance_ready", metadata: { source: "pilot_lifecycle_ui" } }) });
+    } else if (action === "acceptance_reject") {
+      await apiRequest("/api/pilot/acceptance", { method: "PATCH", body: JSON.stringify({ action: "reject", reason: formValue("acceptanceRejectReason"), metadata: { source: "pilot_lifecycle_ui" } }) });
+    }
+    await reloadPilotLifecycle("Pilot lifecycle updated.", "success");
+  } catch (error) {
+    setMessage("pilotLifecycleMessage", error.message, "error");
+  } finally {
+    setButtonBusy(button, false);
+  }
+}
+
+function setupPilotLifecycleWorkbench() {
+  const target = document.getElementById("pilotLifecycleWorkbench");
+  if (!target) return;
+  target.addEventListener("submit", event => {
+    event.preventDefault();
+    const button = event.target.querySelector("button[type='submit']");
+    if (event.target.id === "pilotContractForm") return submitPilotContractForm(button);
+    if (event.target.id === "businessImpactForm") return submitBusinessImpactForm(button);
+    if (event.target.id === "controlEvidenceForm") return submitControlEvidenceForm(button);
+    if (event.target.id === "controlBlockerForm") return submitControlBlockerForm(button);
+    if (event.target.id === "acceptanceCriterionForm") return submitAcceptanceCriterionForm(button);
+  });
+  target.addEventListener("click", event => {
+    const button = event.target.closest("[data-pilot-action]");
+    if (!button || button.disabled) return;
+    handlePilotAction(button.dataset.pilotAction, button);
+  });
+}
+
+function enterpriseStatusLabel(status) {
+  return ({
+    loading: "Loading",
+    empty: "Empty",
+    partial_evidence: "Partial evidence",
+    blocked: "Blocked",
+    healthy: "Healthy",
+    stale_evidence: "Stale evidence",
+    error: "Error",
+    unavailable: "Backend unavailable",
+    internal: "Internal",
+    roadmap: "Roadmap"
+  })[status] || String(status || "Untracked");
+}
+
+function formatEnterpriseCardValue(card) {
+  if (card.unit === "money") return formatOptionalMoney(card.value);
+  if (card.value === null || card.value === undefined || card.value === "") return "No data";
+  if (typeof card.value === "number") return formatNumber(card.value);
+  return String(card.value);
+}
+
+function enterpriseTraceList(items) {
+  if (!items?.length) return `<span class="enterprise-muted">None recorded</span>`;
+  return `<ul>${items.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+}
+
+function renderEnterpriseTrace(trace = {}, title = "Evidence trace") {
+  const drawer = document.getElementById("enterpriseEvidenceDrawer");
+  if (!drawer) return;
+  drawer.innerHTML = `
+    <div class="enterprise-evidence-detail">
+      <p class="mini-label">Why this status?</p>
+      <h2 id="enterpriseEvidenceTitle">${escapeHtml(title)}</h2>
+      <dl>
+        <div><dt>Source module</dt><dd>${escapeHtml(trace.sourceModule || "unknown")}</dd></div>
+        <div><dt>Source record ID</dt><dd>${escapeHtml(trace.sourceRecordId || "none")}</dd></div>
+        <div><dt>Evidence refs</dt><dd>${enterpriseTraceList(trace.evidenceRefs || [])}</dd></div>
+        <div><dt>Audit events</dt><dd>${enterpriseTraceList(trace.auditEvents || [])}</dd></div>
+        <div><dt>Blockers</dt><dd>${enterpriseTraceList(trace.blockers || [])}</dd></div>
+        <div><dt>Risks</dt><dd>${enterpriseTraceList(trace.risks || [])}</dd></div>
+        <div><dt>Human decisions</dt><dd>${enterpriseTraceList(trace.humanDecisionRefs || [])}</dd></div>
+        <div><dt>Reason</dt><dd>${escapeHtml(trace.why || "Source-backed status from existing backend fields.")}</dd></div>
+      </dl>
+      ${trace.reportRoute ? `<a class="secondary-button button-link" href="${escapeHtml(trace.reportRoute)}" target="_blank" rel="noopener">Open source report</a>` : ""}
+    </div>`;
+}
+
+function renderEnterpriseError(error) {
+  const state = document.getElementById("enterpriseSurfaceState");
+  const cards = document.getElementById("enterpriseControlCards");
+  const panels = document.getElementById("enterpriseSectionPanels");
+  if (state) {
+    state.textContent = "Error";
+    state.dataset.state = "error";
+  }
+  if (cards) {
+    cards.hidden = false;
+    cards.innerHTML = `<article class="enterprise-empty-state is-error"><strong>Control Center could not load</strong><span>${escapeHtml(error?.message || "Enterprise product surface failed.")}</span></article>`;
+  }
+  if (panels) panels.innerHTML = "";
+}
+
+function applyEnterpriseNavVisibility(surface) {
+  const allowed = new Set((surface?.navigation || []).map(item => item.key));
+  document.querySelectorAll("[data-enterprise-section-link]").forEach(link => {
+    link.hidden = !allowed.has(link.dataset.enterpriseSectionLink);
+  });
+}
+
+function renderEnterpriseTabs(surface) {
+  const tabs = document.getElementById("enterpriseProductTabs");
+  if (!tabs) return;
+  tabs.innerHTML = surface.navigation.map(item => `
+    <button type="button" class="enterprise-tab" data-enterprise-section="${escapeHtml(item.key)}" aria-pressed="${item.key === currentEnterpriseSection}">
+      <span>${escapeHtml(item.label)}</span>
+      ${item.readOnly ? "<small>read-only</small>" : ""}
+    </button>`).join("");
+}
+
+function renderEnterpriseCards(surface) {
+  const target = document.getElementById("enterpriseControlCards");
+  if (!target) return;
+  target.hidden = currentEnterpriseSection !== "control-center";
+  if (target.hidden) return;
+  const cards = surface.controlCenter?.cards || [];
+  if (!cards.length) {
+    target.innerHTML = `<article class="enterprise-empty-state"><strong>No executive cards available</strong><span>No existing backend records are available for the Control Center.</span></article>`;
+    return;
+  }
+  target.innerHTML = cards.map(card => `
+    <article class="enterprise-card" data-state="${escapeHtml(card.status)}">
+      <div class="enterprise-card-head">
+        <span class="enterprise-status" data-state="${escapeHtml(card.status)}">${escapeHtml(enterpriseStatusLabel(card.status))}</span>
+        <span class="enterprise-source">${escapeHtml(card.trace?.sourceModule || "source")}</span>
+      </div>
+      <h3>${escapeHtml(card.label)}</h3>
+      <strong class="enterprise-card-value number">${escapeHtml(formatEnterpriseCardValue(card))}</strong>
+      <p>${escapeHtml(card.summary || "")}</p>
+      <button class="enterprise-trace-button" type="button" data-enterprise-trace-card="${escapeHtml(card.key)}">Why this status?</button>
+    </article>`).join("");
+}
+
+function renderEnterpriseSectionPanels(surface) {
+  const target = document.getElementById("enterpriseSectionPanels");
+  if (!target) return;
+  const sections = surface.sections || [];
+  const selectedSections = currentEnterpriseSection === "control-center"
+    ? sections.filter(section => ["pilot", "value", "execution", "governance", "data-trust", "evidence", "reports"].includes(section.key))
+    : sections.filter(section => section.key === currentEnterpriseSection);
+  if (!selectedSections.length) {
+    target.innerHTML = `<article class="enterprise-empty-state"><strong>No page entries</strong><span>This role has no visible entries for the selected section.</span></article>`;
+    return;
+  }
+  target.innerHTML = selectedSections.map(section => `
+    <article class="enterprise-section-panel" data-section="${escapeHtml(section.key)}" data-state="${escapeHtml(section.state)}">
+      <div class="enterprise-panel-head">
+        <div><p class="mini-label">${escapeHtml(enterpriseStatusLabel(section.state))}</p><h2>${escapeHtml(section.label)}</h2></div>
+        <span>${formatNumber(section.entries?.length || 0)} entries</span>
+      </div>
+      <div class="enterprise-entry-list">
+        ${(section.entries || []).map(entryItem => `
+          <div class="enterprise-entry" data-state="${escapeHtml(entryItem.status)}">
+            <div>
+              <strong>${escapeHtml(entryItem.label)}</strong>
+              <span>${escapeHtml(entryItem.description || "")}</span>
+            </div>
+            <span class="enterprise-status" data-state="${escapeHtml(entryItem.status)}">${escapeHtml(enterpriseStatusLabel(entryItem.status))}</span>
+            ${entryItem.sourceRoute ? `<a href="${escapeHtml(entryItem.sourceRoute)}" target="_blank" rel="noopener">Source</a>` : `<span class="enterprise-muted">No endpoint</span>`}
+            <button class="enterprise-trace-button" type="button" data-enterprise-trace-entry="${escapeHtml(section.key)}:${escapeHtml(entryItem.key)}">Trace</button>
+          </div>`).join("")}
+      </div>
+    </article>`).join("");
+}
+
+function setEnterpriseSection(sectionKey) {
+  const available = new Set((currentEnterpriseSurface?.navigation || []).map(item => item.key));
+  currentEnterpriseSection = available.has(sectionKey) ? sectionKey : "control-center";
+  document.querySelectorAll("[data-enterprise-section]").forEach(button => {
+    button.classList.toggle("active", button.dataset.enterpriseSection === currentEnterpriseSection);
+    button.setAttribute("aria-pressed", String(button.dataset.enterpriseSection === currentEnterpriseSection));
+  });
+  document.querySelectorAll("[data-enterprise-section-link]").forEach(link => {
+    link.classList.toggle("active", link.dataset.enterpriseSectionLink === currentEnterpriseSection);
+  });
+  if (currentEnterpriseSurface) {
+    renderEnterpriseCards(currentEnterpriseSurface);
+    renderEnterpriseSectionPanels(currentEnterpriseSurface);
+  }
+}
+
+function renderEnterpriseProductSurface() {
+  const state = document.getElementById("enterpriseSurfaceState");
+  if (!currentEnterpriseSurface) {
+    renderEnterpriseError(new Error("No enterprise product surface was returned."));
+    return;
+  }
+  if (currentEnterpriseSurface.error) {
+    renderEnterpriseError(currentEnterpriseSurface.error);
+    return;
+  }
+  const surface = currentEnterpriseSurface;
+  applyEnterpriseNavVisibility(surface);
+  if (state) {
+    state.textContent = enterpriseStatusLabel(surface.controlCenter?.state);
+    state.dataset.state = surface.controlCenter?.state || "partial_evidence";
+  }
+  renderEnterpriseTabs(surface);
+  setEnterpriseSection(currentEnterpriseSection);
+  const firstBlocked = (surface.controlCenter?.cards || []).find(card => ["blocked", "stale_evidence", "partial_evidence"].includes(card.status));
+  if (firstBlocked) renderEnterpriseTrace(firstBlocked.trace, firstBlocked.label);
+}
+
+function setupEnterpriseSurface() {
+  document.getElementById("enterpriseProductTabs")?.addEventListener("click", event => {
+    const button = event.target.closest("[data-enterprise-section]");
+    if (!button) return;
+    setEnterpriseSection(button.dataset.enterpriseSection);
+  });
+  document.getElementById("sideNav")?.addEventListener("click", event => {
+    const link = event.target.closest("[data-enterprise-section-link]");
+    if (!link) return;
+    setEnterpriseSection(link.dataset.enterpriseSectionLink);
+  });
+  document.getElementById("enterprise-control-center")?.addEventListener("click", event => {
+    const cardButton = event.target.closest("[data-enterprise-trace-card]");
+    if (cardButton) {
+      const card = currentEnterpriseSurface?.controlCenter?.cards?.find(item => item.key === cardButton.dataset.enterpriseTraceCard);
+      if (card) renderEnterpriseTrace(card.trace, card.label);
+      return;
+    }
+    const entryButton = event.target.closest("[data-enterprise-trace-entry]");
+    if (!entryButton) return;
+    const [sectionKey, entryKey] = entryButton.dataset.enterpriseTraceEntry.split(":");
+    const section = currentEnterpriseSurface?.sections?.find(item => item.key === sectionKey);
+    const entryItem = section?.entries?.find(item => item.key === entryKey);
+    if (entryItem) {
+      renderEnterpriseTrace({
+        sourceModule: entryItem.status === "gap" ? "capability-gap" : entryItem.key,
+        sourceRecordId: entryItem.sourceRoute || null,
+        evidenceRefs: section.evidenceRefs || [],
+        auditEvents: [],
+        reportRoute: entryItem.sourceRoute || null,
+        blockers: entryItem.status === "gap" ? [entryItem.description] : [],
+        risks: entryItem.status === "gap" ? ["Backend capability is not available in this repository."] : [],
+        humanDecisionRefs: [],
+        why: entryItem.description
+      }, entryItem.label);
+    }
+  });
 }
 
 function renderStages() {
@@ -960,7 +1648,7 @@ function renderBehavioralWorkspace() {
 }
 
 async function loadDashboard() {
-  const [analysis, overview, customerAnalysis, history, pilotState, governance, operations, retentionWorkspace, retentionConfiguration, retentionShadow, behavioralWorkspace] = await Promise.all([
+  const [analysis, overview, customerAnalysis, history, pilotState, governance, operations, enterpriseSurfaceResult, pilotLifecycle, retentionWorkspace, retentionConfiguration, retentionShadow, behavioralWorkspace] = await Promise.all([
     apiRequest("/api/campaigns/current"),
     apiRequest("/api/decision-engine/overview"),
     apiRequest("/api/customers/current"),
@@ -968,6 +1656,8 @@ async function loadDashboard() {
     apiRequest("/api/pilot/workspace"),
     apiRequest("/api/model-governance/overview"),
     loadOperationsData(),
+    loadEnterpriseProductSurface(),
+    loadPilotLifecycle(),
     apiRequest("/api/retention/workspace"),
     apiRequest("/api/retention/configuration"),
     apiRequest("/api/retention/shadow-workspace"),
@@ -980,6 +1670,8 @@ async function loadDashboard() {
   currentPilotState = pilotState;
   currentGovernance = governance;
   currentOperations = operations;
+  currentEnterpriseSurface = enterpriseSurfaceResult.data || { error: enterpriseSurfaceResult.error };
+  currentPilotLifecycle = pilotLifecycle;
   currentRetentionWorkspace = retentionWorkspace;
   currentRetentionShadow = retentionShadow;
   currentBehavioralWorkspace = behavioralWorkspace;
@@ -990,6 +1682,8 @@ async function loadDashboard() {
   renderHistory();
   renderModelGovernance();
   renderOperations();
+  renderEnterpriseProductSurface();
+  renderPilotLifecycleWorkbench();
   renderRetentionWorkspace();
   renderRetentionShadow();
   renderRetentionLiveWorkspace();
@@ -1568,6 +2262,8 @@ async function init() {
   setupFileControls();
   setupNavigation();
   setupLegacyLab();
+  setupEnterpriseSurface();
+  setupPilotLifecycleWorkbench();
   setupPresentationMode();
   setupUpload();
   setupActions();

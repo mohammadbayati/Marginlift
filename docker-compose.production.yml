@@ -16,6 +16,29 @@ services:
       retries: 5
       start_period: 10s
 
+  shadow-scorer:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      MARGINLIFT_MODEL_REGISTRY: /models
+      MARGINLIFT_TRAINING_DATA: /training/examples.jsonl
+      SCORER_AUTH_REQUIRED: "true"
+      SCORER_INTERNAL_TOKEN: ${SCORER_INTERNAL_TOKEN}
+      SCORER_INTERNAL_TOKEN_PREVIOUS: ${SCORER_INTERNAL_TOKEN_PREVIOUS:-}
+    volumes:
+      - model_registry:/models
+      - training_data:/training:ro
+    expose:
+      - "8100"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8100/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
   app:
     build: .
     restart: unless-stopped
@@ -29,8 +52,14 @@ services:
       ARTIFACT_STORAGE_PATH: /app/private/artifacts
       MARGINLIFT_FONT_DIR: /app/private/fonts
       MARGINLIFT_JOB_WORKER: "true"
+      SHADOW_SCORER_URL: http://shadow-scorer:8100
+      SCORER_INTERNAL_TOKEN: ${SCORER_INTERNAL_TOKEN}
+      SCORER_INTERNAL_TOKEN_ID: ${SCORER_INTERNAL_TOKEN_ID:-}
+      TRAINING_DATA_DIR: /training
     depends_on:
       postgres:
+        condition: service_healthy
+      shadow-scorer:
         condition: service_healthy
     expose:
       - "3000"
@@ -38,6 +67,7 @@ services:
       - ./data:/app/data
       - ./private/fonts:/app/private/fonts:ro
       - artifact_data:/app/private/artifacts
+      - training_data:/training
     networks:
       default:
         aliases:
@@ -70,3 +100,5 @@ volumes:
   artifact_data:
   caddy_data:
   caddy_config:
+  model_registry:
+  training_data:

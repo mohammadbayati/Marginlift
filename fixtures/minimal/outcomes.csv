@@ -1,0 +1,3 @@
+customer_id,assigned_group,exposed_at,converted,outcome_revenue_toman,actual_incentive_cost_toman,actual_channel_cost_toman,gross_margin_rate
+hash_0000000000000000000000000000000000000000000000000000000000000001,control,,false,0,0,0,0.40
+hash_0000000000000000000000000000000000000000000000000000000000000002,small_discount,2026-08-01,true,220000,5000,100,0.40

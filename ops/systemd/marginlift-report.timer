@@ -1,0 +1,11 @@
+[Unit]
+Description=Generate MarginLift monthly report on the 1st of each month
+
+[Timer]
+OnCalendar=*-*-01 03:10:00 UTC
+Persistent=true
+RandomizedDelaySec=15m
+Unit=marginlift-report.service
+
+[Install]
+WantedBy=timers.target
