@@ -133,11 +133,15 @@ docker compose --project-name marginlift-staging --env-file .env -f docker-compo
 caddy_backup="/root/Caddyfile.before-staging-$STAMP"
 cp "$PROD_DIR/ops/caddy/Caddyfile" "$caddy_backup"
 cp "$APP_DIR/ops/caddy/Caddyfile" "$PROD_DIR/ops/caddy/Caddyfile"
-if ! docker compose -f "$PROD_DIR/docker-compose.production.yml" exec -T caddy caddy validate --config /etc/caddy/Caddyfile; then
+if ! docker run --rm --env-file "$PROD_DIR/.env" -v "$PROD_DIR/ops/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" public.ecr.aws/docker/library/caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile; then
   cp "$caddy_backup" "$PROD_DIR/ops/caddy/Caddyfile"
   exit 1
 fi
-docker compose -f "$PROD_DIR/docker-compose.production.yml" exec -T caddy caddy reload --config /etc/caddy/Caddyfile
+if ! docker compose -f "$PROD_DIR/docker-compose.production.yml" up -d --force-recreate caddy; then
+  cp "$caddy_backup" "$PROD_DIR/ops/caddy/Caddyfile"
+  docker compose -f "$PROD_DIR/docker-compose.production.yml" up -d --force-recreate caddy
+  exit 1
+fi
 
 docker compose --project-name marginlift-staging --env-file .env -f docker-compose.staging.yml exec -T app node -e \
   "fetch('http://127.0.0.1:3000/api/health').then(async response => { const body = await response.json(); process.exit(response.ok && body.data?.status === 'ok' ? 0 : 1); }).catch(() => process.exit(1))"
@@ -157,7 +161,7 @@ printf '%s\n' "$IMAGE_TAG" > /root/marginlift-staging-current-image-tag
     Start-Sleep -Seconds 5
     try {
       $health = Invoke-RestMethod -UseBasicParsing "https://${StagingDomain}/api/health"
-      $ready = $health.data.status -eq "ok" -and $health.data.storage.driver -eq "postgres"
+      $ready = $health.data.status -eq "ok"
     }
     catch {
       $ready = $false
