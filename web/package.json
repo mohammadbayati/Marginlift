@@ -11,7 +11,8 @@
     "build": "vite build && vite build --ssr src/entries/prerender.tsx --outDir .prerender && node scripts/prerender.mjs && node scripts/route-manifest.mjs",
     "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit",
     "test": "vitest run && node scripts/route-manifest.test.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:staging": "playwright test --config playwright.staging.config.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.66.0",
