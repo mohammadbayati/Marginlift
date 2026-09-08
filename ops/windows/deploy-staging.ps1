@@ -139,6 +139,8 @@ docker compose --project-name marginlift-staging --env-file .env -f docker-compo
 printf '%s\n' "$IMAGE_TAG" > /root/marginlift-staging-current-image-tag
 '@
   $remoteScript = $remoteScript.Replace("__RELEASE_SHA__", $releaseSha).Replace("__STAGING_DOMAIN__", $StagingDomain)
+  # Bash on the VM requires LF-only input; Windows PowerShell here-strings use CRLF.
+  $remoteScript = $remoteScript -replace "`r`n", "`n"
   $remotePayload = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($remoteScript))
   ssh -i $KeyPath "${ServerUser}@${ServerHost}" "printf '%s' '$remotePayload' | base64 -d > /tmp/marginlift-staging-deploy.sh && bash /tmp/marginlift-staging-deploy.sh"
   Assert-NativeCommand "Remote staging deployment"
