@@ -95,13 +95,19 @@ else
   session_secret="$(openssl rand -hex 32)"
   postgres_password="$(openssl rand -hex 24)"
   artifact_key="$(openssl rand -hex 32)"
+  scorer_token="$(openssl rand -hex 32)"
   cat > "$STAGE_DIR/.env" <<EOF
 SESSION_SECRET=$session_secret
 POSTGRES_PASSWORD=$postgres_password
 ARTIFACT_ENCRYPTION_KEY=$artifact_key
+SCORER_INTERNAL_TOKEN=$scorer_token
 APP_ORIGIN=https://$STAGING_DOMAIN
 STAGING_IMAGE_TAG=$IMAGE_TAG
 EOF
+fi
+
+if ! grep -q '^SCORER_INTERNAL_TOKEN=.' "$STAGE_DIR/.env"; then
+  printf 'SCORER_INTERNAL_TOKEN=%s\n' "$(openssl rand -hex 32)" >> "$STAGE_DIR/.env"
 fi
 
 if grep -q '^STAGING_IMAGE_TAG=' "$STAGE_DIR/.env"; then
