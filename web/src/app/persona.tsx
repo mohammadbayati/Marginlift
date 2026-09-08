@@ -1,38 +1,47 @@
 import { createContext, type ReactNode, useContext, useMemo, useState } from "react";
-import { PersonaSchema, type Persona } from "../shared/api/schemas";
+import type { Persona } from "../shared/api/schemas";
 
 const storageKey = "marginlift-persona";
+export const viewLabels = { executive: "مدیرعامل", cmo: "بازاریابی", crm: "CRM", finance: "مالی", data: "داده" } as const;
+export type PresentationView = keyof typeof viewLabels;
+export function isPresentationView(value: string | null): value is PresentationView {
+  return value !== null && Object.hasOwn(viewLabels, value);
+}
+export function apiPersona(view: PresentationView): Persona { return view === "cmo" ? "executive" : view; }
 
 type PersonaContextValue = {
   persona: Persona;
-  setPersona: (persona: Persona) => void;
+  view: PresentationView;
+  setPersona: (persona: PresentationView) => void;
 };
 
 const PersonaContext = createContext<PersonaContextValue | null>(null);
 
-function initialPersona(): Persona {
+function initialPersona(): PresentationView {
   if (typeof window === "undefined") return "executive";
   const queryValue = new URL(window.location.href).searchParams.get("view");
-  const queryPersona = PersonaSchema.safeParse(queryValue);
-  if (queryPersona.success) return queryPersona.data;
-  const parsed = PersonaSchema.safeParse(window.localStorage.getItem(storageKey));
-  return parsed.success ? parsed.data : "executive";
+  if (isPresentationView(queryValue)) return queryValue;
+  try {
+    const saved = window.localStorage.getItem(storageKey);
+    return isPresentationView(saved) ? saved : "executive";
+  } catch { return "executive"; }
 }
 
 export function PersonaProvider({ children }: { children: ReactNode }) {
-  const [persona, setPersonaState] = useState<Persona>(initialPersona);
+  const [view, setPersonaState] = useState<PresentationView>(initialPersona);
   const value = useMemo(
     () => ({
-      persona,
-      setPersona: (next: Persona) => {
-        window.localStorage.setItem(storageKey, next);
+      persona: apiPersona(view),
+      view,
+      setPersona: (next: PresentationView) => {
+        try { window.localStorage.setItem(storageKey, next); } catch { /* View remains usable without storage. */ }
         const url = new URL(window.location.href);
         url.searchParams.set("view", next);
         window.history.replaceState(window.history.state, "", url);
         setPersonaState(next);
       },
     }),
-    [persona],
+    [view],
   );
   return <PersonaContext.Provider value={value}>{children}</PersonaContext.Provider>;
 }

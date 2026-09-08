@@ -5,10 +5,11 @@ import { Link } from "react-router-dom";
 import { api } from "../../shared/api/client";
 import { formatNumber, formatToman } from "../../shared/lib/format";
 import { ErrorState, EvidenceBadge, LoadingState } from "../../shared/ui";
-import { usePersona } from "../persona";
+import { viewLabels, usePersona } from "../persona";
 
 const personaFocus = {
   executive: "اثر مالی و تصمیم سرمایه‌گذاری",
+  cmo: "تخصیص بودجه و فرضیه بازگشت مشتری",
   crm: "صف اقدام و محدودیت تماس",
   finance: "سود، هزینه و قابلیت تطبیق",
   data: "کیفیت داده و زنجیره شواهد",
@@ -21,7 +22,7 @@ const provenanceLabels = {
 } as const;
 
 export function TodayPage() {
-  const { persona } = usePersona();
+  const { view } = usePersona();
   const queryClient = useQueryClient();
   const [demoPreset, setDemoPreset] = useState<"generic_ecommerce" | "super_app_packages" | "subscription_services">("generic_ecommerce");
   const session = useQuery({ queryKey: ["session"], queryFn: api.session, staleTime: 60_000 });
@@ -48,10 +49,10 @@ export function TodayPage() {
     : "ناموجود";
 
   return (
-    <div className="page-stack page-today">
+    <div className={`page-stack page-today view-${view}`}>
       <header className="page-header">
         <div>
-          <span className="eyebrow">امروز · نمای {persona === "executive" ? "مدیریت" : persona === "crm" ? "CRM" : persona === "finance" ? "مالی" : "داده"}</span>
+          <span className="eyebrow">امروز · نمای {viewLabels[view]}</span>
           <h1>یک تصمیم، با مرز ادعای روشن</h1>
         </div>
         <span className="as-of">برش داده: {analysis?.cutoffAt ? <bdi>{analysis.cutoffAt.slice(0, 10)}</bdi> : "ثبت نشده"}</span>
@@ -123,7 +124,16 @@ export function TodayPage() {
         <div><span>محیط داده</span><strong>{provenanceLabels[dataContext.provenance]}</strong></div>
         <div><span>منبع</span><strong>{dataContext.source || "ثبت نشده"}</strong></div>
         <div><span>حجم بررسی</span><strong>{formatNumber(dataContext.rowCount ?? analysis?.rowCount ?? null)} ردیف</strong></div>
-        <div><span>تمرکز این نما</span><strong>{personaFocus[persona]}</strong></div>
+        <div><span>تمرکز این نما</span><strong>{personaFocus[view]}</strong></div>
+      </section>
+
+      <section className="role-brief" aria-labelledby="role-focus-title">
+        <div><span className="eyebrow">اولویت {viewLabels[view]}</span><h2 id="role-focus-title">{personaFocus[view]}</h2></div>
+        {view === "executive" ? <><p>{today.claimBoundary.claimFa}</p><Link className="button button-secondary" to="/app/report?view=executive"><FileText size={18} aria-hidden="true" />گزارش تصمیم و ریسک</Link></> : null}
+        {view === "cmo" ? <><p>پیش از تخصیص مشوق، فرضیه بازگشت و گروه مقایسه باید روشن باشد. {today.blockerFa}</p><Link className="button button-secondary" to="/app/pilot?view=cmo"><ArrowLeft size={18} aria-hidden="true" />بررسی فرضیه پایلوت</Link></> : null}
+        {view === "crm" ? <><dl><div><dt>مجاز برای تماس</dt><dd>{formatNumber(workspace.metrics.contactAllowed)}</dd></div><div><dt>متوقف‌شده</dt><dd>{formatNumber(workspace.metrics.contactBlocked)}</dd></div></dl><Link className="button button-secondary" to="/app/decisions?view=crm"><FileCheck2 size={18} aria-hidden="true" />بازبینی صف اقدام</Link></> : null}
+        {view === "finance" ? <><p>{today.primaryMetric.labelFa}: {metricValue}. {today.claimBoundary.claimFa}</p><Link className="button button-secondary" to="/app/report?view=finance"><FileText size={18} aria-hidden="true" />گزارش تطبیق مالی</Link></> : null}
+        {view === "data" ? <><dl><div><dt>ردیف منبع</dt><dd>{formatNumber(dataContext.rowCount ?? analysis?.rowCount)}</dd></div><div><dt>منبع</dt><dd>{dataContext.source || "ثبت نشده"}</dd></div></dl><Link className="button button-secondary" to="/app/data?view=data"><ArrowLeft size={18} aria-hidden="true" />بازبینی قرارداد داده</Link></> : null}
       </section>
 
       {dataContext.provenance === "sample_data" ? (
@@ -149,7 +159,7 @@ export function TodayPage() {
       </section>
 
       <section className="context-line" aria-label="وضعیت عملیاتی">
-        <div><span>ردیف تحلیل‌شده</span><strong>{formatNumber(analysis?.rowCount ?? 0)}</strong></div>
+        <div><span>ردیف تحلیل‌شده</span><strong>{formatNumber(analysis?.rowCount)}</strong></div>
         <div><span>مجاز برای تماس</span><strong>{formatNumber(workspace.metrics.contactAllowed)}</strong></div>
         <div><span>مالک اقدام</span><strong>{today.ownerFa}</strong></div>
         <div><span>اقدام بعدی</span><strong>{today.nextActionFa}</strong></div>

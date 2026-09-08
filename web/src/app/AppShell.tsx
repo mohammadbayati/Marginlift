@@ -15,7 +15,7 @@ import {
 import { Navigate, NavLink, Outlet, useLocation } from "react-router-dom";
 import { api } from "../shared/api/client";
 import { LoadingState } from "../shared/ui";
-import { personaLabels, usePersona } from "./persona";
+import { viewLabels, usePersona } from "./persona";
 
 const navigation = [
   { to: "/app/today", label: "امروز", icon: CalendarCheck2 },
@@ -43,7 +43,7 @@ function resolveEnvironment(dataLabel?: string) {
 
 export function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { persona, setPersona } = usePersona();
+  const { view, setPersona } = usePersona();
   const location = useLocation();
   const session = useQuery({ queryKey: ["session"], queryFn: api.session, staleTime: 60_000 });
   const retention = useQuery({ queryKey: ["retention-workspace"], queryFn: api.retentionWorkspace, enabled: Boolean(session.data) });
@@ -67,7 +67,7 @@ export function AppShell() {
           <Menu aria-hidden="true" size={22} />
         </button>
         <strong>MarginLift</strong>
-        <span className="mobile-persona">{personaLabels[persona]}</span>
+        <span className="mobile-persona">{viewLabels[view]}</span>
       </header>
 
       {mobileOpen ? <button className="nav-backdrop" type="button" aria-label="بستن ناوبری" onClick={() => setMobileOpen(false)} /> : null}
@@ -88,7 +88,7 @@ export function AppShell() {
           {navigation.map((item) => {
             const Icon = item.icon;
             return (
-              <NavLink key={item.to} to={item.to} className={({ isActive }) => (isActive ? "nav-link is-active" : "nav-link")}>
+              <NavLink key={item.to} to={`${item.to}?view=${view}`} className={({ isActive }) => (isActive ? "nav-link is-active" : "nav-link")}>
                 <Icon aria-hidden="true" size={19} />
                 <span>{item.label}</span>
               </NavLink>
@@ -104,13 +104,13 @@ export function AppShell() {
           <div className="persona-control" aria-label="نمای شخصی" role="group">
             <span className="control-label">نمای شخصی</span>
             <div className="segmented-control">
-              {Object.entries(personaLabels).map(([key, label]) => (
+              {Object.entries(viewLabels).map(([key, label]) => (
                 <button
                   key={key}
                   type="button"
-                  aria-pressed={persona === key}
-                  className={persona === key ? "is-selected" : ""}
-                  onClick={() => setPersona(key as keyof typeof personaLabels)}
+                  aria-pressed={view === key}
+                  className={view === key ? "is-selected" : ""}
+                  onClick={() => setPersona(key as keyof typeof viewLabels)}
                 >
                   {label}
                 </button>

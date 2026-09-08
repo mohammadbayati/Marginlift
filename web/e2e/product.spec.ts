@@ -36,7 +36,7 @@ test("public page and authenticated Today have no serious axe violations", async
 test("decision, evidence and report use the same evidence state", async ({ page }) => {
   await login(page);
   await loadDemo(page);
-  await expect(page.getByText("رابطه مشاهده‌شده است و اثر علّی را تأیید نمی‌کند.")).toBeVisible();
+  await expect(page.getByText("رابطه مشاهده‌شده است و اثر علّی را تأیید نمی‌کند.").first()).toBeVisible();
 
   await page.goto("/app/evidence");
   await expect(page.getByRole("heading", { name: "اتاق شواهد تصمیم" })).toBeVisible();
@@ -46,6 +46,39 @@ test("decision, evidence and report use the same evidence state", async ({ page 
   await expect(page.getByRole("heading", { name: "گزارش یک‌صفحه‌ای تصمیم" })).toBeVisible();
   await expect(page.getByText("مجاز نیست", { exact: true })).toBeVisible();
 });
+
+test("CMO view persists and exposes a marketing-specific next step", async ({ page }) => {
+  await login(page);
+  await page.getByRole("button", { name: "بازاریابی" }).click();
+  await expect(page).toHaveURL(/view=cmo/);
+  await expect(page.getByRole("heading", { name: "تخصیص بودجه و فرضیه بازگشت مشتری" })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("button", { name: "بازاریابی" })).toHaveAttribute("aria-pressed", "true");
+});
+
+for (const viewport of [
+  { name: "mobile", width: 390, height: 844 },
+  { name: "laptop", width: 1440, height: 1000 },
+  { name: "wide", width: 1920, height: 1080 },
+]) {
+  test(`visual QA core decision surfaces at ${viewport.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await login(page);
+    await loadDemo(page);
+    for (const route of ["decisions", "evidence"]) {
+      await page.goto(`/app/${route}`);
+      await expect(page.locator(".page-stack")).toBeVisible();
+      const overflows = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+      expect(overflows).toBe(false);
+      await page.screenshot({ path: `test-results/${route}-${viewport.name}.png`, fullPage: true });
+    }
+    await page.goto("/app/report?view=executive");
+    await expect(page.locator(".a4-report")).toBeVisible();
+    const reportOverflows = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+    expect(reportOverflows).toBe(false);
+    await page.screenshot({ path: `test-results/report-${viewport.name}.png`, fullPage: true });
+  });
+}
 
 for (const viewport of [
   { name: "mobile", width: 390, height: 844 },
