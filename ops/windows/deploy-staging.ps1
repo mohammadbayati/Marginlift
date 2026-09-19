@@ -152,7 +152,7 @@ printf '%s\n' "$IMAGE_TAG" > /root/marginlift-staging-current-image-tag
   # Bash on the VM requires LF-only input; Windows PowerShell here-strings use CRLF.
   $remoteScript = $remoteScript -replace "`r`n", "`n"
   $remotePayload = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($remoteScript))
-  ssh -i $KeyPath "${ServerUser}@${ServerHost}" "printf '%s' '$remotePayload' | base64 -d > /tmp/marginlift-staging-deploy.sh && bash /tmp/marginlift-staging-deploy.sh"
+  ssh -i $KeyPath "${ServerUser}@${ServerHost}" "printf '%s' '$remotePayload' | base64 -d > /tmp/marginlift-staging-deploy.sh && sudo -n bash /tmp/marginlift-staging-deploy.sh"
   Assert-NativeCommand "Remote staging deployment"
 
   Write-Host "[5/7] Waiting for DNS and TLS..."
