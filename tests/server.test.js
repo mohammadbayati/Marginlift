@@ -96,14 +96,14 @@ async function run() {
     assert.match(String(executiveReportStyles.payload), /A4 portrait/);
 
     const publicHome = await request("/");
-    assert(publicHome.payload.includes("CRM اجرا می‌کند"));
-    assert(publicHome.payload.includes("/assets/marginlift-command-center-"));
+    assert(publicHome.payload.includes("تخفیف کمتر، سود بیشتر"));
+    assert(publicHome.payload.includes("شروع پایلوت"));
 
     const productLogin = await request("/login");
-    assert(productLogin.payload.includes('id="login-email"'));
-    assert(productLogin.payload.includes('id="login-password"'));
+    assert(productLogin.payload.includes('id="loginEmail"'));
+    assert(productLogin.payload.includes('id="loginPassword"'));
     assert(productLogin.payload.includes("ورود به مرکز تصمیم"));
-    assert(productLogin.payload.includes("اثر افزایشی تأییدشده"));
+    assert(productLogin.payload.includes("از داده تا تصمیم قابل دفاع"));
 
     const fontAsset = await request("/fonts/Estedad-Variable.woff2");
     assert.strictEqual(fontAsset.response.status, 200);

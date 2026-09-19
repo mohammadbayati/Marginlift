@@ -1,6 +1,7 @@
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from ml.discrete_time_survival import train_discrete_time_survival
 
@@ -8,9 +9,11 @@ from ml.discrete_time_survival import train_discrete_time_survival
 class DiscreteTimeSurvivalTest(unittest.TestCase):
     def test_temporal_training_and_evaluation(self):
         dataset = synthetic_dataset(750)
-        output_dir = Path.cwd() / "data" / "model-test-artifacts"
-        output_dir.mkdir(parents=True, exist_ok=True)
-        report = train_discrete_time_survival(dataset, output_dir=output_dir, minimum_episodes=200)
+        with TemporaryDirectory() as artifact_dir:
+            output_dir = Path(artifact_dir)
+            report = train_discrete_time_survival(dataset, output_dir=output_dir, minimum_episodes=200)
+            self.assertTrue((output_dir / "model-card.json").exists())
+            self.assertTrue((output_dir / "discrete-time-survival.joblib").exists())
         self.assertEqual(report["status"], "trained")
         self.assertEqual(report["split"]["train"]["episodes"], 450)
         self.assertEqual(report["split"]["development"]["episodes"], 150)
@@ -24,8 +27,6 @@ class DiscreteTimeSurvivalTest(unittest.TestCase):
         self.assertIsNotNone(primary["modelBrier"])
         self.assertIsNotNone(primary["baselineBrier"])
         self.assertGreaterEqual(primary["modelBrier"], primary["baselineBrier"])
-        self.assertTrue((output_dir / "model-card.json").exists())
-        self.assertTrue((output_dir / "discrete-time-survival.joblib").exists())
         self.assertEqual(len(report["artifact"]["sha256"]), 64)
         self.assertTrue(report["artifact"]["trustedLoadOnly"])
 
