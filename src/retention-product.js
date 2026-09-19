@@ -3,6 +3,7 @@ const crypto = require("crypto");
 const { auditChannelRetentionData } = require("./channel-retention-readiness");
 const { buildChannelRetentionDataset } = require("./channel-retention-dataset");
 const { applyContactPolicy, buildContactSafetyWorkspace } = require("./contact-policy");
+const { createRetentionDecisionId } = require("./retention-ux");
 const { buildSurvivalBaseline } = require("./survival-baseline");
 
 const PRESETS = Object.freeze({
@@ -422,6 +423,13 @@ function buildRetentionDecisionQueue(configInput, dataset) {
 function toQueueItem(snapshot, config, policyVersion) {
   const action = actionForState(snapshot.state);
   return {
+    id: createRetentionDecisionId({
+      customerIdHash: snapshot.customerIdHash,
+      channel: snapshot.operator,
+      productType: snapshot.packageType,
+      policyVersion,
+      recommendedAction: action.key
+    }),
     customerIdHash: snapshot.customerIdHash,
     channel: snapshot.operator,
     productType: snapshot.packageType,

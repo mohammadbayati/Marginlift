@@ -38,6 +38,13 @@ const {
   previewRetentionRows
 } = require("./retention-product");
 const { buildRetentionExperimentBrief, buildRetentionShadowRun } = require("./retention-shadow");
+const {
+  buildRetentionDecisionReceipt,
+  buildRetentionPreviewContract,
+  buildRetentionReadout,
+  enrichRetentionWorkspace,
+  matchesExpectedDatasetHash
+} = require("./retention-ux");
 const { evaluateShadow, generateBudgetWasteReport } = require("./shadow-evaluator");
 const { orchestrateCampaign, evaluateCircuitBreaker } = require("./orchestrator");
 const { assertNoRawPii } = require("./pii-guard");
@@ -437,6 +444,25 @@ async function handleApi(req, res, url) {
       "Content-Disposition": `attachment; filename="marginlift-retention-${role}-readout.md"`
     });
     res.end(buildRetentionRoleReadout(auth.organization, record, role));
+    return;
+  }
+
+  if (url.pathname === "/api/retention/readout.json" && req.method === "GET") {
+    requireRole(auth, "analyst");
+    const record = await getLatestRetentionRecord(auth.organization.id);
+    if (!record) throw httpError(404, "RETENTION_ANALYSIS_NOT_FOUND", "ابتدا داده نگهداشت را تحلیل کنید.");
+    const role = normalizeRetentionReadoutRole(url.searchParams.get("role"));
+    const contract = await getRetentionWorkspace(auth.organization.id);
+    sendJson(res, 200, { data: buildRetentionReadout({ contract, organization: auth.organization, record }, role) });
+    return;
+  }
+
+  const retentionReceiptMatch = url.pathname.match(/^\/api\/retention\/decisions\/([^/]+)\/receipt$/);
+  if (retentionReceiptMatch && req.method === "GET") {
+    requireRole(auth, "analyst");
+    const receipt = await getRetentionDecisionReceipt(auth.organization.id, decodeURIComponent(retentionReceiptMatch[1]));
+    if (!receipt) throw httpError(404, "RETENTION_DECISION_NOT_FOUND", "تصمیم نگهداشت پیدا نشد.");
+    sendJson(res, 200, { data: receipt });
     return;
   }
 
@@ -1211,21 +1237,22 @@ async function getRetentionWorkspace(organizationId) {
   const configurationHash = hashRetentionConfiguration(configuration);
 
   if (!record) {
-    return {
+    return enrichRetentionWorkspace({
       configuration,
       analysis: null,
       stale: false,
       workspace: buildRetentionWorkspace(configuration)
-    };
+    }, { db, organizationId, record: null });
   }
 
   const stale = record.configurationHash !== configurationHash;
-  return {
+  return enrichRetentionWorkspace({
     configuration,
     analysis: {
       id: record.id,
       name: record.name,
       rowCount: record.rowCount,
+      datasetHash: record.datasetHash || null,
       cutoffAt: record.cutoffAt,
       readiness: record.readiness,
       baseline: record.baseline,
@@ -1238,7 +1265,7 @@ async function getRetentionWorkspace(organizationId) {
       statusFa: "نیازمند تحلیل مجدد",
       nextActionFa: "تنظیمات چرخه مشتری تغییر کرده است؛ فایل را دوباره تحلیل کنید."
     } : record.workspace
-  };
+  }, { db, organizationId, record });
 }
 
 async function getBehavioralWorkspace(organizationId) {
@@ -1264,12 +1291,20 @@ async function importRetentionAnalysis(organizationId, body, context = {}) {
   if (csvText.length < 20) throw httpError(400, "CSV_REQUIRED", "فایل تراکنش معتبر ارسال نشده است.");
   const rows = parseCSV(csvText);
   const currentConfiguration = (await getRetentionConfiguration(organizationId)).configuration;
-  const preview = previewRetentionRows(rows, currentConfiguration, body.mapping || {}, { cutoff: body.cutoff });
-  if (!preview.readyForImport) {
+  const preview = buildRetentionPreviewContract(
+    previewRetentionRows(rows, currentConfiguration, body.mapping || {}, { cutoff: body.cutoff }),
+    { csvText }
+  );
+  if (!matchesExpectedDatasetHash(body.expectedDatasetHash, preview.datasetHash)) {
+    throw httpError(409, "RETENTION_DATASET_HASH_MISMATCH", "فایل از زمان پیش‌نمایش تغییر کرده است؛ دوباره پیش‌نمایش بگیرید.");
+  }
+  if (!preview.canImport) {
     const message = preview.privacy.blocked
       ? preview.nextActionFa
-      : `نگاشت ستون‌های الزامی کامل نیست: ${preview.missingRequired.join("، ")}`;
-    throw httpError(400, "RETENTION_MAPPING_REQUIRED", message);
+      : preview.missingRequired.length
+        ? `نگاشت ستون‌های الزامی کامل نیست: ${preview.missingRequired.join("، ")}`
+        : preview.qualityIssues.find(item => item.severity === "error")?.message || "کیفیت داده برای import کافی نیست.";
+    throw httpError(400, preview.missingRequired.length ? "RETENTION_MAPPING_REQUIRED" : "RETENTION_DATA_QUALITY_REQUIRED", message);
   }
   const configuration = normalizeRetentionConfig({
     ...currentConfiguration,
@@ -1290,6 +1325,7 @@ async function importRetentionAnalysis(organizationId, body, context = {}) {
     source: body.source === "demo_scenario" ? "demo_scenario" : "customer_upload",
     isDemoScenario: body.source === "demo_scenario",
     rowCount: rows.length,
+    datasetHash: preview.datasetHash,
     cutoffAt: result.cutoffAt,
     configurationHash: hashRetentionConfiguration(configuration),
     configurationSnapshot: configuration,
@@ -1337,6 +1373,7 @@ async function importRetentionAnalysis(organizationId, body, context = {}) {
     source: record.source,
     isDemoScenario: record.isDemoScenario,
     rowCount: record.rowCount,
+    datasetHash: record.datasetHash,
     cutoffAt: record.cutoffAt,
     readiness: record.readiness,
     baseline: record.baseline,
@@ -1346,7 +1383,8 @@ async function importRetentionAnalysis(organizationId, body, context = {}) {
     onboarding: {
       columns: preview.columns,
       mapping: preview.mapping,
-      privacy: preview.privacy
+      privacy: preview.privacy,
+      quality: preview.quality
     }
   };
 }
@@ -1415,6 +1453,16 @@ async function getLatestRetentionRecord(organizationId) {
   return db.retentionAnalyses
     .filter(item => item.organizationId === organizationId)
     .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))[0] || null;
+}
+
+async function getRetentionDecisionReceipt(organizationId, decisionId) {
+  const db = await readDb();
+  const record = db.retentionAnalyses
+    .filter(item => item.organizationId === organizationId)
+    .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))[0] || null;
+  if (!record) return null;
+  const contract = await getRetentionWorkspace(organizationId);
+  return buildRetentionDecisionReceipt({ db, organizationId, record, contract, decisionId });
 }
 
 function buildRetentionAudienceCsv(record) {
@@ -1531,7 +1579,10 @@ async function previewRetentionImport(organizationId, body) {
   const rows = parseCSV(csvText);
   const configuration = (await getRetentionConfiguration(organizationId)).configuration;
   try {
-    return previewRetentionRows(rows, configuration, body.mapping || {}, { cutoff: body.cutoff });
+    return buildRetentionPreviewContract(
+      previewRetentionRows(rows, configuration, body.mapping || {}, { cutoff: body.cutoff }),
+      { csvText }
+    );
   } catch (error) {
     throw httpError(400, "RETENTION_PREVIEW_FAILED", error.message);
   }
